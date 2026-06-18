@@ -55,6 +55,17 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) + gastosVariables.filter(g=>g.categoria===k&&g.mes.startsWith(`${año}`)).reduce((a,g)=>a+Number(g.importe||0),0) + (k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(`${año}`)).reduce((a,p)=>a+Number(p.gasto||0),0) : 0) }))
     .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año]);
 
+  const ingresosVariablesMes = useMemo(() => {
+    const dm = datosMes[mesActual];
+    return Object.entries(SUBCAT_VAR)
+      .map(([k, v]) => ({
+        key:k,
+        ...v,
+        val:k==="habitacion"?dm?.ing_habitacion:k==="coche"?dm?.ing_coche:k==="ventas"?dm?.ing_ventas:dm?.ing_otros,
+      }))
+      .filter(item => Number(item.val || 0) > 0);
+  }, [datosMes, mesActual]);
+
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const debtProjectionColumns = `92px ${deudas.map(() => "minmax(86px,1fr)").join(" ")} 96px 104px`;
@@ -139,16 +150,12 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               <span style={{ fontSize:12,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Variable income")}</span>
             </div>
             <div style={{ display:"grid", gap:5 }}>
-              {Object.entries(SUBCAT_VAR).map(([k,v]) => {
-                const dm  = datosMes[mesActual];
-                const val = k==="habitacion"?dm.ing_habitacion:k==="coche"?dm.ing_coche:k==="ventas"?dm.ing_ventas:dm.ing_otros;
-                return (
-                  <div key={k} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,padding:"8px 12px",background:val>0?v.bg:C.fondo,borderRadius:9,border:`1px solid ${val>0?v.color+"33":C.borde}` }}>
-                    <span style={{ color:val>0?v.color:C.txt2 }}>{v.emoji} {t(v.label)}</span>
-                    <span style={{ fontWeight:700,color:val>0?v.color:C.txt2 }}>{val>0?fmt(val):"—"}</span>
-                  </div>
-                );
-              })}
+              {ingresosVariablesMes.map(v => (
+                <div key={v.key} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,padding:"8px 12px",background:v.bg,borderRadius:9,border:`1px solid ${v.color}33` }}>
+                  <span style={{ color:v.color }}>{v.emoji} {t(v.label)}</span>
+                  <span style={{ fontWeight:700,color:v.color }}>{fmt(v.val)}</span>
+                </div>
+              ))}
               <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.lavender,borderRadius:9,color:"white",marginTop:2 }}>
                 <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesActual]?.ingresos_var_total||0)}</span>
               </div>
