@@ -107,7 +107,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
         <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:4 }}>{t("Income structure")}</div>
-        <div style={{ fontSize:12,color:C.txt2,marginBottom:16 }}>{t("Guaranteed fixed · Recorded variable · Activatable potential")}</div>
+        <div style={{ fontSize:12,color:C.txt2,marginBottom:16 }}>
+          {t("Guaranteed fixed · Recorded variable · Activatable potential")}
+          <strong style={{ color:C.txt, marginLeft:8 }}>→ {monthName(mesActual)} {año}</strong>
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:threeColumns, gap:isMobile?12:16 }}>
 
           {/* Fijos */}
@@ -133,7 +136,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
           <div>
             <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 12px",background:C.lavLight,borderRadius:10,border:`1px solid ${C.lavender}33` }}>
               <div style={{ width:10,height:10,borderRadius:"50%",background:C.lavender,flexShrink:0 }}/>
-              <span style={{ fontSize:12,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Variable income")} ({monthName(mesActual)})</span>
+              <span style={{ fontSize:12,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Variable income")}</span>
             </div>
             <div style={{ display:"grid", gap:5 }}>
               {Object.entries(SUBCAT_VAR).map(([k,v]) => {
