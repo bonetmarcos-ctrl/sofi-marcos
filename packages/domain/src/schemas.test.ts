@@ -11,6 +11,7 @@ describe("domain schemas", () => {
       "palancas",
       "deudas",
       "suministros",
+      "gastosVariables",
     ]);
   });
 

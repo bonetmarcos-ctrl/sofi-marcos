@@ -84,6 +84,15 @@ export const utilitySchema = z.object({
   notas: optionalText,
 });
 
+export const variableExpenseSchema = z.object({
+  id: idSchema.optional(),
+  mes: z.string().min(1),
+  titulo: z.string().min(1),
+  categoria: z.string().min(1),
+  importe: amount,
+  notas: optionalText,
+});
+
 export const collectionSchemas = {
   eventos: eventSchema,
   viajes: tripSchema,
@@ -92,6 +101,7 @@ export const collectionSchemas = {
   palancas: leverSchema,
   deudas: debtSchema,
   suministros: utilitySchema,
+  gastosVariables: variableExpenseSchema,
 };
 
 export const collectionNames = Object.freeze(Object.keys(collectionSchemas));

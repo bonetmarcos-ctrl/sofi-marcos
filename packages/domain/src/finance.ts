@@ -49,6 +49,7 @@ export const calculateMonthlyBudget = ({
   levers,
   debts,
   utilities,
+  variableExpenses = [],
   year,
   currentMonth,
 }) => {
@@ -57,6 +58,7 @@ export const calculateMonthlyBudget = ({
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
+    const monthVariableExpenses = variableExpenses.filter((expense) => expense.mes === prefix);
     const isFuture = index > currentMonth;
     const fixedIncome = monthlyOverride.fixedIncome ?? Number(base.ingresos_fijos || 0);
     const fixedExpenses = monthlyOverride.fixedExpenses ?? Number(base.gastos_fijos || 0);
@@ -94,9 +96,11 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
 
     const variableIncomeTotal = roomIncome + carIncome + otherIncome + leverTotal;
-    const variableExpenses = monthEvents
+    const calendarVariableExpenses = monthEvents
       .filter((event) => categories[event.categoria]?.tipo === "gasto")
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
+    const monthlyVariableExpenses = monthVariableExpenses
+      .reduce((sum, expense) => sum + Number(expense.importe || 0), 0);
     const tripExpenses = trips
       .filter((trip) => trip.inicio?.startsWith(prefix) || trip.fin?.startsWith(prefix))
       .reduce(
@@ -110,7 +114,7 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
 
     const structuralExpenses = fixedExpenses + debtExpenses;
-    const discretionaryExpenses = variableExpenses + tripExpenses;
+    const discretionaryExpenses = calendarVariableExpenses + monthlyVariableExpenses + tripExpenses;
     const totalIncome = fixedIncome + variableIncomeTotal;
     const totalExpenses = structuralExpenses + utilityExpenses + discretionaryExpenses;
     const balance = totalIncome - totalExpenses;
@@ -127,7 +131,9 @@ export const calculateMonthlyBudget = ({
       ing_ventas: leverSales,
       ing_otros: otherIncome + leverOther,
       ingresos_var_total: variableIncomeTotal,
-      gastos_var: variableExpenses,
+      gastos_var: calendarVariableExpenses + monthlyVariableExpenses,
+      gastos_calendario: calendarVariableExpenses,
+      gastos_variables_lineas: monthlyVariableExpenses,
       gastos_viaje: tripExpenses,
       gasto_deudas: debtExpenses,
       gasto_suministros: utilityExpenses,

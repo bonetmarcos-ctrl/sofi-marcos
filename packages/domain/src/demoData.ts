@@ -1079,4 +1079,5 @@ export const createInitialState = () => ({
   palancas: structuredClone(DEMO_PALANCAS),
   deudas: structuredClone(DEMO_DEUDAS),
   suministros: structuredClone(DEMO_SUMINISTROS),
+  gastosVariables: [],
 });

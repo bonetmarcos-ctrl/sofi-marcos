@@ -14,7 +14,7 @@ import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
-export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, setModal }) {
+export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -37,7 +37,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
 
   // ── Datos calculados ──
-  const { datosMes, totales } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, año, mesActual });
+  const { datosMes, totales } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
 
   // KPIs deudas
@@ -52,8 +52,8 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
   // Gastos por categoría anual
   const gastosCatAnual = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([,v])=>v.tipo==="gasto")
-    .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) }))
-    .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, año]);
+    .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) + gastosVariables.filter(g=>g.categoria===k&&g.mes.startsWith(`${año}`)).reduce((a,g)=>a+Number(g.importe||0),0) }))
+    .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, año]);
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -191,7 +191,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables eventos={eventos} viajes={viajes} año={año} mesActual={mesActual} suministros={suministros} setSuministros={setSuministros} setModal={setModal}/>
+      <SeccionGastosVariables eventos={eventos} viajes={viajes} año={año} mesActual={mesActual} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>

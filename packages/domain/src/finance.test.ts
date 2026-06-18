@@ -63,4 +63,24 @@ describe("finance domain", () => {
     expect(result.datosMes[5].ingresos_var_total).toBe(280);
     expect(result.totales.varAnual).toBe(280);
   });
+
+  it("includes monthly variable expense lines in discretionary expenses", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [],
+      utilities: [],
+      variableExpenses: [{ mes: "2026-06", categoria: "otro", titulo: "Compra", importe: 45 }],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].gastos_var).toBe(45);
+    expect(result.datosMes[5].gastos_variables_lineas).toBe(45);
+    expect(result.datosMes[5].gasto_discrecional).toBe(45);
+  });
 });

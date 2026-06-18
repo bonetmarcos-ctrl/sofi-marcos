@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
+import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
-import { C, cardN } from "../../constants/colores.ts";
+import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros, setModal }) {
+export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const [mesIdx,   setMesIdx]   = useState(mesActual);
   const [editando, setEditando] = useState(null);
+  const [modalGasto, setModalGasto] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
@@ -45,18 +47,27 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
   // Gastos calendario del mes
   const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && categoriaEvento(e)?.tipo === "gasto"), [eventos, pref]);
+  const lineasMes   = useMemo(() => gastosVariables.filter(g => g.mes === pref), [gastosVariables, pref]);
   const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
 
   const catsCal = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+Number(g.importe||0), 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
-  const fechaGasto = `${pref}-01`;
+  const guardarGastoVariable = (gasto) => {
+    const item = { ...gasto, id:gasto.id || Date.now(), mes:pref, importe:Number(gasto.importe || 0) };
+    setGastosVariables(prev => item.id && prev.find(g => g.id === item.id) ? prev.map(g => g.id === item.id ? item : g) : [...prev, item]);
+    setModalGasto(null);
+  };
+  const eliminarGastoVariable = (id) => {
+    setGastosVariables(prev => prev.filter(g => g.id !== id));
+    setModalGasto(null);
+  };
 
   // Helpers de layout
   const colHeader = (color, bg, border, dot, label) => (
@@ -93,7 +104,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
         </div>
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <button onClick={() => setModal({ type:"evento", fecha:fechaGasto, defaults:{ categoria:"otro", persona:"ambos" } })}
+          <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", notas:"" })}
             style={{ background:C.cyan, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
             + {t("Variable expense")}
           </button>
@@ -177,6 +188,16 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
                 </div>
               ))
             }
+            {lineasMes.length > 0 && lineasMes.map(g => {
+              const cat = CATEGORIAS[g.categoria] || CATEGORIAS.otro;
+              return (
+                <button key={g.id} onClick={() => setModalGasto(g)}
+                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, padding:"6px 10px", background:C.fondo, borderRadius:8, border:`1px dashed ${cat.color}55`, cursor:"pointer", fontFamily:"'Lato',sans-serif", color:C.txt2 }}>
+                  <span>{cat.emoji} {g.titulo}</span>
+                  <span style={{ fontWeight:700, color:cat.color }}>{fmt(g.importe)}</span>
+                </button>
+              );
+            })}
             {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
           </div>
         </div>
@@ -209,6 +230,55 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
         </div>
 
       </div>
+      {modalGasto && (
+        <Modal onClose={() => setModalGasto(null)} maxW={420}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+            <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>{modalGasto.id ? t("Edit expense") : t("Variable expense")}</h3>
+            <button onClick={() => setModalGasto(null)} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+          </div>
+          <div style={{ display:"grid", gap:14 }}>
+            <div>
+              <label style={{ ...labelS, color:C.txt2 }}>{t("Type")}</label>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {Object.entries(CATEGORIAS).filter(([k, v]) => v.tipo === "gasto" && k !== "viaje").map(([k, v]) => (
+                  <button key={k} onClick={() => setModalGasto(g => ({ ...g, categoria:k }))}
+                    style={{ padding:"5px 11px", borderRadius:20, fontSize:12, border:"none", cursor:"pointer", fontFamily:"'Lato',sans-serif", background:modalGasto.categoria===k?v.color:v.bg, color:modalGasto.categoria===k?"white":v.color, fontWeight:modalGasto.categoria===k?700:400 }}>
+                    {v.emoji} {t(v.label)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ ...labelS, color:C.txt2 }}>{t("Description")}</label>
+              <input value={modalGasto.titulo || ""} onChange={e => setModalGasto(g => ({ ...g, titulo:e.target.value }))} placeholder={t("What is it?")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+            </div>
+            <div>
+              <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
+              <input type="number" step="0.01" min="0" value={modalGasto.importe || ""} onChange={e => setModalGasto(g => ({ ...g, importe:+e.target.value }))} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+            </div>
+            <div>
+              <label style={{ ...labelS, color:C.txt2 }}>{t("Notes")}</label>
+              <input value={modalGasto.notas || ""} onChange={e => setModalGasto(g => ({ ...g, notas:e.target.value }))} placeholder={t("Details...")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+            </div>
+            <div style={{ background:C.lavLight, borderRadius:10, padding:"10px 14px", fontSize:12, color:C.lavender, border:`1px solid ${C.lavender}44` }}>
+              {t("Variable expense")} {'->'} {monthName(mesIdx)} {año}
+              {Number(modalGasto.importe || 0) > 0 && <strong> · {fmtd(Number(modalGasto.importe || 0))}</strong>}
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={() => guardarGastoVariable(modalGasto)} disabled={!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0}
+                style={{ flex:1, background:C.cyan, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0 ? 0.55 : 1 }}>
+                {modalGasto.id ? t("Save changes") : t("Save expense")}
+              </button>
+              {modalGasto.id && (
+                <button onClick={() => eliminarGastoVariable(modalGasto.id)}
+                  style={{ background:C.errorBg, color:C.error, border:`1px solid ${C.error}44`, borderRadius:12, padding:"11px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+                  🗑️ {t("Delete")}
+                </button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
