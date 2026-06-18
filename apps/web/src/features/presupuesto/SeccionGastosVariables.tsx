@@ -8,12 +8,15 @@ import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
-  const [mesIdx,   setMesIdx]   = useState(mesActual);
+  const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
   const [editando, setEditando] = useState(null);
   const [modalGasto, setModalGasto] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
+
+  const mesIdx = mesSeleccionado ?? mesIdxLocal;
+  const setMesIdx = setMesSeleccionado ?? setMesIdxLocal;
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
   const prefAnterior = mesIdx > 0 ? `${año}-${String(mesIdx).padStart(2, "0")}` : `${año - 1}-12`;

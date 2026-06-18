@@ -4,7 +4,6 @@ import { C, cardN } from "../../constants/colores.ts";
 import { MESES, MESES_CORTO } from "../../constants/meses.ts";
 import { fmt, fmtd, labelMes } from "../../utils/format.ts";
 import { todayISO, addMeses, daysBetween } from "../../utils/dates.ts";
-import { calcDeuda } from "../../utils/calcDeuda.ts";
 import { useDatosMes, calcCuotaDeudaMes } from "../../hooks/useDatosMes.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -21,15 +20,15 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const { isMobile, isTablet } = useBreakpoint();
 
   const [mesDetalle,  setMesDetalle]  = useState(null);
-  const [mesIngresos, setMesIngresos] = useState(mesActual);
+  const [mesVista,    setMesVista]    = useState(mesActual);
   const [hoveredMes,  setHoveredMes]  = useState(null);
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [showDeudas,  setShowDeudas]  = useState(false);
-  const prefIngresos = `${año}-${String(mesIngresos+1).padStart(2,"0")}`;
+  const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
-  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes || prefIngresos });
+  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes || prefVista });
   const guardarPalanca  = (palancaDraft) => { const palanca = normalizarMesPalanca(palancaDraft); setPalancas(prev => palanca.id && prev.find(x=>x.id===palanca.id) ? prev.map(x=>x.id===palanca.id?palanca:x) : [...prev,palanca]); setModalPalanca(null); };
   const eliminarPalanca = (id) => { setPalancas(prev=>prev.filter(x=>x.id!==id)); setModalPalanca(null); };
   const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?normalizarMesPalanca({ ...p, activa:!p.activa }):p));
@@ -39,13 +38,13 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
 
   // ── Datos calculados ──
-  const { datosMes, totales } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
+  const { datosMes } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
+  const resumenMes = datosMes[mesVista] || datosMes[mesActual];
 
   // KPIs deudas
-  const prefActual      = `${año}-${String(mesActual+1).padStart(2,"0")}`;
-  const totalPendiente  = useMemo(() => deudas.reduce((a,d)=>{ const c=calcDeuda(d); return a+c.pendiente_capital+c.intereses_pendientes; },0), [deudas]);
-  const cuotaMesActual  = useMemo(() => calcCuotaDeudaMes(deudas, prefActual), [deudas, prefActual]);
+  const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista), [deudas, prefVista]);
+  const totalPendienteMes = useMemo(() => calcularDeudaPendienteMes(deudas, prefVista), [deudas, prefVista]);
   const proxVencimiento = useMemo(() => deudas
     .map(d=>({ ...d, fin:addMeses(d.mes_inicio, d.cuotas_totales-1) }))
     .filter(d=>d.fin>=todayISO.slice(0,7))
@@ -58,7 +57,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año]);
 
   const ingresosVariablesMes = useMemo(() => {
-    const dm = datosMes[mesIngresos];
+    const dm = datosMes[mesVista];
     return Object.entries(SUBCAT_VAR)
       .map(([k, v]) => ({
         key:k,
@@ -66,10 +65,16 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
         val:k==="habitacion"?dm?.ing_habitacion:k==="coche"?dm?.ing_coche:k==="ventas"?dm?.ing_ventas:dm?.ing_otros,
       }))
       .filter(item => Number(item.val || 0) > 0);
-  }, [datosMes, mesIngresos]);
+  }, [datosMes, mesVista]);
 
-  const palancasMesIngresos = useMemo(() => palancas
-    .filter(p => p.mes === prefIngresos), [palancas, prefIngresos]);
+  const palancasMesVista = useMemo(() => palancas
+    .filter(p => p.mes === prefVista), [palancas, prefVista]);
+  const palancasPotResumen = useMemo(() => palancas
+    .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
+
+  const ingresosFijosResumen = BASE.monthlyOverrides?.[prefVista]?.fixedIncome ?? BASE.ingresos_fijos;
+  const gastosFijosResumen = (BASE.monthlyOverrides?.[prefVista]?.fixedExpenses ?? BASE.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (BASE.previsiones || 0);
+  const presionResumen = resumenMes?.presion || 0;
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -79,44 +84,59 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     <div style={{ display:"grid", gap:20, minWidth:0 }}>
 
       {/* ── KPIs ── */}
-      <div style={{ display:"grid", gridTemplateColumns:kpiColumns, gap:isMobile?10:12 }}>
-        <div style={{ ...cardN(), borderTop:`3px solid ${C.cyan}` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💶 {t("Fixed income")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(BASE.ingresos_fijos)}</div>
-          <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("guaranteed monthly")}</div>
-        </div>
-        <div style={{ ...cardN(), borderTop:`3px solid ${C.lavender}` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📈 {t("Variable income")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(totales.varAnual)}</div>
-          <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("year to date")} {año}</div>
-        </div>
-        <div style={{ ...cardN(), borderTop:`3px solid ${C.sage}`, background:`linear-gradient(135deg,${C.superficie},${C.sageLight})` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:C.sageDark,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>✨ {t("Inactive potential")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{fmt(totales.potencial)}</div>
-          <div style={{ fontSize:11,color:C.sageDark,opacity:0.7,marginTop:3 }}>{palancas.filter(p=>!p.activa).length} {t("Levers")}</div>
-        </div>
-        <div style={{ ...cardN(), borderTop:`3px solid ${C.warn}` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:"#b45309",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📌 {t("Fixed expenses")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(BASE.gastos_fijos+BASE.deudas+BASE.previsiones)}</div>
-          <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("monthly structure")}</div>
-        </div>
-        <div style={{ ...cardN(), borderTop:`3px solid ${totales.presionActual>85?C.error:totales.presionActual>70?C.warn:C.exito}` }}>
-          <div style={{ fontSize:10,fontWeight:700,color:C.txt2,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>⚡ {t("Financial pressure")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:totales.presionActual>85?C.error:totales.presionActual>70?C.warn:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{totales.presionActual}%</div>
-          <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("of committed income")}</div>
-          <div style={{ marginTop:8,height:4,background:C.borde,borderRadius:4,overflow:"hidden" }}>
-            <div style={{ width:`${totales.presionActual}%`,height:"100%",borderRadius:4,background:totales.presionActual>85?C.error:totales.presionActual>70?C.warn:C.exito,transition:"width 0.5s" }}/>
+      <div style={{ display:"grid", gap:10 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10 }}>
+          <div>
+            <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Monthly summary")}</div>
+            <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Income · expenses · debt snapshot")}</div>
+          </div>
+          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+            <button onClick={() => setMesVista(i => Math.max(0, i-1))}
+              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
+            <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesVista)} {año}</span>
+            <button onClick={() => setMesVista(i => Math.min(11, i+1))}
+              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>›</button>
           </div>
         </div>
-        <div style={{ ...cardN(), background:"linear-gradient(135deg,#1e1a2e,#2d1f3d)", border:"none", cursor:"pointer" }} onClick={()=>setShowDeudas(true)}>
-          <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.45)",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
-          <div style={{ fontSize:26,fontWeight:700,color:C.warn,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendiente)}</div>
-          <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:3 }}>{fmt(cuotaMesActual)}{t("/month")} · {deudas.length} {t("debts")}</div>
-          {proxVencimiento && (
-            <div style={{ marginTop:8,fontSize:10,color:"rgba(255,255,255,0.3)" }}>
-              {t("Next payoff")}: {proxVencimiento.nombre} · {labelMes(addMeses(proxVencimiento.mes_inicio, proxVencimiento.cuotas_totales-1))}
+        <div style={{ display:"grid", gridTemplateColumns:kpiColumns, gap:isMobile?10:12 }}>
+          <div style={{ ...cardN(), borderTop:`3px solid ${C.cyan}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💶 {t("Fixed income")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(ingresosFijosResumen)}</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("guaranteed monthly")}</div>
+          </div>
+          <div style={{ ...cardN(), borderTop:`3px solid ${C.lavender}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📈 {t("Variable income")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(resumenMes?.ingresos_var_total || 0)}</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{monthName(mesVista)} {año}</div>
+          </div>
+          <div style={{ ...cardN(), borderTop:`3px solid ${C.sage}`, background:`linear-gradient(135deg,${C.superficie},${C.sageLight})` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.sageDark,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>✨ {t("Inactive potential")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{fmt(resumenMes?.palancasPot || 0)}</div>
+            <div style={{ fontSize:11,color:C.sageDark,opacity:0.7,marginTop:3 }}>{palancasPotResumen.length} {t("Levers")}</div>
+          </div>
+          <div style={{ ...cardN(), borderTop:`3px solid ${C.warn}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:"#b45309",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📌 {t("Fixed expenses")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(gastosFijosResumen)}</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("monthly structure")}</div>
+          </div>
+          <div style={{ ...cardN(), borderTop:`3px solid ${presionResumen>85?C.error:presionResumen>70?C.warn:C.exito}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.txt2,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>⚡ {t("Financial pressure")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:presionResumen>85?C.error:presionResumen>70?C.warn:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{presionResumen}%</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("of committed income")}</div>
+            <div style={{ marginTop:8,height:4,background:C.borde,borderRadius:4,overflow:"hidden" }}>
+              <div style={{ width:`${Math.min(100, presionResumen)}%`,height:"100%",borderRadius:4,background:presionResumen>85?C.error:presionResumen>70?C.warn:C.exito,transition:"width 0.5s" }}/>
             </div>
-          )}
+          </div>
+          <div style={{ ...cardN(), background:"linear-gradient(135deg,#1e1a2e,#2d1f3d)", border:"none", cursor:"pointer" }} onClick={()=>setShowDeudas(true)}>
+            <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.45)",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.warn,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
+            <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudas.length} {t("debts")}</div>
+            {proxVencimiento && (
+              <div style={{ marginTop:8,fontSize:10,color:"rgba(255,255,255,0.3)" }}>
+                {t("Next payoff")}: {proxVencimiento.nombre} · {labelMes(addMeses(proxVencimiento.mes_inicio, proxVencimiento.cuotas_totales-1))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -128,10 +148,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             <div style={{ fontSize:12,color:C.txt2 }}>{t("Guaranteed fixed · Recorded variable · Activatable potential")}</div>
           </div>
           <div style={{ display:"flex",alignItems:"center",gap:6 }}>
-            <button onClick={() => setMesIngresos(i => Math.max(0, i-1))}
+            <button onClick={() => setMesVista(i => Math.max(0, i-1))}
               style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
-            <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesIngresos)} {año}</span>
-            <button onClick={() => setMesIngresos(i => Math.min(11, i+1))}
+            <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesVista)} {año}</span>
+            <button onClick={() => setMesVista(i => Math.min(11, i+1))}
               style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>›</button>
           </div>
         </div>
@@ -170,7 +190,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                 </div>
               ))}
               <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.lavender,borderRadius:9,color:"white",marginTop:2 }}>
-                <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesIngresos]?.ingresos_var_total||0)}</span>
+                <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesVista]?.ingresos_var_total||0)}</span>
               </div>
             </div>
           </div>
@@ -182,11 +202,11 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                 <div style={{ width:10,height:10,borderRadius:"50%",background:C.sage,flexShrink:0 }}/>
                 <span style={{ fontSize:12,fontWeight:700,color:C.sageDark,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Levers")}</span>
               </div>
-              <button onClick={()=>setModalPalanca({ mes:prefIngresos })} style={{ background:C.sage,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
+              <button onClick={()=>setModalPalanca({ mes:prefVista })} style={{ background:C.sage,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
             </div>
             <div style={{ display:"grid", gap:6 }}>
-              {palancasMesIngresos.length === 0 && <div style={{ textAlign:"center",padding:"20px 0",fontSize:12,color:C.txt2 }}>{t("No levers yet")}</div>}
-              {palancasMesIngresos.map(p => {
+              {palancasMesVista.length === 0 && <div style={{ textAlign:"center",padding:"20px 0",fontSize:12,color:C.txt2 }}>{t("No levers yet")}</div>}
+              {palancasMesVista.map(p => {
                 const sub = SUBCAT_VAR[p.subcategoria];
                 return (
                   <div key={p.id} style={{ padding:"9px 12px",background:p.activa?C.sageLight:C.fondo,borderRadius:10,border:`1px solid ${p.activa?C.sage+"66":C.borde}`,transition:"all 0.2s" }}>
@@ -214,7 +234,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+      <SeccionGastosVariables eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
@@ -386,7 +406,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
 
       {/* ── PANEL DEUDAS ── */}
       {showDeudas && (
-        <PanelDeudas deudas={deudas} totalPendiente={totalPendiente} cuotaMesActual={cuotaMesActual} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={()=>setShowDeudas(false)}/>
+        <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={()=>setShowDeudas(false)}/>
       )}
 
       {/* ── PROYECCIÓN SIN DEUDAS ── */}
@@ -472,3 +492,14 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     </div>
   );
 }
+
+const calcularDeudaPendienteMes = (deudas, pref) => {
+  const [añoObjetivo, mesObjetivo] = pref.split("-").map(Number);
+  return deudas.reduce((total, deuda) => {
+    const [añoInicio, mesInicio] = deuda.mes_inicio.split("-").map(Number);
+    const offset = (añoObjetivo - añoInicio) * 12 + (mesObjetivo - mesInicio);
+    const cuotasTotales = Number(deuda.cuotas_totales || 0);
+    const cuotasPendientes = offset < 0 ? cuotasTotales : Math.max(0, cuotasTotales - offset);
+    return total + cuotasPendientes * (Number(deuda.cuota || 0) + Number(deuda.interes_mensual || 0));
+  }, 0);
+};
