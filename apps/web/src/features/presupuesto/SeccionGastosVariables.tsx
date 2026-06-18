@@ -189,16 +189,6 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
                 </div>
               ))
             }
-            {lineasMes.length > 0 && lineasMes.map(g => {
-              const cat = CATEGORIAS[g.categoria] || CATEGORIAS.otro;
-              return (
-                <button key={g.id} onClick={() => setModalGasto(g)}
-                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:12, padding:"6px 10px", background:C.fondo, borderRadius:8, border:`1px dashed ${cat.color}55`, cursor:"pointer", fontFamily:"'Lato',sans-serif", color:C.txt2 }}>
-                  <span>{cat.emoji} {g.titulo}</span>
-                  <span style={{ fontWeight:700, color:cat.color }}>{fmt(g.importe)}</span>
-                </button>
-              );
-            })}
             {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
           </div>
         </div>
