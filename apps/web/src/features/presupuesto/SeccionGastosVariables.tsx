@@ -8,7 +8,7 @@ import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const [mesIdx,   setMesIdx]   = useState(mesActual);
   const [editando, setEditando] = useState(null);
@@ -48,12 +48,13 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
   // Gastos calendario del mes
   const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && categoriaEvento(e)?.tipo === "gasto"), [eventos, pref]);
   const lineasMes   = useMemo(() => gastosVariables.filter(g => g.mes === pref), [gastosVariables, pref]);
+  const tareasCasaMes = useMemo(() => proyectos.filter(p => p.estado === "completado" && p.fin?.startsWith(pref)), [proyectos, pref]);
   const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
 
   const catsCal = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+Number(g.importe||0), 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+Number(g.importe||0), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);

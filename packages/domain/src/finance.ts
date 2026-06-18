@@ -50,6 +50,7 @@ export const calculateMonthlyBudget = ({
   debts,
   utilities,
   variableExpenses = [],
+  projects = [],
   year,
   currentMonth,
 }) => {
@@ -59,6 +60,9 @@ export const calculateMonthlyBudget = ({
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
     const monthVariableExpenses = variableExpenses.filter((expense) => expense.mes === prefix);
+    const monthCompletedHomeExpenses = projects
+      .filter((project) => project.estado === "completado" && project.fin?.startsWith(prefix))
+      .reduce((sum, project) => sum + Number(project.gasto || 0), 0);
     const isFuture = index > currentMonth;
     const fixedIncome = monthlyOverride.fixedIncome ?? Number(base.ingresos_fijos || 0);
     const fixedExpenses = monthlyOverride.fixedExpenses ?? Number(base.gastos_fijos || 0);
@@ -114,7 +118,7 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
 
     const structuralExpenses = fixedExpenses + debtExpenses;
-    const discretionaryExpenses = calendarVariableExpenses + monthlyVariableExpenses + tripExpenses;
+    const discretionaryExpenses = calendarVariableExpenses + monthlyVariableExpenses + monthCompletedHomeExpenses + tripExpenses;
     const totalIncome = fixedIncome + variableIncomeTotal;
     const totalExpenses = structuralExpenses + utilityExpenses + discretionaryExpenses;
     const balance = totalIncome - totalExpenses;
@@ -131,9 +135,10 @@ export const calculateMonthlyBudget = ({
       ing_ventas: leverSales,
       ing_otros: otherIncome + leverOther,
       ingresos_var_total: variableIncomeTotal,
-      gastos_var: calendarVariableExpenses + monthlyVariableExpenses,
+      gastos_var: calendarVariableExpenses + monthlyVariableExpenses + monthCompletedHomeExpenses,
       gastos_calendario: calendarVariableExpenses,
       gastos_variables_lineas: monthlyVariableExpenses,
+      gastos_casa_tareas: monthCompletedHomeExpenses,
       gastos_viaje: tripExpenses,
       gasto_deudas: debtExpenses,
       gasto_suministros: utilityExpenses,

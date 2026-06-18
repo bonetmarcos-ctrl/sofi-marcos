@@ -83,4 +83,28 @@ describe("finance domain", () => {
     expect(result.datosMes[5].gastos_variables_lineas).toBe(45);
     expect(result.datosMes[5].gasto_discrecional).toBe(45);
   });
+
+  it("includes completed home task spending in the finish month discretionary expenses", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [],
+      utilities: [],
+      projects: [
+        { estado: "completado", fin: "2026-06-20", gasto: 120 },
+        { estado: "en_curso", fin: "2026-06-21", gasto: 80 },
+        { estado: "completado", fin: "2026-07-01", gasto: 40 },
+      ],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].gastos_casa_tareas).toBe(120);
+    expect(result.datosMes[5].gastos_var).toBe(120);
+    expect(result.datosMes[5].gasto_discrecional).toBe(120);
+  });
 });
