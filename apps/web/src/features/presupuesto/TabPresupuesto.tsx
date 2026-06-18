@@ -82,6 +82,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
+  const expenseLayerColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const debtProjectionColumns = `92px ${deudas.map(() => "minmax(86px,1fr)").join(" ")} 96px 104px`;
 
   return (
@@ -248,7 +249,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Hover each bar · future months are gray estimates")}</div>
           </div>
           <div style={{ display:"flex",gap:12,alignItems:"center",flexWrap:"wrap" }}>
-            {[{color:"#64748b",label:`1 ${t("Structural")}`},{color:"#d97706",label:`2 ${t("Utilities")}`},{color:C.lavender,label:`3 ${t("Discretionary")}`}].map(l=>(
+            {[{color:"#64748b",label:`1 ${t("Structural")}`},{color:"#d97706",label:`2 ${t("Utilities")}`},{color:C.lavender,label:`3 ${t("Discretionary")}`},{color:COLOR_VIAJE,label:`4 ${t("Trips")}`}].map(l=>(
               <div key={l.label} style={{ display:"flex",alignItems:"center",gap:4 }}>
                 <div style={{ width:10,height:10,borderRadius:2,background:l.color,flexShrink:0 }}/>
                 <span style={{ fontSize:10,color:C.txt2,fontWeight:600 }}>{l.label}</span>
@@ -270,7 +271,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             const totalH   = Math.max(4,(m.total_gastos/maxG)*140);
             const h1       = m.total_gastos>0?(m.gasto_estructural/m.total_gastos)*totalH:0;
             const h2       = m.total_gastos>0?(m.gasto_suministros/m.total_gastos)*totalH:0;
-            const h3       = m.total_gastos>0?(m.gasto_discrecional/m.total_gastos)*totalH:0;
+            const gastoViajes = m.gastos_viaje || 0;
+            const gastoDiscrecionalReal = Math.max(0, m.gasto_discrecional - gastoViajes);
+            const h3       = m.total_gastos>0?(gastoDiscrecionalReal/m.total_gastos)*totalH:0;
+            const h4       = m.total_gastos>0?(gastoViajes/m.total_gastos)*totalH:0;
             const ingresosPx = Math.min(138,(m.total_ingresos/maxG)*140);
             const sel      = mesDetalle===i;
             const op       = m.esFuturo?0.35:1;
@@ -287,7 +291,8 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                     {[
                       {l:`1 ${t("Structural")}`,  v:fmt(m.gasto_estructural),  c:"#94a3b8"},
                       {l:`2 ${t("Utilities")}`,  v:fmt(m.gasto_suministros),  c:"#fbbf24"},
-                      {l:`3 ${t("Discretionary")}`, v:fmt(m.gasto_discrecional), c:C.lavender},
+                      {l:`3 ${t("Discretionary")}`, v:fmt(gastoDiscrecionalReal), c:C.lavender},
+                      {l:`4 ${t("Trips")}`, v:fmt(gastoViajes), c:COLOR_VIAJE},
                       {l:t("Total income"),v:fmt(m.total_ingresos),    c:C.exito},
                     ].map(x=>(
                       <div key={x.l} style={{ display:"flex",justifyContent:"space-between",gap:12 }}>
@@ -305,6 +310,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                 )}
                 <div style={{ position:"absolute",left:0,right:0,bottom:`${ingresosPx}px`,height:2,borderTop:`2px dashed ${m.esFuturo?"#9ca3af":C.exito}`,opacity:m.esFuturo?0.3:0.8,pointerEvents:"none",zIndex:2 }}/>
                 <div style={{ width:"100%",display:"flex",flexDirection:"column",justifyContent:"flex-end",height:140,borderRadius:"4px 4px 0 0",overflow:"hidden",opacity:op,outline:sel?`2px solid ${C.cyan}`:"2px solid transparent" }}>
+                  <div style={{ width:"100%",height:`${h4}px`,background:m.esFuturo?"#6b7280":COLOR_VIAJE,flexShrink:0 }}/>
                   <div style={{ width:"100%",height:`${h3}px`,background:m.esFuturo?"#9ca3af":C.lavender,flexShrink:0 }}/>
                   <div style={{ width:"100%",height:`${h2}px`,background:m.esFuturo?"#d1d5db":"#d97706",flexShrink:0 }}/>
                   <div style={{ width:"100%",height:`${h1}px`,background:m.esFuturo?"#e5e7eb":"#64748b",flexShrink:0 }}/>
@@ -326,11 +332,12 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               <span style={{ fontWeight:700,fontSize:15,color:C.txt }}>{monthName(detalle.mes)} {año}{detalle.esFuturo?` · ${t("estimated")}`:""}</span>
               <span style={{ fontWeight:700,fontSize:18,color:detalle.saldo>=0?C.sageDark:C.error }}>{fmt(detalle.saldo)}</span>
             </div>
-            <div style={{ display:"grid",gridTemplateColumns:isMobile?"1fr":threeColumns,gap:8,marginBottom:12 }}>
+            <div style={{ display:"grid",gridTemplateColumns:expenseLayerColumns,gap:8,marginBottom:12 }}>
               {[
                 {l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
                 {l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
-                {l:`3 ${t("Discretionary")}`, v:fmt(detalle.gasto_discrecional), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)} + ${t("Trips")} ${fmt(detalle.gastos_viaje)}`},
+                {l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
+                {l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
               ].map(x=>(
                 <div key={x.l} style={{ background:x.bg,borderRadius:10,padding:"12px 14px",border:`1px solid ${x.c}33` }}>
                   <div style={{ fontSize:10,color:x.c,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:4 }}>{x.l}</div>
