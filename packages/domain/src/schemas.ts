@@ -81,6 +81,12 @@ export const utilitySchema = z.object({
   mes: z.string().min(1),
   tipo: z.string().min(1),
   importe: amount,
+  proveedor: optionalText,
+  frecuencia: optionalText,
+  consumo: z.coerce.number().finite().nonnegative().optional(),
+  unidad: optionalText,
+  periodoInicio: optionalText,
+  periodoFin: optionalText,
   notas: optionalText,
 });
 

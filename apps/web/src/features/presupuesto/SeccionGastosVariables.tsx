@@ -8,10 +8,14 @@ import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
+const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
+const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
+const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
+
 export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
-  const [editando, setEditando] = useState(null);
+  const [modalSuministro, setModalSuministro] = useState(null);
   const [modalGasto, setModalGasto] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -31,7 +35,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
 
   const suministrosMes = SUMINISTROS_TIPOS.map(t => {
     const reg = suministrosPorClave.get(`${pref}:${t.key}`);
-    return { ...t, importe: reg?.importe ?? 0, notas: reg?.notas ?? "" };
+    return { ...t, ...reg, key:t.key, label:t.label, emoji:t.emoji, mes:pref, tipo:t.key, importe:reg?.importe ?? 0, notas:reg?.notas ?? "" };
   });
   const totalSuministros = suministrosMes.reduce((a, s) => a + (+s.importe || 0), 0);
 
@@ -40,13 +44,50 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
     return { ...t, importe: reg?.importe ?? null };
   });
 
-  const handleSuministro = (tipo, campo, valor) => {
+  const abrirSuministro = (suministro) => setModalSuministro({
+    id:suministro.id,
+    mes:pref,
+    tipo:suministro.key,
+    label:suministro.label,
+    emoji:suministro.emoji,
+    importe:suministro.importe || "",
+    proveedor:suministro.proveedor || "",
+    frecuencia:suministro.frecuencia || "mensual",
+    consumo:suministro.consumo ?? "",
+    unidad:suministro.unidad || UNIDADES_SUMINISTRO[suministro.key] || "",
+    periodoInicio:suministro.periodoInicio || "",
+    periodoFin:suministro.periodoFin || "",
+    notas:suministro.notas || "",
+  });
+
+  const guardarSuministro = (draft) => {
+    const item = {
+      id:draft.id || Date.now()+Math.random(),
+      mes:pref,
+      tipo:draft.tipo,
+      importe:Number(draft.importe || 0),
+      proveedor:draft.proveedor || "",
+      frecuencia:draft.frecuencia || "",
+      consumo:draft.consumo === "" || draft.consumo === null || draft.consumo === undefined ? undefined : Number(draft.consumo || 0),
+      unidad:draft.unidad || "",
+      periodoInicio:draft.periodoInicio || "",
+      periodoFin:draft.periodoFin || "",
+      notas:draft.notas || "",
+    };
+
     setSuministros(prev => {
-      const exist = prev.find(s => s.mes === pref && s.tipo === tipo);
-      if (exist) return prev.map(s => s.mes===pref && s.tipo===tipo ? { ...s, [campo]: campo==="importe" ? +valor||0 : valor } : s);
-      return [...prev, { id:Date.now()+Math.random(), mes:pref, tipo, importe:campo==="importe"?+valor||0:0, notas:campo==="notas"?valor:"" }];
+      const exist = prev.find(s => s.mes === pref && s.tipo === item.tipo);
+      if (exist) return prev.map(s => s.mes===pref && s.tipo===item.tipo ? item : s);
+      return [...prev, item];
     });
+    setModalSuministro(null);
   };
+
+  const resumenSuministro = (s) => [
+    s.consumo ? `${s.consumo} ${s.unidad || UNIDADES_SUMINISTRO[s.key] || ""}`.trim() : "",
+    s.frecuencia ? t(etiquetasFrecuencia[s.frecuencia] || s.frecuencia) : "",
+    s.proveedor || "",
+  ].filter(Boolean).join(" · ");
 
   // Gastos calendario del mes
   const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && categoriaEvento(e)?.tipo === "gasto"), [eventos, pref]);
@@ -148,29 +189,27 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
             {suministrosMes.map((s, i) => {
               const ant    = suministrosAnt[i];
               const diff   = ant.importe !== null && s.importe > 0 ? s.importe - ant.importe : null;
-              const isEdit = editando === `${pref}-${s.key}`;
+              const resumen = resumenSuministro(s);
               return (
                 <div key={s.key}
-                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, padding:"8px 12px", background:s.importe>0?"#fef3c7":C.fondo, borderRadius:9, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, cursor:"pointer", transition:"all 0.15s" }}
-                  onClick={() => setEditando(isEdit ? null : `${pref}-${s.key}`)}>
-                  <div>
-                    <span style={{ color:s.importe>0?"#d97706":C.txt2 }}>{s.emoji} {t(s.label)}</span>
-                    {diff !== null && (
-                      <span style={{ fontSize:9, marginLeft:6, fontWeight:700, color:diff>0?C.error:C.sageDark }}>
-                        {diff > 0 ? `▲+${fmt(diff)}` : diff < 0 ? `▼${fmt(diff)}` : ""}
-                      </span>
-                    )}
+                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, fontSize:13, padding:"8px 12px", background:s.importe>0?"#fef3c7":C.fondo, borderRadius:9, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, transition:"all 0.15s" }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:4 }}>
+                      <span style={{ color:s.importe>0?"#d97706":C.txt2 }}>{s.emoji} {t(s.label)}</span>
+                      {diff !== null && (
+                        <span style={{ fontSize:9, marginLeft:2, fontWeight:700, color:diff>0?C.error:C.sageDark }}>
+                          {diff > 0 ? `▲+${fmt(diff)}` : diff < 0 ? `▼${fmt(diff)}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    {resumen && <div style={{ fontSize:10, color:C.txt2, marginTop:3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{resumen}</div>}
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    {isEdit ? (
-                      <input autoFocus type="number" min="0" step="0.01" value={s.importe || ""} placeholder="0"
-                        onClick={e => e.stopPropagation()}
-                        onChange={e => handleSuministro(s.key, "importe", e.target.value)}
-                        style={{ width:72, padding:"3px 6px", borderRadius:7, border:`1px solid #d97706`, fontSize:13, fontWeight:700, textAlign:"right", fontFamily:"'Lato',sans-serif", outline:"none", color:"#d97706" }}/>
-                    ) : (
-                      <span style={{ fontWeight:700, color:s.importe>0?"#d97706":C.txt2 }}>{s.importe>0?fmt(s.importe):"—"}</span>
-                    )}
-                    <span style={{ fontSize:10, color:C.txt2 }}>{isEdit?"✓":"✏️"}</span>
+                    <span style={{ fontWeight:700, color:s.importe>0?"#d97706":C.txt2 }}>{s.importe>0?fmt(s.importe):"—"}</span>
+                    <button onClick={() => abrirSuministro(s)} aria-label={`${t("Edit utility bill")} ${t(s.label)}`}
+                      style={{ width:24, height:24, borderRadius:7, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, background:"white", color:"#d97706", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, flexShrink:0 }}>
+                      ✏️
+                    </button>
                   </div>
                 </div>
               );
@@ -224,6 +263,68 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         </div>
 
       </div>
+      {modalSuministro && (() => {
+        const importe = Number(modalSuministro.importe || 0);
+        const consumo = Number(modalSuministro.consumo || 0);
+        const precioUnidad = consumo > 0 ? importe / consumo : null;
+        const modalColumns = isMobile ? "1fr" : "repeat(2,minmax(0,1fr))";
+
+        return (
+          <Modal onClose={() => setModalSuministro(null)} maxW={560}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+              <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>{t("Edit utility bill")} · {modalSuministro.emoji} {t(modalSuministro.label)}</h3>
+              <button onClick={() => setModalSuministro(null)} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+            </div>
+            <div style={{ display:"grid", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:modalColumns, gap:12 }}>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
+                  <input type="number" step="0.01" min="0" value={modalSuministro.importe} onChange={e => setModalSuministro(s => ({ ...s, importe:e.target.value }))} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Provider")}</label>
+                  <input value={modalSuministro.proveedor || ""} onChange={e => setModalSuministro(s => ({ ...s, proveedor:e.target.value }))} placeholder={t("Provider name")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Billing frequency")}</label>
+                  <select value={modalSuministro.frecuencia || "mensual"} onChange={e => setModalSuministro(s => ({ ...s, frecuencia:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}>
+                    {FRECUENCIAS_FACTURA.map(f => <option key={f} value={f}>{t(etiquetasFrecuencia[f])}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Consumption")}</label>
+                  <input type="number" step="0.01" min="0" value={modalSuministro.consumo} onChange={e => setModalSuministro(s => ({ ...s, consumo:e.target.value }))} placeholder="0" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Unit")}</label>
+                  <input value={modalSuministro.unidad || ""} onChange={e => setModalSuministro(s => ({ ...s, unidad:e.target.value }))} placeholder={UNIDADES_SUMINISTRO[modalSuministro.tipo] || ""} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Billing period")}</label>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    <input type="date" value={modalSuministro.periodoInicio || ""} onChange={e => setModalSuministro(s => ({ ...s, periodoInicio:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                    <input type="date" value={modalSuministro.periodoFin || ""} onChange={e => setModalSuministro(s => ({ ...s, periodoFin:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label style={{ ...labelS, color:C.txt2 }}>{t("Notes")}</label>
+                <textarea value={modalSuministro.notas || ""} onChange={e => setModalSuministro(s => ({ ...s, notas:e.target.value }))} placeholder={t("Details...")} style={{ ...inputS, minHeight:70, resize:"vertical", background:C.fondo, border:`1px solid ${C.borde}` }}/>
+              </div>
+              <div style={{ background:"#fef3c7", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#d97706", border:"1px solid #d9770644" }}>
+                {t("Cash flow month")} {'->'} {monthName(mesIdx)} {año}
+                {importe > 0 && <strong> · {fmtd(importe)}</strong>}
+                {consumo > 0 && <span> · {consumo} {modalSuministro.unidad || UNIDADES_SUMINISTRO[modalSuministro.tipo] || ""}</span>}
+                {precioUnidad !== null && modalSuministro.unidad && <span> · {precioUnidad.toFixed(2)} €/{modalSuministro.unidad}</span>}
+              </div>
+              <button onClick={() => guardarSuministro(modalSuministro)}
+                style={{ background:"#d97706", color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+                {t("Save utility bill")}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
       {modalGasto && (
         <Modal onClose={() => setModalGasto(null)} maxW={420}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
