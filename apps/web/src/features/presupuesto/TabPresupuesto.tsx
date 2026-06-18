@@ -149,30 +149,91 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   }));
   const structuralMonthly = datosMes.map(month => ({ mes:month.mes, pref:month.pref, importe:month.gasto_estructural }));
   const numberFmt = (value) => Number(value || 0).toLocaleString("es-ES", { maximumFractionDigits:1 });
+  const sumMonthly = (monthly, valueKey = "importe") => monthly.reduce((sum, item) => sum + Number(item[valueKey] || 0), 0);
+  const selectedMonthlyValue = (monthly, valueKey = "importe") => Number(monthly.find(item => item.mes === explorerMonth)?.[valueKey] || 0);
   const selectExplorer = (layer, key = null) => { setExplorerLayer(layer); setExplorerKey(key); };
-  const renderMonthlyBars = (monthly, color, valueKey = "importe", suffix = "") => {
+  const renderMetricStrip = (metrics, color) => (
+    <div style={{ display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,minmax(0,1fr))",background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:12,overflow:"hidden",marginBottom:16 }}>
+      {metrics.map((metric, index) => (
+        <div key={metric.label} style={{ padding:"10px 12px",borderRight:!isMobile && index < metrics.length - 1 ? `1px solid ${C.borde}`:"none",borderBottom:isMobile && index < metrics.length - 2 ? `1px solid ${C.borde}`:"none" }}>
+          <div style={{ fontSize:10,fontWeight:700,color:C.txt2,textTransform:"uppercase",letterSpacing:"0.6px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{metric.label}</div>
+          <div style={{ fontSize:18,fontWeight:800,color:metric.color || color,fontFamily:"'Playfair Display',serif",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{metric.value}</div>
+          {metric.sub && <div style={{ fontSize:10,color:C.txt2,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{metric.sub}</div>}
+        </div>
+      ))}
+    </div>
+  );
+  const renderMonthlyTrend = (monthly, color, valueKey = "importe", suffix = "") => {
+    const width = 720;
+    const height = 156;
+    const padX = 28;
+    const padY = 22;
+    const chartW = width - padX * 2;
+    const chartH = height - padY * 2;
     const max = Math.max(...monthly.map(item => Number(item[valueKey] || 0)), 1);
+    const points = monthly.map((item, index) => {
+      const value = Number(item[valueKey] || 0);
+      const x = padX + (chartW / Math.max(1, monthly.length - 1)) * index;
+      const y = height - padY - (value / max) * chartH;
+      return { ...item, value, x, y };
+    });
+    const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+    const areaPath = points.length > 0 ? `${path} L ${points[points.length - 1].x} ${height - padY} L ${points[0].x} ${height - padY} Z` : "";
+    const selectedPoint = points.find(point => point.mes === explorerMonth);
     return (
-      <div style={{ display:"grid",gridTemplateColumns:"repeat(12,minmax(34px,1fr))",gap:4,alignItems:"end",minWidth:isMobile?520:"auto" }}>
-        {monthly.map(item => {
-          const value = Number(item[valueKey] || 0);
-          const selected = explorerMonth === item.mes;
-          const barHeight = value > 0 ? Math.max(6, (value / max) * 76) : 0;
-          const label = valueKey === "importe" ? fmt(value) : `${numberFmt(value)} ${suffix}`.trim();
-          return (
-            <button key={item.pref} onClick={() => setMesDetalle(item.mes)}
-              style={{ border:"none",background:"transparent",padding:0,cursor:"pointer",fontFamily:"'Lato',sans-serif",display:"flex",flexDirection:"column",alignItems:"center",gap:3,minWidth:0 }}>
-              <div style={{ width:"100%",height:82,display:"flex",alignItems:"flex-end",borderRadius:6,background:selected?`${color}18`:C.fondo,outline:selected?`2px solid ${color}`:"2px solid transparent",overflow:"hidden" }}>
-                <div style={{ width:"100%",height:barHeight,background:color,opacity:value>0?0.95:0.15,borderRadius:"6px 6px 0 0",transition:"height 0.25s" }}/>
-              </div>
-              <div style={{ fontSize:8,fontWeight:700,color:value>0?color:C.txt2,minHeight:10,whiteSpace:"nowrap" }}>{value>0?label.replace("€","").trim():""}</div>
-              <div style={{ fontSize:9,color:selected?color:C.txt2,fontWeight:selected?700:400 }}>{monthName(item.mes, "short")}</div>
-            </button>
-          );
-        })}
+      <div style={{ minWidth:isMobile?560:"auto" }}>
+        <svg viewBox={`0 0 ${width} ${height}`} style={{ width:"100%",height:170,display:"block",background:C.fondo,borderRadius:12,border:`1px solid ${C.borde}` }} role="img" aria-label={t("Monthly evolution")}>
+          {[0, 0.5, 1].map(ratio => (
+            <line key={ratio} x1={padX} x2={width - padX} y1={height - padY - chartH * ratio} y2={height - padY - chartH * ratio} stroke={C.borde} strokeWidth="1" />
+          ))}
+          {areaPath && <path d={areaPath} fill={color} opacity="0.12" />}
+          {path && <path d={path} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />}
+          {selectedPoint && <line x1={selectedPoint.x} x2={selectedPoint.x} y1={padY} y2={height - padY} stroke={color} strokeWidth="1.5" strokeDasharray="4 4" opacity="0.55" />}
+          {points.map(point => {
+            const selected = point.mes === explorerMonth;
+            const label = valueKey === "importe" ? fmt(point.value) : `${numberFmt(point.value)} ${suffix}`.trim();
+            return (
+              <g key={point.pref} onClick={() => setMesDetalle(point.mes)} style={{ cursor:"pointer" }}>
+                <title>{monthName(point.mes)} · {label}</title>
+                <circle cx={point.x} cy={point.y} r={selected?8:5.5} fill="white" stroke={color} strokeWidth={selected?4:3} />
+                {selected && <text x={point.x} y={Math.max(14, point.y - 14)} textAnchor="middle" fontSize="18" fontWeight="700" fill={color}>{valueKey === "importe" ? label.replace("€", "").trim() : label}</text>}
+              </g>
+            );
+          })}
+        </svg>
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(12,minmax(34px,1fr))",gap:4,marginTop:6 }}>
+          {points.map(point => {
+            const selected = point.mes === explorerMonth;
+            return (
+              <button key={point.pref} onClick={() => setMesDetalle(point.mes)}
+                style={{ border:"none",background:selected?`${color}18`:"transparent",borderRadius:6,padding:"4px 0",cursor:"pointer",fontFamily:"'Lato',sans-serif",fontSize:9,color:selected?color:C.txt2,fontWeight:selected?800:500 }}>
+                {monthName(point.mes, "short")}
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
+  const explorerSeries = explorerLayer === "estructural"
+    ? structuralMonthly
+    : explorerLayer === "suministros"
+      ? selectedUtility?.monthly || datosMes.map(month => ({ mes:month.mes, pref:month.pref, importe:month.gasto_suministros }))
+      : explorerLayer === "discrecional"
+        ? selectedCategory?.monthly || datosMes.map(month => ({ mes:month.mes, pref:month.pref, importe:month.gastos_var }))
+        : selectedTrip?.monthly || tripMonthlyTotal;
+  const explorerTotal = sumMonthly(explorerSeries);
+  const explorerSelected = selectedMonthlyValue(explorerSeries);
+  const selectedUtilityUnit = selectedUtility?.monthly.find(month => month.consumo > 0)?.registros?.[0]?.unidad || (selectedUtility ? UTILITY_UNIT_FALLBACK[selectedUtility.key] : "") || "";
+  const selectedUtilityConsumption = explorerLayer === "suministros" && selectedUtility ? selectedMonthlyValue(selectedUtility.monthly, "consumo") : 0;
+  const explorerMetrics = [
+    { label:t("Annual total"), value:fmt(explorerTotal) },
+    { label:t("Average"), value:fmt(explorerTotal / 12) },
+    { label:t("Selected month"), value:fmt(explorerSelected), sub:`${monthName(explorerMonth)} ${año}` },
+    explorerLayer === "suministros" && selectedUtility?.consumoTotal > 0
+      ? { label:t("Consumption"), value:`${numberFmt(selectedUtilityConsumption)} ${selectedUtilityUnit}`.trim(), sub:`${t("Annual total")} ${numberFmt(selectedUtility.consumoTotal)} ${selectedUtilityUnit}`.trim(), color:C.cyan }
+      : { label:t("Monthly total"), value:fmt(datosMes[explorerMonth]?.total_gastos || 0), sub:t("Layered expenses") },
+  ];
 
   return (
     <div style={{ display:"grid", gap:20, minWidth:0 }}>
@@ -474,12 +535,14 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
           </div>
         </div>
 
+        {renderMetricStrip(explorerMetrics, selectedLayer.color)}
+
         <div style={{ display:"grid",gridTemplateColumns:explorerColumns,gap:16,alignItems:"start" }}>
           <div style={{ overflowX:isMobile?"auto":"visible",minWidth:0 }}>
             {explorerLayer === "estructural" && (
               <div>
                 <div style={{ fontSize:12,fontWeight:700,color:"#64748b",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")}</div>
-                {renderMonthlyBars(structuralMonthly, "#64748b")}
+                {renderMonthlyTrend(structuralMonthly, "#64748b")}
               </div>
             )}
 
@@ -500,11 +563,11 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                     {selectedUtility && (
                       <>
                         <div style={{ fontSize:12,fontWeight:700,color:"#d97706",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedUtility.emoji} {t(selectedUtility.label)}</div>
-                        {renderMonthlyBars(selectedUtility.monthly, "#d97706")}
+                        {renderMonthlyTrend(selectedUtility.monthly, "#d97706")}
                         {selectedUtility.consumoTotal > 0 && (
                           <div style={{ marginTop:16 }}>
                             <div style={{ fontSize:12,fontWeight:700,color:C.cyan,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Consumption")}</div>
-                            {renderMonthlyBars(selectedUtility.monthly, C.cyan, "consumo", selectedUtility.monthly.find(m=>m.registros?.[0]?.unidad)?.registros?.[0]?.unidad || UTILITY_UNIT_FALLBACK[selectedUtility.key] || "")}
+                            {renderMonthlyTrend(selectedUtility.monthly, C.cyan, "consumo", selectedUtility.monthly.find(m=>m.registros?.[0]?.unidad)?.registros?.[0]?.unidad || UTILITY_UNIT_FALLBACK[selectedUtility.key] || "")}
                           </div>
                         )}
                       </>
@@ -531,7 +594,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                     {selectedCategory && (
                       <>
                         <div style={{ fontSize:12,fontWeight:700,color:selectedCategory.color,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedCategory.emoji} {t(selectedCategory.label)}</div>
-                        {renderMonthlyBars(selectedCategory.monthly, selectedCategory.color)}
+                        {renderMonthlyTrend(selectedCategory.monthly, selectedCategory.color)}
                       </>
                     )}
                   </>
@@ -558,7 +621,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                       ))}
                     </div>
                     <div style={{ fontSize:12,fontWeight:700,color:COLOR_VIAJE,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedTrip ? selectedTrip.nombre : t("All")}</div>
-                    {renderMonthlyBars(selectedTrip ? selectedTrip.monthly : tripMonthlyTotal, COLOR_VIAJE)}
+                    {renderMonthlyTrend(selectedTrip ? selectedTrip.monthly : tripMonthlyTotal, COLOR_VIAJE)}
                   </>
                 )}
               </div>
@@ -576,9 +639,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               const fixedExpenses = BASE.monthlyOverrides?.[month.pref]?.fixedExpenses ?? BASE.gastos_fijos;
               return (
                 <div style={{ display:"grid",gap:10 }}>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(structuralMonthly.reduce((sum,item)=>sum+item.importe,0))}</strong></div>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(structuralMonthly.reduce((sum,item)=>sum+item.importe,0)/12)}</strong></div>
-                  <div style={{ height:1,background:C.borde }}/>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Fixed expenses")}</span><strong>{fmt(fixedExpenses)}</strong></div>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Debt")}</span><strong>{fmt(month.gasto_deudas)}</strong></div>
                 </div>
@@ -592,9 +652,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               const price = month?.consumo > 0 ? month.importe / month.consumo : null;
               return (
                 <div style={{ display:"grid",gap:10 }}>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(selectedUtility.total)}</strong></div>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(selectedUtility.total/12)}</strong></div>
-                  <div style={{ height:1,background:C.borde }}/>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Amount (€)")}</span><strong>{fmt(month?.importe || 0)}</strong></div>
                   {month?.consumo > 0 && <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Consumption")}</span><strong>{numberFmt(month.consumo)} {unit}</strong></div>}
                   {price !== null && unit && <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>€/{unit}</span><strong>{price.toFixed(2)}</strong></div>}
@@ -618,9 +675,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               ];
               return (
                 <div style={{ display:"grid",gap:10 }}>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(selectedCategory.sum)}</strong></div>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(selectedCategory.sum/12)}</strong></div>
-                  <div style={{ height:1,background:C.borde }}/>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Selected month")}</span><strong>{fmt(month?.importe || 0)}</strong></div>
                   {records.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : records.map(record => (
                     <div key={record.id || record.label} style={{ display:"flex",justifyContent:"space-between",gap:10,background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
@@ -655,8 +709,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               }
               return (
                 <div style={{ display:"grid",gap:10 }}>
-                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(totalTrips)}</strong></div>
-                  <div style={{ height:1,background:C.borde }}/>
                   {tripBreakdown.map(trip => {
                     const pct = trip.presupuesto > 0 ? Math.min(100, (trip.total / trip.presupuesto) * 100) : 0;
                     return (
