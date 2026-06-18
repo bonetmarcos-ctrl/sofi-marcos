@@ -34,6 +34,27 @@ DATA_FILE=./apps/api/data/state.json
 
 El frontend mantiene fallback en `localStorage` si la API no esta disponible, pero en uso normal los datos reales se guardan desde la API.
 
+## Autenticacion
+
+La aplicacion requiere usuario y contrasena para entrar. La API crea una sesion con cookie HTTP-only, asi que el token no queda accesible desde JavaScript del navegador.
+
+En desarrollo local, si no configuras nada, puedes entrar con:
+
+```bash
+AUTH_USERNAME=admin
+AUTH_PASSWORD=admin
+```
+
+En produccion debes configurar estas variables en Render:
+
+```bash
+AUTH_USERNAME=tu_usuario
+AUTH_PASSWORD=tu_contrasena_segura
+AUTH_JWT_SECRET=una_cadena_larga_aleatoria
+```
+
+`AUTH_JWT_SECRET` debe ser distinto de la contrasena. Puedes generarlo con un password manager o con cualquier generador seguro de cadenas aleatorias.
+
 ## Base de Datos Gratuita
 
 Opcion recomendada: Neon PostgreSQL Free.
@@ -56,7 +77,8 @@ Pasos sugeridos para el proximo paso:
 2. Crear una base PostgreSQL gratis en Neon y copiar su `DATABASE_URL`.
 3. Crear un Blueprint en Render apuntando al repositorio.
 4. En Render, configurar `DATABASE_URL` como variable secreta.
-5. Confirmar que Render usa `npm ci && npm run build` y `npm start`.
-6. Abrir la URL publica de Render y probar crear/editar datos.
+5. Confirmar que Render usa `npm ci --include=dev && npm run build` y `npm start`.
+6. Configurar `AUTH_USERNAME`, `AUTH_PASSWORD` y `AUTH_JWT_SECRET` en Render.
+7. Abrir la URL publica de Render, iniciar sesion y probar crear/editar datos.
 
 Render Free puede dormir el servicio cuando no se usa. Neon Free mantiene los datos fuera del filesystem de Render, asi que los datos no se pierden aunque el servicio se reinicie.

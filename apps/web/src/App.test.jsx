@@ -19,7 +19,11 @@ describe("App", () => {
       "fetch",
       vi.fn(async (url) => ({
         ok: true,
-        json: async () => (String(url).endsWith("/api/state") ? createInitialState() : { ok: true }),
+        json: async () => {
+          if (String(url).endsWith("/api/auth/me")) return { user: { username: "tester" } };
+          if (String(url).endsWith("/api/state")) return createInitialState();
+          return { ok: true };
+        },
       })),
     );
   });
@@ -27,7 +31,7 @@ describe("App", () => {
   it("renders the main application shell", async () => {
     render(<App />);
 
-    expect(await screen.findByText("Sofi & Marqui")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /presupuesto/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /presupuesto/i })).toBeInTheDocument();
+    expect(screen.getByText("Sofi & Marqui")).toBeInTheDocument();
   });
 });

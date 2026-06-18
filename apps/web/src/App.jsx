@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import { C } from "./constants/colores.js";
+import { Login } from "./components/Login.jsx";
+import { useAuth } from "./hooks/useAuth.js";
 import { useBreakpoint } from "./hooks/useBreakpoint.js";
 import { useAppState } from "./hooks/useAppState.js";
 import { todayISO } from "./utils/dates.js";
@@ -16,6 +18,20 @@ const TABS = [
 ];
 
 export default function App() {
+  const { user, loading, error, login, logout, setLoginError } = useAuth();
+
+  if (loading) {
+    return <Login loading={loading} error="" onLogin={login} onError={setLoginError} />;
+  }
+
+  if (!user) {
+    return <Login loading={loading} error={error} onLogin={login} onError={setLoginError} />;
+  }
+
+  return <AuthenticatedApp user={user} onLogout={logout} />;
+}
+
+function AuthenticatedApp({ user, onLogout }) {
   const [tab,         setTab]         = useState("presupuesto");
   const [modal,       setModal]       = useState(null);
   const { state, setCollection, loaded, status } = useAppState();
@@ -78,6 +94,7 @@ export default function App() {
           <div style={{ display:"flex", gap:6, alignItems:"center", justifyContent:isMobile?"space-between":"flex-start", width:isMobile?"100%":"auto" }}>
             <div title={status === "api" ? "Sincronizado con API" : loaded ? "Modo local" : "Cargando"}
               style={{ width:9, height:9, borderRadius:"50%", background:status === "api" ? C.exito : status === "local" ? C.warn : "rgba(255,255,255,0.3)", boxShadow:status === "api" ? `0 0 8px ${C.exito}` : "none" }}/>
+            <span title={user.username} style={{ color:"rgba(255,255,255,0.72)", fontSize:12, fontWeight:700, maxWidth:isMobile?80:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.username}</span>
             <button onClick={() => setModal({ type:"evento", fecha:todayISO })}
               style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", letterSpacing:"0.2px" }}>
               + Evento
@@ -85,6 +102,10 @@ export default function App() {
             <button onClick={() => setModal({ type:"viaje" })}
               style={{ background:"transparent", color:"white", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
               ✈️ Viaje
+            </button>
+            <button onClick={onLogout}
+              style={{ background:"transparent", color:"rgba(255,255,255,0.82)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+              Salir
             </button>
           </div>
         </div>

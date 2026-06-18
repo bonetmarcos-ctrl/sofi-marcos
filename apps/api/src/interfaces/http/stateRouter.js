@@ -4,12 +4,14 @@ const asyncRoute = (handler) => (request, response, next) => {
   Promise.resolve(handler(request, response, next)).catch(next);
 };
 
-export const createStateRouter = (stateService) => {
+export const createStateRouter = (stateService, requireAuth) => {
   const router = Router();
 
   router.get("/health", (_request, response) => {
     response.json({ ok: true, service: "sofi-marqui-api" });
   });
+
+  router.use(requireAuth);
 
   router.get("/state", asyncRoute(async (_request, response) => {
     response.json(await stateService.getState());

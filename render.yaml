@@ -12,3 +12,9 @@ services:
         value: ./apps/api/data/state.json
       - key: DATABASE_URL
         sync: false
+      - key: AUTH_USERNAME
+        value: admin
+      - key: AUTH_PASSWORD
+        sync: false
+      - key: AUTH_JWT_SECRET
+        sync: false
