@@ -19,6 +19,10 @@ export const categoriaEventoKey = (evento) => {
 
 export const categoriaEvento = (evento) => CATEGORIAS[categoriaEventoKey(evento)];
 
+export const CATEGORIAS_OCULTAS_CALENDARIO = new Set(["otro", "transporte"]);
+
+export const eventoVisibleEnCalendario = (evento) => !CATEGORIAS_OCULTAS_CALENDARIO.has(categoriaEventoKey(evento));
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 export const SUMINISTROS_TIPOS = [
   { key:"luz",      label:"Power",    emoji:"⚡" },

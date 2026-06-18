@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt } from "../../utils/format.ts";
@@ -58,7 +58,8 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
           if (!dia) return <div key={i} style={{ minHeight:isMobile?78:88 }}/>;
 
           const iso         = `${año}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
-          const evs         = eventos.filter(e => e.fecha === iso);
+          const evsDia      = eventos.filter(e => e.fecha === iso);
+          const evs         = evsDia.filter(eventoVisibleEnCalendario);
           const vh          = vxf[iso] || [];
           const bh          = bxf[iso] || [];
           const isToday     = iso === todayISO;
