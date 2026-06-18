@@ -172,6 +172,5 @@ const sumLevers = (levers, subcategory) =>
 
 const matchesBudgetMonth = (lever, yearMonth) => {
   if (!lever.mes || !yearMonth) return false;
-  if (lever.mes === yearMonth) return true;
-  return lever.mes.slice(5, 7) === yearMonth.slice(5, 7);
+  return lever.mes === yearMonth;
 };

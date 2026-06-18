@@ -29,7 +29,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const prefIngresos = `${año}-${String(mesIngresos+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
-  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes ? `${año}-${palanca.mes.slice(5, 7)}` : prefIngresos });
+  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes || prefIngresos });
   const guardarPalanca  = (palancaDraft) => { const palanca = normalizarMesPalanca(palancaDraft); setPalancas(prev => palanca.id && prev.find(x=>x.id===palanca.id) ? prev.map(x=>x.id===palanca.id?palanca:x) : [...prev,palanca]); setModalPalanca(null); };
   const eliminarPalanca = (id) => { setPalancas(prev=>prev.filter(x=>x.id!==id)); setModalPalanca(null); };
   const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?normalizarMesPalanca({ ...p, activa:!p.activa }):p));
@@ -69,7 +69,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   }, [datosMes, mesIngresos]);
 
   const palancasMesIngresos = useMemo(() => palancas
-    .filter(p => p.mes?.slice(5, 7) === prefIngresos.slice(5, 7)), [palancas, prefIngresos]);
+    .filter(p => p.mes === prefIngresos), [palancas, prefIngresos]);
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";

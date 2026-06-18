@@ -45,7 +45,7 @@ describe("finance domain", () => {
     expect(result.totales.varAnual).toBe(250);
   });
 
-  it("applies active levers to the same budget month when their stored year is stale", () => {
+  it("does not apply levers outside their assigned year-month", () => {
     const result = calculateMonthlyBudget({
       base: BASE,
       categories,
@@ -59,9 +59,9 @@ describe("finance domain", () => {
       currentMonth: 5,
     });
 
-    expect(result.datosMes[5].ing_habitacion).toBe(280);
-    expect(result.datosMes[5].ingresos_var_total).toBe(280);
-    expect(result.totales.varAnual).toBe(280);
+    expect(result.datosMes[5].ing_habitacion).toBe(0);
+    expect(result.datosMes[5].ingresos_var_total).toBe(0);
+    expect(result.totales.varAnual).toBe(0);
   });
 
   it("includes monthly variable expense lines in discretionary expenses", () => {
