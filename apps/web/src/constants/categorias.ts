@@ -12,6 +12,13 @@ export const CATEGORIAS = {
   otro:        { label:"Supermarket", emoji:"🛒", color:"#22333B", bg:"#EAE0D5", tipo:"gasto" },
 };
 
+export const categoriaEventoKey = (evento) => {
+  if (evento?.categoria === "hogar" && /supermercado/i.test(evento?.titulo || "")) return "otro";
+  return evento?.categoria;
+};
+
+export const categoriaEvento = (evento) => CATEGORIAS[categoriaEventoKey(evento)];
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 export const SUMINISTROS_TIPOS = [
   { key:"luz",      label:"Power",    emoji:"⚡" },

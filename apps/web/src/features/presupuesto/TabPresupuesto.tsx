@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIAS, SUBCAT_VAR, COLOR_VIAJE, BG_VIAJE } from "../../constants/categorias.ts";
+import { CATEGORIAS, SUBCAT_VAR, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN } from "../../constants/colores.ts";
 import { MESES, MESES_CORTO } from "../../constants/meses.ts";
 import { fmt, fmtd, labelMes } from "../../utils/format.ts";
@@ -52,7 +52,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
   // Gastos por categoría anual
   const gastosCatAnual = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([,v])=>v.tipo==="gasto")
-    .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>e.categoria===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) }))
+    .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) }))
     .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, año]);
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";

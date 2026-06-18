@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIAS } from "../../constants/categorias.ts";
+import { CATEGORIAS, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd, labelMes } from "../../utils/format.ts";
@@ -45,8 +45,8 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   const del_mes      = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref)), [eventos, pref]);
   const bloqueos_mes = useMemo(() => bloqueos.filter(b => b.inicio?.startsWith(pref) || b.fin?.startsWith(pref)), [bloqueos, pref]);
   const ingresos_bloqueos = useMemo(() => bloqueos_mes.reduce((a, b) => a + Number(b.importe || 0), 0), [bloqueos_mes]);
-  const ingresos_extra = useMemo(() => del_mes.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + ingresos_bloqueos, [del_mes, ingresos_bloqueos]);
-  const gastos_var     = useMemo(() => del_mes.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0), [del_mes]);
+  const ingresos_extra = useMemo(() => del_mes.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + ingresos_bloqueos, [del_mes, ingresos_bloqueos]);
+  const gastos_var     = useMemo(() => del_mes.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0), [del_mes]);
   const viajes_mes     = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastos_viaje   = useMemo(() => viajes_mes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0), [viajes_mes]);
   const saldo          = (BASE.ingresos_fijos + ingresos_extra) - (BASE.gastos_fijos + BASE.deudas + BASE.previsiones + gastos_var + gastos_viaje);
@@ -55,7 +55,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
 
   const porCat = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ ...v, key:k, sum:del_mes.filter(e => e.categoria === k).reduce((a, e) => a + e.importe, 0) }))
+    .map(([k, v]) => ({ ...v, key:k, sum:del_mes.filter(e => categoriaEventoKey(e) === k).reduce((a, e) => a + e.importe, 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum), [del_mes]);
   const maxCat = Math.max(porCat[0]?.sum || 1, gastos_viaje || 1);

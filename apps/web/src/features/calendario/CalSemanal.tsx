@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
@@ -68,7 +68,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
           const evs   = eventos.filter(e => e.fecha === iso);
           const bls   = bxf[iso] || [];
           const isToday = iso === todayISO;
-          const tg    = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
+          const tg    = evs.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
           const ti    = bls.reduce((a, b) => a + Number(b.importe || 0), 0);
 
           return (
@@ -86,7 +86,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
               {/* Eventos del día */}
               <div style={{ display:"flex", flexDirection:"column", gap:4, minHeight:90 }}>
                 {evs.map(ev => {
-                  const cat   = CATEGORIAS[ev.categoria];
+                  const cat   = CATEGORIAS[categoriaEventoKey(ev)];
                   const esIng = cat?.tipo === "ingreso";
                   return (
                     <div key={ev.id} onClick={() => onEvento(ev)}

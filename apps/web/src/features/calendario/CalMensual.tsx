@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt } from "../../utils/format.ts";
@@ -62,8 +62,8 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
           const vh          = vxf[iso] || [];
           const bh          = bxf[iso] || [];
           const isToday     = iso === todayISO;
-          const gt          = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
-          const it          = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
+          const gt          = evs.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
+          const it          = evs.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
           const habOcupada  = bh.some(b => b.tipo === "habitacion");
           const cocheOcupado = bh.some(b => b.tipo === "coche");
           const esViaje     = vh.length > 0;
@@ -89,7 +89,7 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
               <div style={{ fontSize:13, fontWeight:700, color:isToday?"white":C.txt, marginBottom:3, marginTop:vh.length>0?6:0 }}>{dia}</div>
 
               {evs.slice(0, 2).map(ev => {
-                const cat     = CATEGORIAS[ev.categoria];
+                const cat     = CATEGORIAS[categoriaEventoKey(ev)];
                 const esIng   = cat?.tipo === "ingreso";
                 const persona = PERSONAS[ev.persona || "ambos"];
                 const bgColor = esIng ? C.exitoBg : (ev.persona && ev.persona !== "ambos") ? persona.bg : cat?.bg;

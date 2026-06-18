@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE } from "../../constants/categorias.ts";
+import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
@@ -44,13 +44,13 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
   };
 
   // Gastos calendario del mes
-  const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && CATEGORIAS[e.categoria]?.tipo === "gasto"), [eventos, pref]);
+  const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && categoriaEvento(e)?.tipo === "gasto"), [eventos, pref]);
   const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
 
   const catsCal = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => e.categoria===k).reduce((a, e) => a+e.importe, 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
