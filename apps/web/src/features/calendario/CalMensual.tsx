@@ -63,7 +63,7 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
           const bh          = bxf[iso] || [];
           const isToday     = iso === todayISO;
           const gt          = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
-          const it          = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0);
+          const it          = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
           const habOcupada  = bh.some(b => b.tipo === "habitacion");
           const cocheOcupado = bh.some(b => b.tipo === "coche");
           const esViaje     = vh.length > 0;

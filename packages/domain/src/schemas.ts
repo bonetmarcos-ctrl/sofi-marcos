@@ -37,6 +37,7 @@ export const blockSchema = z.object({
   inicio: z.string().min(1),
   fin: z.string().min(1),
   nota: optionalText,
+  importe: amount,
 });
 
 export const projectSchema = z.object({

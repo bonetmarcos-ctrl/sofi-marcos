@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Modal from "../../../components/Modal.tsx";
 import { CATEGORIAS, PERSONAS } from "../../../constants/categorias.ts";
 import { C, inputS, labelS } from "../../../constants/colores.ts";
@@ -24,20 +24,9 @@ export default function ModalEvento({ fechaInicial, evento, onSave, onDelete, on
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Trips are handled by ModalViaje.
-  const CATS_EVENTO = Object.fromEntries(Object.entries(CATEGORIAS).filter(([k]) => k !== "viaje"));
+  // Trips and room/car income are handled by their dedicated calendar actions.
+  const CATS_EVENTO = Object.fromEntries(Object.entries(CATEGORIAS).filter(([k]) => !["viaje", "habitacion", "coche"].includes(k)));
   const esIngreso   = CATEGORIAS[form.categoria]?.tipo === "ingreso";
-
-  // Auto-calculate amount for room and car entries.
-  useEffect(() => {
-    if (form.categoria === "habitacion" && form.noches && form.precioPorNoche !== undefined) {
-      set("importe", form.noches * form.precioPorNoche);
-      if (form.huespedes) set("titulo", `${form.huespedes} — room`);
-    }
-    if (form.categoria === "coche" && form.diasAlquiler) {
-      set("importe", Math.round(form.diasAlquiler * 35 * 0.7));
-    }
-  }, [form.categoria, form.noches, form.precioPorNoche, form.huespedes, form.diasAlquiler]);
 
   return (
     <Modal onClose={onClose}>
@@ -73,50 +62,6 @@ export default function ModalEvento({ fechaInicial, evento, onSave, onDelete, on
           </div>
         </div>
 
-        {/* Room panel */}
-        {form.categoria === "habitacion" && (
-          <div style={{ background:C.exitoBg, borderRadius:12, padding:14, border:`1px solid ${C.exito}55` }}>
-            <div style={{ fontSize:12, fontWeight:700, color:C.sageDark, marginBottom:10 }}>🛏️ {t("Booking details")}</div>
-            <div style={{ display:"grid", gap:10 }}>
-              <div>
-                <label style={{ ...labelS, color:C.txt2 }}>{t("Guests")}</label>
-                <input value={form.huespedes || ""} onChange={e => set("huespedes", e.target.value)} placeholder={t("Example guests")} style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}` }}/>
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                <div>
-                  <label style={{ ...labelS, color:C.txt2 }}>{t("Nights")}</label>
-                  <input type="number" min="1" value={form.noches || 1} onChange={e => set("noches", +e.target.value)} style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}` }}/>
-                </div>
-                <div>
-                  <label style={{ ...labelS, color:C.txt2 }}>{t("per night")}</label>
-                  <select value={form.precioPorNoche} onChange={e => set("precioPorNoche", +e.target.value)} style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}` }}>
-                    <option value={35}>35€ - {t("single")}</option>
-                    <option value={50}>50€ - {t("couple")}</option>
-                    <option value={0}>0€ - {t("family/free")}</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ background:C.superficie, borderRadius:8, padding:"8px 12px", fontSize:13, color:C.sageDark, fontWeight:700 }}>
-                💰 {t("Total")}: {fmtd((form.noches || 1) * (form.precioPorNoche || 0))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Car panel */}
-        {form.categoria === "coche" && (
-          <div style={{ background:C.cyanLight, borderRadius:12, padding:14, border:`1px solid ${C.cyan}44` }}>
-            <div style={{ fontSize:12, fontWeight:700, color:C.cyan, marginBottom:10 }}>🔑 {t("Car rental")}</div>
-            <div>
-              <label style={{ ...labelS, color:C.txt2 }}>{t("Days")}</label>
-              <input type="number" min="1" value={form.diasAlquiler || 1} onChange={e => set("diasAlquiler", +e.target.value)} style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}` }}/>
-            </div>
-            <div style={{ background:C.superficie, borderRadius:8, padding:"8px 12px", fontSize:13, color:C.cyan, fontWeight:700, marginTop:8 }}>
-              💰 {t("Net")} (-30%): {fmtd((form.diasAlquiler || 1) * 35 * 0.7)}
-            </div>
-          </div>
-        )}
-
         {/* Description */}
         <div>
           <label style={{ ...labelS, color:C.txt2 }}>{t("Description")}</label>
@@ -135,13 +80,10 @@ export default function ModalEvento({ fechaInicial, evento, onSave, onDelete, on
           </div>
         </div>
 
-        {/* Amount, except auto-calculated categories */}
-        {form.categoria !== "habitacion" && form.categoria !== "coche" && (
-          <div>
-            <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
-            <input type="number" step="0.01" value={form.importe || ""} onChange={e => set("importe", +e.target.value)} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
-          </div>
-        )}
+        <div>
+          <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
+          <input type="number" step="0.01" value={form.importe || ""} onChange={e => set("importe", +e.target.value)} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+        </div>
 
         {/* Notes */}
         <div>

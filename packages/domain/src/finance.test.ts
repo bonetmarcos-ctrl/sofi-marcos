@@ -30,7 +30,8 @@ describe("finance domain", () => {
     const result = calculateMonthlyBudget({
       base: BASE,
       categories,
-      events: [{ fecha: "2025-06-10", categoria: "habitacion", importe: 70 }],
+      events: [],
+      blocks: [{ inicio: "2025-06-10", fin: "2025-06-11", tipo: "habitacion", importe: 70 }],
       trips: [],
       levers: [{ mes: "2025-06", subcategoria: "ventas", importe: 180, activa: true }],
       debts: [],

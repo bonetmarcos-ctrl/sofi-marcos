@@ -43,13 +43,15 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   // ── Panel lateral: métricas del mes ──
   const pref         = `${año}-${String(mes + 1).padStart(2, "0")}`;
   const del_mes      = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref)), [eventos, pref]);
-  const ingresos_extra = useMemo(() => del_mes.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0), [del_mes]);
+  const bloqueos_mes = useMemo(() => bloqueos.filter(b => b.inicio?.startsWith(pref) || b.fin?.startsWith(pref)), [bloqueos, pref]);
+  const ingresos_bloqueos = useMemo(() => bloqueos_mes.reduce((a, b) => a + Number(b.importe || 0), 0), [bloqueos_mes]);
+  const ingresos_extra = useMemo(() => del_mes.filter(e => CATEGORIAS[e.categoria]?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + ingresos_bloqueos, [del_mes, ingresos_bloqueos]);
   const gastos_var     = useMemo(() => del_mes.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0), [del_mes]);
   const viajes_mes     = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastos_viaje   = useMemo(() => viajes_mes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0), [viajes_mes]);
   const saldo          = (BASE.ingresos_fijos + ingresos_extra) - (BASE.gastos_fijos + BASE.deudas + BASE.previsiones + gastos_var + gastos_viaje);
 
-  const totalCocheAcum = useMemo(() => eventos.filter(e => e.categoria === "coche").reduce((a, e) => a + e.importe, 0), [eventos]);
+  const totalCocheAcum = useMemo(() => eventos.filter(e => e.categoria === "coche").reduce((a, e) => a + e.importe, 0) + bloqueos.filter(b => b.tipo === "coche").reduce((a, b) => a + Number(b.importe || 0), 0), [eventos, bloqueos]);
 
   const porCat = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
@@ -136,13 +138,18 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
                   <label style={{ ...labelS, color:C.txt2 }}>{t("Note")}</label>
                   <input value={modalBloqueo.nota || ""} onChange={e => setModalBloqueo(m => ({ ...m, nota:e.target.value }))} placeholder={t("Guests, reason...")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                 </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
+                  <input type="number" step="0.01" min="0" value={modalBloqueo.importe || ""} onChange={e => setModalBloqueo(m => ({ ...m, importe:+e.target.value }))} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
                 {modalBloqueo.inicio && modalBloqueo.fin && (
                   <div style={{ background:C.sageLight, borderRadius:9, padding:"9px 12px", fontSize:12, color:C.sageDark, fontWeight:600, border:`1px solid ${C.sage}44` }}>
                     📅 {daysBetween(modalBloqueo.inicio, modalBloqueo.fin)} {t(daysBetween(modalBloqueo.inicio, modalBloqueo.fin) !== 1 ? "nights" : "night")}
+                    {Number(modalBloqueo.importe || 0) > 0 && <> · +{fmtd(Number(modalBloqueo.importe || 0))}</>}
                   </div>
                 )}
                 <button
-                  onClick={() => { setBloqueos(prev => [...prev, { ...modalBloqueo, id:Date.now() }]); setModalBloqueo(null); }}
+                  onClick={() => { setBloqueos(prev => [...prev, { ...modalBloqueo, id:Date.now(), importe:Number(modalBloqueo.importe || 0) }]); setModalBloqueo(null); }}
                   style={{ background:C.cyan, color:"white", border:"none", borderRadius:11, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
                   {t("Save block")}
                 </button>

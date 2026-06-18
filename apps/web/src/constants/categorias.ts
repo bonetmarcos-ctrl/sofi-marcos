@@ -6,11 +6,10 @@ export const CATEGORIAS = {
   salud:       { label:"Health",     emoji:"🩷", color:"#BE95C4", bg:"#F3EAF7", tipo:"gasto" },
   transporte:  { label:"Transport",  emoji:"🚌", color:"#5E548E", bg:"#EDEAF5", tipo:"gasto" },
   ropa:        { label:"Clothes",    emoji:"👗", color:"#FF86C8", bg:"#FFF0FA", tipo:"gasto" },
-  ingreso:     { label:"Income",     emoji:"💶", color:"#2f9e44", bg:"#edf7ed", tipo:"ingreso" },
   habitacion:  { label:"Room",       emoji:"🛏️", color:"#FFBF81", bg:"#FFF7EE", tipo:"ingreso" },
   coche:       { label:"Car",        emoji:"🔑", color:"#FFDC5E", bg:"#FFFBE6", tipo:"ingreso" },
   viaje:       { label:"Trip",       emoji:"✈️", color:"#FF69EB", bg:"#FFF0FD", tipo:"gasto" },
-  otro:        { label:"Other",      emoji:"📌", color:"#22333B", bg:"#EAE0D5", tipo:"gasto" },
+  otro:        { label:"Supermarket", emoji:"🛒", color:"#22333B", bg:"#EAE0D5", tipo:"gasto" },
 };
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
@@ -29,7 +28,7 @@ export const GRUPOS_GASTO = {
   personal: { label:"Personal", emoji:"👤", cats:["salud","ropa"],       color:"#BE95C4", bg:"#F3EAF7" },
   hogar:    { label:"Housing",  emoji:"🏠", cats:["hogar","transporte"], color:"#C6AC8F", bg:"#F5EFE6" },
   viajes:   { label:"Trips",    emoji:"✈️", cats:["viaje"],              color:"#FF69EB", bg:"#FFF0FD" },
-  otro:     { label:"Other",    emoji:"📌", cats:["otro"],               color:"#22333B", bg:"#EAE0D5" },
+  otro:     { label:"Supermarket", emoji:"🛒", cats:["otro"],             color:"#22333B", bg:"#EAE0D5" },
 };
 
 // ─── PEOPLE ───────────────────────────────────────────────────────────────────

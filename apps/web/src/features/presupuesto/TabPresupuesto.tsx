@@ -14,7 +14,7 @@ import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
-export default function TabPresupuesto({ eventos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros }) {
+export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -36,7 +36,7 @@ export default function TabPresupuesto({ eventos, viajes, palancas, setPalancas,
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
 
   // ── Datos calculados ──
-  const { datosMes, totales } = useDatosMes({ eventos, viajes, palancas, deudas, suministros, año, mesActual });
+  const { datosMes, totales } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
 
   // KPIs deudas

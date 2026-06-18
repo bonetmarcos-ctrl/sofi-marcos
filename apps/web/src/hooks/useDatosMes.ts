@@ -24,16 +24,17 @@ export const calcCuotaDeudaMes = (deudas, pref) => {
  *
  * Todo memoizado — solo recalcula cuando cambian los inputs.
  */
-export const useDatosMes = ({ eventos, viajes, palancas, deudas, suministros, año, mesActual }) => {
+export const useDatosMes = ({ eventos, bloqueos, viajes, palancas, deudas, suministros, año, mesActual }) => {
   return useMemo(() => calculateMonthlyBudget({
     base: BASE,
     categories: CATEGORIAS,
     events: eventos,
+    blocks: bloqueos,
     trips: viajes,
     levers: palancas,
     debts: deudas,
     utilities: suministros,
     year: año,
     currentMonth: mesActual,
-  }), [eventos, viajes, palancas, deudas, suministros, año, mesActual]);
+  }), [eventos, bloqueos, viajes, palancas, deudas, suministros, año, mesActual]);
 };

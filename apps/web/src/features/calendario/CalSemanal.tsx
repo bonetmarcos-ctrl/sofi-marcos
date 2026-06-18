@@ -66,8 +66,10 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
         {dias.map((dia, i) => {
           const iso   = toISO(dia);
           const evs   = eventos.filter(e => e.fecha === iso);
+          const bls   = bxf[iso] || [];
           const isToday = iso === todayISO;
           const tg    = evs.filter(e => CATEGORIAS[e.categoria]?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
+          const ti    = bls.reduce((a, b) => a + Number(b.importe || 0), 0);
 
           return (
             <div key={i}>
@@ -96,6 +98,13 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                   );
                 })}
 
+                {bls.map(b => (
+                  <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} style={{ padding:"8px 9px", borderRadius:10, background:b.tipo === "habitacion" ? C.exitoBg : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.exito}55` : "1px solid #fcd34d" }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309" }}>{b.tipo === "habitacion" ? "🛏️" : "🚗"} {b.nota || weekdayName(i)}</div>
+                    {Number(b.importe || 0) > 0 && <div style={{ fontSize:12, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309", marginTop:3 }}>+{fmtd(Number(b.importe || 0))}</div>}
+                  </div>
+                ))}
+
                 {/* Botón añadir */}
                 <div onClick={() => onDia(iso)}
                   style={{ border:`1.5px dashed ${C.borde}`, borderRadius:10, padding:8, textAlign:"center", fontSize:18, color:C.borde, cursor:"pointer", transition:"all 0.15s" }}
@@ -106,6 +115,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
               </div>
 
               {tg > 0 && <div style={{ textAlign:"center", fontSize:10, color:C.lavender, fontWeight:700, marginTop:4 }}>−{fmt(tg)}</div>}
+              {ti > 0 && <div style={{ textAlign:"center", fontSize:10, color:C.sageDark, fontWeight:700, marginTop:4 }}>+{fmt(ti)}</div>}
             </div>
           );
         })}

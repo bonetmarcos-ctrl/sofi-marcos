@@ -44,6 +44,7 @@ export const calculateMonthlyBudget = ({
   base,
   categories,
   events,
+  blocks = [],
   trips,
   levers,
   debts,
@@ -55,16 +56,23 @@ export const calculateMonthlyBudget = ({
     const prefix = `${year}-${String(index + 1).padStart(2, "0")}`;
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
+    const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
     const isFuture = index > currentMonth;
     const fixedIncome = monthlyOverride.fixedIncome ?? Number(base.ingresos_fijos || 0);
     const fixedExpenses = monthlyOverride.fixedExpenses ?? Number(base.gastos_fijos || 0);
 
-    const roomIncome = monthEvents
+    const legacyRoomIncome = monthEvents
       .filter((event) => event.categoria === "habitacion")
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
-    const carIncome = monthEvents
+    const legacyCarIncome = monthEvents
       .filter((event) => event.categoria === "coche")
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
+    const roomIncome = legacyRoomIncome + monthBlocks
+      .filter((block) => block.tipo === "habitacion")
+      .reduce((sum, block) => sum + Number(block.importe || 0), 0);
+    const carIncome = legacyCarIncome + monthBlocks
+      .filter((block) => block.tipo === "coche")
+      .reduce((sum, block) => sum + Number(block.importe || 0), 0);
     const otherIncome = monthEvents
       .filter(
         (event) =>
