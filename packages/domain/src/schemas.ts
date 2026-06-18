@@ -36,6 +36,8 @@ export const blockSchema = z.object({
   tipo: z.enum(["habitacion", "coche"]),
   inicio: z.string().min(1),
   fin: z.string().min(1),
+  horaInicio: optionalText,
+  horaFin: optionalText,
   nota: optionalText,
   importe: amount,
 });

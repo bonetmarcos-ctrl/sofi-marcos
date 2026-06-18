@@ -62,6 +62,23 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   const maxCat = Math.max(porCat[0]?.sum || 1, gastos_viaje || 1);
   const layoutColumns = isMobile || isTablet ? "1fr" : "minmax(0,1fr) 290px";
 
+  const guardarBloqueo = () => {
+    const item = {
+      ...modalBloqueo,
+      id:modalBloqueo.id || Date.now(),
+      importe:Number(modalBloqueo.importe || 0),
+      horaInicio:modalBloqueo.tipo === "coche" ? modalBloqueo.horaInicio || "" : "",
+      horaFin:modalBloqueo.tipo === "coche" ? modalBloqueo.horaFin || "" : "",
+    };
+    setBloqueos(prev => item.id && prev.find(b => b.id === item.id) ? prev.map(b => b.id === item.id ? item : b) : [...prev, item]);
+    setModalBloqueo(null);
+  };
+
+  const eliminarBloqueo = (id) => {
+    setBloqueos(prev => prev.filter(b => b.id !== id));
+    setModalBloqueo(null);
+  };
+
   return (
     <div style={{ display:"grid", gridTemplateColumns:layoutColumns, gap:isMobile?12:16, alignItems:"start", minWidth:0 }}>
 
@@ -113,8 +130,8 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         {/* Calendario */}
         <div style={{ ...cardN(isMobile ? { padding:"12px 10px", overflowX:"auto" } : undefined) }}>
           {vista === "mensual"
-            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })}/>
-            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })}/>
+            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
+            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
           }
         </div>
 
@@ -135,6 +152,18 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
                   <label style={{ ...labelS, color:C.txt2 }}>{t("To")}</label>
                   <input type="date" value={modalBloqueo.fin || ""} onChange={e => setModalBloqueo(m => ({ ...m, fin:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                 </div>
+                {modalBloqueo.tipo === "coche" && (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    <div>
+                      <label style={{ ...labelS, color:C.txt2 }}>{t("Start time")}</label>
+                      <input type="time" value={modalBloqueo.horaInicio || ""} onChange={e => setModalBloqueo(m => ({ ...m, horaInicio:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                    </div>
+                    <div>
+                      <label style={{ ...labelS, color:C.txt2 }}>{t("End time")}</label>
+                      <input type="time" value={modalBloqueo.horaFin || ""} onChange={e => setModalBloqueo(m => ({ ...m, horaFin:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label style={{ ...labelS, color:C.txt2 }}>{t("Note")}</label>
                   <input value={modalBloqueo.nota || ""} onChange={e => setModalBloqueo(m => ({ ...m, nota:e.target.value }))} placeholder={t("Guests, reason...")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
@@ -145,15 +174,23 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
                 </div>
                 {modalBloqueo.inicio && modalBloqueo.fin && (
                   <div style={{ background:C.sageLight, borderRadius:9, padding:"9px 12px", fontSize:12, color:C.sageDark, fontWeight:600, border:`1px solid ${C.sage}44` }}>
-                    📅 {daysBetween(modalBloqueo.inicio, modalBloqueo.fin)} {t(daysBetween(modalBloqueo.inicio, modalBloqueo.fin) !== 1 ? "nights" : "night")}
+                    📅 {daysBetween(modalBloqueo.inicio, modalBloqueo.fin)} {modalBloqueo.tipo === "coche" ? t("Days") : t(daysBetween(modalBloqueo.inicio, modalBloqueo.fin) !== 1 ? "nights" : "night")}
+                    {modalBloqueo.tipo === "coche" && (modalBloqueo.horaInicio || modalBloqueo.horaFin) && <> · ⏰ {modalBloqueo.horaInicio || "--:--"} - {modalBloqueo.horaFin || "--:--"}</>}
                     {Number(modalBloqueo.importe || 0) > 0 && <> · +{fmtd(Number(modalBloqueo.importe || 0))}</>}
                   </div>
                 )}
-                <button
-                  onClick={() => { setBloqueos(prev => [...prev, { ...modalBloqueo, id:Date.now(), importe:Number(modalBloqueo.importe || 0) }]); setModalBloqueo(null); }}
-                  style={{ background:C.cyan, color:"white", border:"none", borderRadius:11, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-                  {t("Save block")}
-                </button>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={guardarBloqueo} disabled={!modalBloqueo.inicio || !modalBloqueo.fin}
+                    style={{ flex:1, background:C.cyan, color:"white", border:"none", borderRadius:11, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!modalBloqueo.inicio || !modalBloqueo.fin ? 0.55 : 1 }}>
+                    {modalBloqueo.id ? t("Save changes") : t("Save block")}
+                  </button>
+                  {modalBloqueo.id && (
+                    <button onClick={() => eliminarBloqueo(modalBloqueo.id)}
+                      style={{ background:C.errorBg, color:C.error, border:`1px solid ${C.error}44`, borderRadius:11, padding:"11px 14px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+                      {t("Delete")}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

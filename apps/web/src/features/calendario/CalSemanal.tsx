@@ -6,7 +6,7 @@ import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, onEvento, onViaje }) {
+export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, onEvento, onViaje, onBloqueo }) {
   const { weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const dias = Array.from({ length: 7 }, (_, i) => {
@@ -100,8 +100,9 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                 })}
 
                 {bls.map(b => (
-                  <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} style={{ padding:"8px 9px", borderRadius:10, background:b.tipo === "habitacion" ? C.exitoBg : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.exito}55` : "1px solid #fcd34d" }}>
+                  <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} onClick={() => onBloqueo?.(b)} style={{ padding:"8px 9px", borderRadius:10, background:b.tipo === "habitacion" ? C.exitoBg : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.exito}55` : "1px solid #fcd34d", cursor:"pointer" }}>
                     <div style={{ fontSize:11, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309" }}>{b.tipo === "habitacion" ? "🛏️" : "🚗"} {b.nota || weekdayName(i)}</div>
+                    {b.tipo === "coche" && (b.horaInicio || b.horaFin) && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {b.horaInicio || "--:--"} - {b.horaFin || "--:--"}</div>}
                     {Number(b.importe || 0) > 0 && <div style={{ fontSize:12, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309", marginTop:3 }}>+{fmtd(Number(b.importe || 0))}</div>}
                   </div>
                 ))}

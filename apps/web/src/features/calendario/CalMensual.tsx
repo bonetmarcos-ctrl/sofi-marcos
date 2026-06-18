@@ -6,7 +6,7 @@ import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia, onEvento, onViaje }) {
+export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia, onEvento, onViaje, onBloqueo }) {
   const { t, weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const primer  = new Date(año, mes, 1);
@@ -106,7 +106,13 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
               })}
 
               {evs.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{evs.length - 2} {t("more")}</div>}
-              {habOcupada && <div style={{ fontSize:9, color:C.sageDark, fontWeight:700, marginTop:2 }}>🛏️ {t("Occupied")}</div>}
+              {bh.slice(0, 2).map(b => (
+                <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} onClick={e => { e.stopPropagation(); onBloqueo?.(b); }}
+                  style={{ fontSize:9, color:b.tipo === "habitacion" ? C.sageDark : "#b45309", fontWeight:700, marginTop:2, background:b.tipo === "habitacion" ? "rgba(236,253,245,0.75)" : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.sage}44` : "1px solid #fcd34d", borderRadius:6, padding:"2px 5px", cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {b.tipo === "habitacion" ? "🛏️" : "🚗"} {b.tipo === "coche" && (b.horaInicio || b.horaFin) ? `${b.horaInicio || "--:--"}-${b.horaFin || "--:--"}` : (b.nota || t("Occupied"))}
+                </div>
+              ))}
+              {bh.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{bh.length - 2} {t("more")}</div>}
 
               <div style={{ marginTop:2 }}>
                 {gt > 0 && <div style={{ fontSize:9, fontWeight:700, color:C.lavender }}>−{fmt(gt)}</div>}
