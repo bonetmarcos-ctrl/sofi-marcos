@@ -13,13 +13,17 @@ export class AppStateService {
     return this.repository.read();
   }
 
-  async resetState(): Promise<AppState> {
+  async getUserState(ownerId: string): Promise<AppState> {
+    return this.repository.read(ownerId);
+  }
+
+  async resetState(ownerId?: string): Promise<AppState> {
     const state = createInitialState() as AppState;
-    await this.repository.write(state);
+    await this.repository.write(state, ownerId);
     return state;
   }
 
-  async replaceState(payload: Partial<Record<CollectionName, unknown[]>>): Promise<AppState> {
+  async replaceState(payload: Partial<Record<CollectionName, unknown[]>>, ownerId?: string): Promise<AppState> {
     const state = createInitialState() as AppState;
 
     for (const collection of collectionNames as CollectionName[]) {
@@ -28,28 +32,28 @@ export class AppStateService {
         : [];
     }
 
-    await this.repository.write(state);
+    await this.repository.write(state, ownerId);
     return state;
   }
 
-  async list(collection: string) {
+  async list(collection: string, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read();
+    const state = await this.repository.read(ownerId);
     return state[collection] || [];
   }
 
-  async create(collection: string, payload: Record<string, unknown>) {
+  async create(collection: string, payload: Record<string, unknown>, ownerId?: string) {
     this.assertCollection(collection);
     const item = this.parse(collection, { ...payload, id: payload.id ?? nanoid(10) });
-    const state = await this.repository.read();
+    const state = await this.repository.read(ownerId);
     const next = { ...state, [collection]: [...(state[collection] || []), item] };
-    await this.repository.write(next);
+    await this.repository.write(next, ownerId);
     return item;
   }
 
-  async update(collection: string, id: string, payload: Record<string, unknown>) {
+  async update(collection: string, id: string, payload: Record<string, unknown>, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read();
+    const state = await this.repository.read(ownerId);
     const current = (state[collection] || []) as CollectionItem[];
     const index = current.findIndex((item) => String(item.id) === String(id));
 
@@ -63,13 +67,13 @@ export class AppStateService {
     const nextCollection = current.map((currentItem, currentIndex) =>
       currentIndex === index ? item : currentItem,
     );
-    await this.repository.write({ ...state, [collection]: nextCollection });
+    await this.repository.write({ ...state, [collection]: nextCollection }, ownerId);
     return item;
   }
 
-  async remove(collection: string, id: string) {
+  async remove(collection: string, id: string, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read();
+    const state = await this.repository.read(ownerId);
     const current = (state[collection] || []) as CollectionItem[];
     const nextCollection = current.filter((item) => String(item.id) !== String(id));
 
@@ -79,7 +83,7 @@ export class AppStateService {
       throw error;
     }
 
-    await this.repository.write({ ...state, [collection]: nextCollection });
+    await this.repository.write({ ...state, [collection]: nextCollection }, ownerId);
     return { id };
   }
 

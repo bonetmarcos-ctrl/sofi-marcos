@@ -1,11 +1,11 @@
 export const MESES = [
-  "Enero","Febrero","Marzo","Abril","Mayo","Junio",
-  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
 ];
 
 export const MESES_CORTO = [
-  "Ene","Feb","Mar","Abr","May","Jun",
-  "Jul","Ago","Sep","Oct","Nov","Dic",
+  "Jan","Feb","Mar","Apr","May","Jun",
+  "Jul","Aug","Sep","Oct","Nov","Dec",
 ];
 
-export const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+export const DIAS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];

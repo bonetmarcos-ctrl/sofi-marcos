@@ -4,18 +4,20 @@ import { apiClient } from "../services/apiClient.ts";
 
 const STORAGE_KEY = "sofi_marqui_state_v1";
 
-const loadLocalState = () => {
+const getStorageKey = (ownerId = "default") => `${STORAGE_KEY}_${ownerId}`;
+
+const loadLocalState = (ownerId) => {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(getStorageKey(ownerId));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 };
 
-const saveLocalState = (state) => {
+const saveLocalState = (state, ownerId) => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(getStorageKey(ownerId), JSON.stringify(state));
   } catch {
     // Best-effort fallback for private mode or full storage.
   }
@@ -24,8 +26,8 @@ const saveLocalState = (state) => {
 const resolveUpdater = (updater, currentValue) =>
   typeof updater === "function" ? updater(currentValue) : updater;
 
-export const useAppState = () => {
-  const [state, setState] = useState(() => loadLocalState() || createInitialState());
+export const useAppState = (ownerId = "default") => {
+  const [state, setState] = useState(() => loadLocalState(ownerId) || createInitialState());
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState("loading");
   const hydratedRef = useRef(false);
@@ -38,7 +40,7 @@ export const useAppState = () => {
       .then((remoteState) => {
         if (cancelled) return;
         setState(remoteState);
-        saveLocalState(remoteState);
+        saveLocalState(remoteState, ownerId);
         setStatus("api");
       })
       .catch(() => {
@@ -54,13 +56,13 @@ export const useAppState = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ownerId]);
 
   useEffect(() => {
     if (!hydratedRef.current) return undefined;
 
     const handle = window.setTimeout(() => {
-      saveLocalState(state);
+      saveLocalState(state, ownerId);
       apiClient
         .replaceState(state)
         .then(() => setStatus("api"))
@@ -68,7 +70,7 @@ export const useAppState = () => {
     }, 300);
 
     return () => window.clearTimeout(handle);
-  }, [state]);
+  }, [state, ownerId]);
 
   const setCollection = useCallback((collection, updater) => {
     setState((currentState) => ({

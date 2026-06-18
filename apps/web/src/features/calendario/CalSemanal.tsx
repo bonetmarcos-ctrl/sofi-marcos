@@ -4,8 +4,10 @@ import { DIAS } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
 import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
+import { useI18n } from "../../i18n.tsx";
 
 export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, onEvento, onViaje }) {
+  const { weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const dias = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(inicio);
@@ -75,7 +77,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                 background: isToday ? C.cyan : "transparent",
                 border: isToday ? "none" : `1px solid ${C.borde}`,
               }}>
-                <div style={{ fontSize:10, color:isToday?"rgba(255,255,255,0.7)":C.txt2, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.5px" }}>{DIAS[i]}</div>
+                <div style={{ fontSize:10, color:isToday?"rgba(255,255,255,0.7)":C.txt2, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.5px" }}>{weekdayName(i)}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:isToday?"white":C.txt }}>{dia.getDate()}</div>
               </div>
 

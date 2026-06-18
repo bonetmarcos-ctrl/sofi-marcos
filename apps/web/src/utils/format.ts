@@ -1,6 +1,6 @@
 import { MESES } from "../constants/meses.ts";
 
-/** Formatea como €, sin decimales */
+/** Formats as EUR without decimals. */
 export const fmt = (n) =>
   new Intl.NumberFormat("es-ES", {
     style: "currency",
@@ -8,7 +8,7 @@ export const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-/** Formatea como €, con 2 decimales */
+/** Formats as EUR with two decimals. */
 export const fmtd = (n) =>
   new Intl.NumberFormat("es-ES", {
     style: "currency",
@@ -16,7 +16,7 @@ export const fmtd = (n) =>
     minimumFractionDigits: 2,
   }).format(n);
 
-/** "2025-05" → "Mayo 2025" */
+/** "2025-05" -> "May 2025". */
 export const labelMes = (ym) => {
   if (!ym) return "";
   const [y, m] = ym.split("-");

@@ -5,8 +5,10 @@ import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
+import { useI18n } from "../../i18n.tsx";
 
 export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros }) {
+  const { t, monthName } = useI18n();
   const [mesIdx,   setMesIdx]   = useState(mesActual);
   const [editando, setEditando] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
@@ -81,17 +83,17 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4, flexWrap:"wrap", gap:10 }}>
         <div>
-          <div style={{ fontSize:16, fontWeight:700, color:C.txt }}>Gastos variables del mes</div>
+          <div style={{ fontSize:16, fontWeight:700, color:C.txt }}>{t("Monthly variable expenses")}</div>
           <div style={{ fontSize:12, color:C.txt2, marginTop:2 }}>
-            Suministros · Discrecional · Viajes
-            {totalMes > 0 && <strong style={{ color:C.txt, marginLeft:8 }}>→ {fmt(totalMes)} este mes</strong>}
+            {t("Utilities · Discretionary · Trips")}
+            {totalMes > 0 && <strong style={{ color:C.txt, marginLeft:8 }}>→ {fmt(totalMes)} {t("this month")}</strong>}
           </div>
         </div>
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <button onClick={() => setMesIdx(i => Math.max(0, i-1))}
             style={{ background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:8, width:28, height:28, cursor:"pointer", fontSize:14, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>‹</button>
-          <span style={{ fontSize:13, fontWeight:700, color:C.txt, minWidth:100, textAlign:"center" }}>{MESES[mesIdx]} {año}</span>
+          <span style={{ fontSize:13, fontWeight:700, color:C.txt, minWidth:100, textAlign:"center" }}>{monthName(mesIdx)} {año}</span>
           <button onClick={() => setMesIdx(i => Math.min(11, i+1))}
             style={{ background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:8, width:28, height:28, cursor:"pointer", fontSize:14, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>›</button>
         </div>
@@ -102,7 +104,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
         {/* COL 0: Gastos fijos */}
         <div>
-          {colHeader("#64748b","#f1f5f9","#64748b33","#64748b","🏠 Gastos fijos")}
+          {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
           <div style={{ display:"grid", gap:5 }}>
             {(BASE.detalle_fijos || [])
               .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche"].includes(d.nombre))
@@ -114,13 +116,13 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
               const sum = (com?.importe||0) + (der?.importe||0);
               return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b") : null;
             })()}
-            {rowTotal("Total mensual", BASE.gastos_fijos, "#64748b", "white")}
+            {rowTotal(t("Monthly total"), BASE.gastos_fijos, "#64748b", "white")}
           </div>
         </div>
 
         {/* COL 1: Suministros */}
         <div>
-          {colHeader("#d97706","#fef3c7","#d9770633","#d97706",`💡 Suministros (${MESES[mesIdx]})`)}
+          {colHeader("#d97706","#fef3c7","#d9770633","#d97706",`💡 ${t("Utilities")} (${monthName(mesIdx)})`)}
           <div style={{ display:"grid", gap:5 }}>
             {suministrosMes.map((s, i) => {
               const ant    = suministrosAnt[i];
@@ -131,7 +133,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
                   style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, padding:"8px 12px", background:s.importe>0?"#fef3c7":C.fondo, borderRadius:9, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, cursor:"pointer", transition:"all 0.15s" }}
                   onClick={() => setEditando(isEdit ? null : `${pref}-${s.key}`)}>
                   <div>
-                    <span style={{ color:s.importe>0?"#d97706":C.txt2 }}>{s.emoji} {s.label}</span>
+                    <span style={{ color:s.importe>0?"#d97706":C.txt2 }}>{s.emoji} {t(s.label)}</span>
                     {diff !== null && (
                       <span style={{ fontSize:9, marginLeft:6, fontWeight:700, color:diff>0?C.error:C.sageDark }}>
                         {diff > 0 ? `▲+${fmt(diff)}` : diff < 0 ? `▼${fmt(diff)}` : ""}
@@ -152,33 +154,33 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
                 </div>
               );
             })}
-            {rowTotal(`Total ${MESES[mesIdx]}`, totalSuministros, "#d97706", "white")}
+            {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalSuministros, "#d97706", "white")}
           </div>
         </div>
 
         {/* COL 2: Discrecional */}
         <div>
-          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ Discrecional (${MESES[mesIdx]})`)}
+          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Discretionary")} (${monthName(mesIdx)})`)}
           <div style={{ display:"grid", gap:5 }}>
             {catsCal.length === 0
-              ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>Sin gastos en el calendario</div>
+              ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>
               : catsCal.map(c => (
                 <div key={c.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, padding:"8px 12px", background:c.bg, borderRadius:9, border:`1px solid ${c.color}33` }}>
-                  <span style={{ color:c.color }}>{c.emoji} {c.label}</span>
+                  <span style={{ color:c.color }}>{c.emoji} {t(c.label)}</span>
                   <span style={{ fontWeight:700, color:c.color }}>{fmt(c.sum)}</span>
                 </div>
               ))
             }
-            {rowTotal(`Total ${MESES[mesIdx]}`, totalCalendario, C.lavender, "white")}
+            {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
           </div>
         </div>
 
         {/* COL 3: Viajes */}
         <div>
-          {colHeader(COLOR_VIAJE, BG_VIAJE, `${COLOR_VIAJE}33`, COLOR_VIAJE, `✈️ Viajes (${MESES[mesIdx]})`)}
+          {colHeader(COLOR_VIAJE, BG_VIAJE, `${COLOR_VIAJE}33`, COLOR_VIAJE, `✈️ ${t("Trips")} (${monthName(mesIdx)})`)}
           <div style={{ display:"grid", gap:5 }}>
             {viajesMes.length === 0
-              ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>Sin viajes este mes</div>
+              ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No trips this month")}</div>
               : viajesMes.map(v => {
                 const total = Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0);
                 return (
@@ -196,7 +198,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
                 );
               })
             }
-            {rowTotal(`Total ${MESES[mesIdx]}`, gastoViajeMes, COLOR_VIAJE, "white")}
+            {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, gastoViajeMes, COLOR_VIAJE, "white")}
           </div>
         </div>
 

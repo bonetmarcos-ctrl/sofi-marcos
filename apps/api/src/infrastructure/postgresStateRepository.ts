@@ -2,7 +2,7 @@ import { createInitialState } from "@sofi-marqui/domain";
 import pg from "pg";
 import type { AppState, StateRepository } from "../application/types.js";
 
-const STATE_ID = "default";
+const DEFAULT_OWNER = "default";
 
 export class PostgresStateRepository implements StateRepository {
   private readonly pool: pg.Pool;
@@ -26,20 +26,20 @@ export class PostgresStateRepository implements StateRepository {
     `);
   }
 
-  async read(): Promise<AppState> {
+  async read(ownerId = DEFAULT_OWNER): Promise<AppState> {
     await this.ready;
-    const result = await this.pool.query("select data from app_state where id = $1", [STATE_ID]);
+    const result = await this.pool.query("select data from app_state where id = $1", [ownerId]);
 
     if (result.rowCount > 0) {
       return result.rows[0].data;
     }
 
     const initialState = createInitialState();
-    await this.write(initialState);
+    await this.write(initialState, ownerId);
     return initialState;
   }
 
-  async write(state: AppState) {
+  async write(state: AppState, ownerId = DEFAULT_OWNER) {
     await this.ready;
     await this.pool.query(
       `
@@ -48,7 +48,7 @@ export class PostgresStateRepository implements StateRepository {
         on conflict (id)
         do update set data = excluded.data, updated_at = now()
       `,
-      [STATE_ID, JSON.stringify(state)],
+      [ownerId, JSON.stringify(state)],
     );
   }
 

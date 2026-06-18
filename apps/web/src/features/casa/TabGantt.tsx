@@ -5,9 +5,11 @@ import { fmt } from "../../utils/format.ts";
 import { todayISO, toISO, daysBetween } from "../../utils/dates.ts";
 import { MESES_CORTO } from "../../constants/meses.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
+import { useI18n } from "../../i18n.tsx";
 import ModalProyecto from "./ModalProyecto.tsx";
 
 export default function TabGantt({ proyectos, setProyectos }) {
+  const { t, monthName } = useI18n();
   const [modalP, setModalP]     = useState(null);
   const [filtroHab, setFiltroHab] = useState("todos");
   const [vista, setVista]       = useState("gantt");
@@ -33,11 +35,11 @@ export default function TabGantt({ proyectos, setProyectos }) {
     const finDate = new Date(ganttFin + "T12:00:00");
     finDate.setMonth(finDate.getMonth() + 1);
     while (cur < finDate) {
-      months.push({ label: `${MESES_CORTO[cur.getMonth()]} ${cur.getFullYear()}`, date: new Date(cur) });
+      months.push({ label: `${monthName(cur.getMonth(), "short")} ${cur.getFullYear()}`, date: new Date(cur) });
       cur.setMonth(cur.getMonth() + 1);
     }
     return months;
-  }, [ganttInicio, ganttFin]);
+  }, [ganttInicio, ganttFin, monthName]);
 
   const pctPos = (dateStr) => {
     if (!dateStr) return 0;
@@ -58,10 +60,10 @@ export default function TabGantt({ proyectos, setProyectos }) {
       {/* ── KPIs ── */}
       <div style={{ display:"grid", gridTemplateColumns:kpiColumns, gap:10 }}>
         {[
-          { l:"Total tareas", v:proyectos.length,    sub:`${porEstado.completado||0} completadas`,                       c:"#7c3aed" },
-          { l:"En curso",     v:porEstado.en_curso||0, sub:`${porEstado.pendiente||0} pendientes`,                       c:"#f59e0b" },
-          { l:"Presupuesto",  v:fmt(totalPpto),        sub:"estimado total",                                              c:"#0891b2" },
-          { l:"Gastado",      v:fmt(totalGastado),     sub:totalPpto>0?`${((totalGastado/totalPpto)*100).toFixed(0)}% del total`:"", c:totalGastado>totalPpto?"#ef4444":"#22c55e" },
+          { l:t("Total tasks"), v:proyectos.length,    sub:`${porEstado.completado||0} ${t("completed")}`,                       c:"#7c3aed" },
+          { l:t("In progress"), v:porEstado.en_curso||0, sub:`${porEstado.pendiente||0} ${t("pending")}`,                       c:"#f59e0b" },
+          { l:t("Budgeted"),  v:fmt(totalPpto),        sub:t("estimated"),                                              c:"#0891b2" },
+          { l:t("Spent"),      v:fmt(totalGastado),     sub:totalPpto>0?`${((totalGastado/totalPpto)*100).toFixed(0)}% ${t("of")}`:"", c:totalGastado>totalPpto?"#ef4444":"#22c55e" },
         ].map(k => (
           <div key={k.l} style={{ ...card() }}>
             <div style={{ fontSize:11, fontWeight:700, color:k.c, textTransform:"uppercase", letterSpacing:"0.6px" }}>{k.l}</div>
@@ -77,25 +79,25 @@ export default function TabGantt({ proyectos, setProyectos }) {
           {["gantt","lista"].map(v => (
             <button key={v} onClick={() => setVista(v)}
               style={{ background:vista===v?"#1a1a2e":"white", color:vista===v?"white":"#7c6f9e", border:`1px solid ${vista===v?"#1a1a2e":"#e2e0ed"}`, borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-              {v === "gantt" ? "📊 Gantt" : "📋 Lista"}
+              {v === "gantt" ? "📊 Gantt" : `📋 ${t("List")}`}
             </button>
           ))}
         </div>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           <button onClick={() => setFiltroHab("todos")}
             style={{ padding:"5px 12px", borderRadius:20, fontSize:11, border:"none", cursor:"pointer", background:filtroHab==="todos"?"#1a1a2e":"#f1f0f7", color:filtroHab==="todos"?"white":"#475569", fontFamily:"'Lato',sans-serif", fontWeight:600 }}>
-            Todas
+            {t("All")}
           </button>
           {HABITACIONES.map(h => (
             <button key={h.id} onClick={() => setFiltroHab(h.id)}
               style={{ padding:"5px 12px", borderRadius:20, fontSize:11, border:"none", cursor:"pointer", background:filtroHab===h.id?h.color:"#f1f0f7", color:filtroHab===h.id?"white":"#475569", fontFamily:"'Lato',sans-serif", fontWeight:600 }}>
-              {h.emoji} {h.label}
+              {h.emoji} {t(h.label)}
             </button>
           ))}
         </div>
         <button onClick={() => setModalP({})}
           style={{ marginLeft:isMobile?0:"auto", width:isMobile?"100%":"auto", background:"#7c3aed", color:"white", border:"none", borderRadius:9, padding:"8px 16px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-          + Tarea
+          + {t("Task")}
         </button>
       </div>
 
@@ -105,7 +107,7 @@ export default function TabGantt({ proyectos, setProyectos }) {
           <div style={{ minWidth:isMobile?620:700 }}>
             {/* Header meses */}
             <div style={{ display:"flex", marginBottom:8, borderBottom:"1px solid #ebe9f5", paddingBottom:8 }}>
-              <div style={{ width:220, flexShrink:0, fontSize:11, fontWeight:700, color:"#7c6f9e", textTransform:"uppercase", letterSpacing:"0.6px" }}>Tarea</div>
+              <div style={{ width:220, flexShrink:0, fontSize:11, fontWeight:700, color:"#7c6f9e", textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Task")}</div>
               <div style={{ flex:1, position:"relative", height:20 }}>
                 {mesesGantt.map((m, i) => (
                   <div key={i} style={{ position:"absolute", left:`${pctPos(toISO(m.date))}%`, fontSize:10, fontWeight:700, color:"#7c6f9e", whiteSpace:"nowrap", transform:"translateX(-50%)" }}>
@@ -131,7 +133,7 @@ export default function TabGantt({ proyectos, setProyectos }) {
                     <div style={{ flex:1, overflow:"hidden" }}>
                       <div style={{ fontSize:12, fontWeight:700, color:"#1a1a2e", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.titulo}</div>
                       <div style={{ display:"flex", gap:4, marginTop:2 }}>
-                        <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:est.bg, color:est.color, fontWeight:600 }}>{est.label}</span>
+                        <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:est.bg, color:est.color, fontWeight:600 }}>{t(est.label)}</span>
                         <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:pri.bg, color:pri.color, fontWeight:600 }}>{"▲".repeat(p.prioridad==="alta"?3:p.prioridad==="media"?2:1)}</span>
                       </div>
                     </div>
@@ -152,7 +154,7 @@ export default function TabGantt({ proyectos, setProyectos }) {
               );
             })}
             {sorted.length === 0 && (
-              <div style={{ textAlign:"center", padding:32, color:"#94a3b8", fontSize:14 }}>No hay tareas. ¡Añadí la primera!</div>
+              <div style={{ textAlign:"center", padding:32, color:"#94a3b8", fontSize:14 }}>{t("No tasks. Add the first one!")}</div>
             )}
           </div>
         </div>
@@ -168,10 +170,10 @@ export default function TabGantt({ proyectos, setProyectos }) {
               <div key={hab.id} style={{ ...card() }}>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
                   <span style={{ fontSize:20 }}>{hab.emoji}</span>
-                  <span style={{ fontFamily:"'Playfair Display',serif", fontSize:16, color:hab.color, fontWeight:700 }}>{hab.label}</span>
-                  <span style={{ fontSize:11, color:"#94a3b8", marginLeft:4 }}>{tareasHab.length} tarea{tareasHab.length !== 1 ? "s" : ""}</span>
+                  <span style={{ fontFamily:"'Playfair Display',serif", fontSize:16, color:hab.color, fontWeight:700 }}>{t(hab.label)}</span>
+                  <span style={{ fontSize:11, color:"#94a3b8", marginLeft:4 }}>{tareasHab.length} {t("Task")}{tareasHab.length !== 1 ? "s" : ""}</span>
                 </div>
-                {tareasHab.length === 0 && <div style={{ fontSize:12, color:"#94a3b8", fontStyle:"italic" }}>Sin tareas</div>}
+                {tareasHab.length === 0 && <div style={{ fontSize:12, color:"#94a3b8", fontStyle:"italic" }}>{t("No tasks")}</div>}
                 <div style={{ display:"grid", gap:8 }}>
                   {tareasHab.map(p => {
                     const est = ESTADOS[p.estado];
@@ -187,15 +189,15 @@ export default function TabGantt({ proyectos, setProyectos }) {
                             <div style={{ fontWeight:700, fontSize:13, color:"#1a1a2e" }}>{p.titulo}</div>
                             {p.descripcion && <div style={{ fontSize:11, color:"#64748b", marginTop:2 }}>{p.descripcion}</div>}
                             <div style={{ display:"flex", gap:6, marginTop:5, flexWrap:"wrap" }}>
-                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:est.color, color:"white", fontWeight:700 }}>{est.label}</span>
-                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:pri.bg, color:pri.color, fontWeight:700 }}>{"▲".repeat(p.prioridad==="alta"?3:p.prioridad==="media"?2:1)} {pri.label}</span>
+                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:est.color, color:"white", fontWeight:700 }}>{t(est.label)}</span>
+                              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:pri.bg, color:pri.color, fontWeight:700 }}>{"▲".repeat(p.prioridad==="alta"?3:p.prioridad==="media"?2:1)} {t(pri.label)}</span>
                               {p.inicio && <span style={{ fontSize:10, color:"#94a3b8" }}>📅 {p.inicio.split("-").reverse().join("/")} → {p.fin?.split("-").reverse().join("/")}</span>}
                             </div>
                           </div>
                           {p.presupuesto > 0 && (
                             <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
                               <div style={{ fontSize:13, fontWeight:700, color:"#1a1a2e" }}>{fmt(p.gasto)}</div>
-                              <div style={{ fontSize:10, color:"#94a3b8" }}>de {fmt(p.presupuesto)}</div>
+                              <div style={{ fontSize:10, color:"#94a3b8" }}>{t("of")} {fmt(p.presupuesto)}</div>
                             </div>
                           )}
                         </div>

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInitialState } from "@sofi-marqui/domain";
 import App from "./App.tsx";
+import { LanguageProvider } from "./i18n.tsx";
 
 describe("App", () => {
   beforeEach(() => {
@@ -29,9 +30,9 @@ describe("App", () => {
   });
 
   it("renders the main application shell", async () => {
-    render(<App />);
+    render(<LanguageProvider><App /></LanguageProvider>);
 
-    expect(await screen.findByRole("button", { name: /presupuesto/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /budget/i })).toBeInTheDocument();
     expect(screen.getByText("Sofi & Marqui")).toBeInTheDocument();
   });
 });

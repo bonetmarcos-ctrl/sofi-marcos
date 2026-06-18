@@ -35,6 +35,12 @@ export const useAuth = () => {
     setUser(sessionUser);
   }, []);
 
+  const register = useCallback(async (credentials) => {
+    setError("");
+    const { user: sessionUser } = await apiClient.register(credentials);
+    setUser(sessionUser);
+  }, []);
+
   const logout = useCallback(async () => {
     await apiClient.logout().catch(() => null);
     setUser(null);
@@ -45,7 +51,7 @@ export const useAuth = () => {
   }, []);
 
   return useMemo(
-    () => ({ user, loading, error, login, logout, setLoginError }),
-    [user, loading, error, login, logout, setLoginError],
+    () => ({ user, loading, error, login, register, logout, setLoginError }),
+    [user, loading, error, login, register, logout, setLoginError],
   );
 };

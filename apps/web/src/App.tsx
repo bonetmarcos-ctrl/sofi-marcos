@@ -10,31 +10,34 @@ import TabCalendario  from "./features/calendario/TabCalendario.tsx";
 import TabGantt       from "./features/casa/TabGantt.tsx";
 import ModalEvento    from "./features/calendario/modals/ModalEvento.tsx";
 import ModalViaje     from "./features/viajes/ModalViaje.tsx";
+import { LanguageMenu } from "./components/LanguageMenu.tsx";
+import { useI18n } from "./i18n.tsx";
 
 const TABS = [
-  { id:"presupuesto", label:"Presupuesto", emoji:"💶" },
-  { id:"calendario",  label:"Calendario",  emoji:"🗓️" },
-  { id:"casa",        label:"Casa",        emoji:"🔨" },
+  { id:"presupuesto", labelKey:"Budget", emoji:"💶" },
+  { id:"calendario",  labelKey:"Calendar", emoji:"🗓️" },
+  { id:"casa",        labelKey:"Home", emoji:"🔨" },
 ];
 
 export default function App() {
-  const { user, loading, error, login, logout, setLoginError } = useAuth();
+  const { user, loading, error, login, register, logout, setLoginError } = useAuth();
 
   if (loading) {
-    return <Login loading={loading} error="" onLogin={login} onError={setLoginError} />;
+    return <Login loading={loading} error="" onLogin={login} onRegister={register} onError={setLoginError} />;
   }
 
   if (!user) {
-    return <Login loading={loading} error={error} onLogin={login} onError={setLoginError} />;
+    return <Login loading={loading} error={error} onLogin={login} onRegister={register} onError={setLoginError} />;
   }
 
   return <AuthenticatedApp user={user} onLogout={logout} />;
 }
 
 function AuthenticatedApp({ user, onLogout }) {
+  const { t } = useI18n();
   const [tab,         setTab]         = useState("presupuesto");
   const [modal,       setModal]       = useState(null);
-  const { state, setCollection, loaded, status } = useAppState();
+  const { state, setCollection, loaded, status } = useAppState(user.username);
   const { isMobile, isTablet } = useBreakpoint();
 
   const { eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros } = state;
@@ -46,11 +49,10 @@ function AuthenticatedApp({ user, onLogout }) {
   const setDeudas      = useCallback(updater => setCollection("deudas", updater), [setCollection]);
   const setSuministros = useCallback(updater => setCollection("suministros", updater), [setCollection]);
 
-  // ── Handlers de eventos y viajes ──
-  const guardarEvento  = useCallback((form) => { setEventos(prev => form.id && prev.find(e=>e.id===form.id) ? prev.map(e=>e.id===form.id?form:e) : [...prev,form]); setModal(null); }, [setEventos]);
-  const eliminarEvento = useCallback((id)   => { setEventos(prev => prev.filter(e=>e.id!==id)); setModal(null); }, [setEventos]);
-  const guardarViaje   = useCallback((form) => { setViajes(prev => form.id && prev.find(v=>v.id===form.id) ? prev.map(v=>v.id===form.id?form:v) : [...prev,form]); setModal(null); }, [setViajes]);
-  const eliminarViaje  = useCallback((id)   => { setViajes(prev => prev.filter(v=>v.id!==id)); setModal(null); }, [setViajes]);
+  const saveEvent = useCallback((form) => { setEventos(prev => form.id && prev.find(e=>e.id===form.id) ? prev.map(e=>e.id===form.id?form:e) : [...prev,form]); setModal(null); }, [setEventos]);
+  const deleteEvent = useCallback((id)   => { setEventos(prev => prev.filter(e=>e.id!==id)); setModal(null); }, [setEventos]);
+  const saveTrip = useCallback((form) => { setViajes(prev => form.id && prev.find(v=>v.id===form.id) ? prev.map(v=>v.id===form.id?form:v) : [...prev,form]); setModal(null); }, [setViajes]);
+  const deleteTrip = useCallback((id)   => { setViajes(prev => prev.filter(v=>v.id!==id)); setModal(null); }, [setViajes]);
 
   return (
     <>
@@ -65,7 +67,7 @@ function AuthenticatedApp({ user, onLogout }) {
         ::-webkit-scrollbar-thumb { background:${C.borde}; border-radius:4px; }
       `}</style>
 
-      {/* ── NAVBAR ── */}
+      {/* Navbar */}
       <div style={{ background:"#111418", position:"sticky", top:0, zIndex:200, boxShadow:"0 1px 0 rgba(255,255,255,0.06),0 4px 16px rgba(0,0,0,0.25)" }}>
         <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"10px 14px":"0 24px", display:"flex", alignItems:isMobile?"stretch":"center", justifyContent:"space-between", minHeight:58, gap:isMobile?10:14, flexDirection:isMobile?"column":"row" }}>
           {/* Logo */}
@@ -76,42 +78,43 @@ function AuthenticatedApp({ user, onLogout }) {
 
           {/* Tabs */}
           <nav style={{ display:"flex", gap:2, background:"rgba(255,255,255,0.06)", borderRadius:12, padding:4, overflowX:"auto", scrollbarWidth:"none", width:isMobile?"100%":"auto" }}>
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: tab===t.id ? "white" : "transparent",
-                color: tab===t.id ? C.txt : "rgba(255,255,255,0.5)",
+            {TABS.map(tabItem => (
+              <button key={tabItem.id} onClick={() => setTab(tabItem.id)} style={{
+                background: tab===tabItem.id ? "white" : "transparent",
+                color: tab===tabItem.id ? C.txt : "rgba(255,255,255,0.5)",
                 border: "none", borderRadius:9, padding:isMobile?"8px 12px":"7px 18px",
                 fontSize:13, fontWeight:700, cursor:"pointer",
                 fontFamily:"'Lato',sans-serif", transition:"all 0.15s",
                 display:"flex", alignItems:"center", gap:6, flex:isMobile?1:"initial", justifyContent:"center", whiteSpace:"nowrap",
               }}>
-                {t.emoji} {t.label}
+                {tabItem.emoji} {t(tabItem.labelKey)}
               </button>
             ))}
           </nav>
 
-          {/* Acciones rápidas */}
+          {/* Quick actions */}
           <div style={{ display:"flex", gap:6, alignItems:"center", justifyContent:isMobile?"space-between":"flex-start", width:isMobile?"100%":"auto" }}>
-            <div title={status === "api" ? "Sincronizado con API" : loaded ? "Modo local" : "Cargando"}
+            <div title={status === "api" ? t("Synced with API") : loaded ? t("Local mode") : t("Loading")}
               style={{ width:9, height:9, borderRadius:"50%", background:status === "api" ? C.exito : status === "local" ? C.warn : "rgba(255,255,255,0.3)", boxShadow:status === "api" ? `0 0 8px ${C.exito}` : "none" }}/>
             <span title={user.username} style={{ color:"rgba(255,255,255,0.72)", fontSize:12, fontWeight:700, maxWidth:isMobile?80:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.username}</span>
+            <LanguageMenu compact={isMobile} />
             <button onClick={() => setModal({ type:"evento", fecha:todayISO })}
               style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", letterSpacing:"0.2px" }}>
-              + Evento
+              {t("Add event")}
             </button>
             <button onClick={() => setModal({ type:"viaje" })}
               style={{ background:"transparent", color:"white", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-              ✈️ Viaje
+              ✈️ {t("Add trip")}
             </button>
             <button onClick={onLogout}
               style={{ background:"transparent", color:"rgba(255,255,255,0.82)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-              Salir
+              {t("Logout")}
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── CONTENIDO ── */}
+      {/* Content */}
       <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"14px 12px 32px":isTablet?"18px 16px 40px":"24px 24px 48px", minWidth:0 }}>
         {tab === "presupuesto" && (
           <TabPresupuesto eventos={eventos} viajes={viajes} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros}/>
@@ -124,12 +127,12 @@ function AuthenticatedApp({ user, onLogout }) {
         )}
       </div>
 
-      {/* ── MODALES GLOBALES ── */}
+      {/* Global modals */}
       {modal?.type === "evento" && (
-        <ModalEvento fechaInicial={modal.fecha} evento={modal.item} onSave={guardarEvento} onDelete={eliminarEvento} onClose={() => setModal(null)}/>
+        <ModalEvento fechaInicial={modal.fecha} evento={modal.item} onSave={saveEvent} onDelete={deleteEvent} onClose={() => setModal(null)}/>
       )}
       {modal?.type === "viaje" && (
-        <ModalViaje viaje={modal.item} onSave={guardarViaje} onDelete={eliminarViaje} onClose={() => setModal(null)}/>
+        <ModalViaje viaje={modal.item} onSave={saveTrip} onDelete={deleteTrip} onClose={() => setModal(null)}/>
       )}
     </>
   );

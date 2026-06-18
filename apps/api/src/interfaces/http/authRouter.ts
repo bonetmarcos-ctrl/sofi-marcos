@@ -32,6 +32,12 @@ export const createAuthRouter = (authService) => {
     response.json({ user });
   }));
 
+  router.post("/register", asyncRoute(async (request, response) => {
+    const { token, user } = await authService.register(request.body || {});
+    response.cookie(authService.cookieName, token, createCookieOptions(authService));
+    response.status(201).json({ user });
+  }));
+
   router.post("/logout", (_request, response) => {
     response.clearCookie(authService.cookieName, { path: "/" });
     response.status(204).end();

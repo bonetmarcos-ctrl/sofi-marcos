@@ -1,23 +1,23 @@
 export const HABITACIONES = [
-  { id:"salon",     label:"Salón",          emoji:"🛋️", color:"#7c3aed" },
-  { id:"cocina",    label:"Cocina",         emoji:"🍳", color:"#ea580c" },
-  { id:"dormi",     label:"Dormitorio",     emoji:"🛏️", color:"#059669" },
-  { id:"bano",      label:"Baño",           emoji:"🚿", color:"#0891b2" },
-  { id:"huespedes", label:"Hab. huéspedes", emoji:"🏠", color:"#8b5cf6" },
-  { id:"terraza",   label:"Terraza",        emoji:"🌿", color:"#16a34a" },
-  { id:"entrada",   label:"Entrada",        emoji:"🚪", color:"#b45309" },
-  { id:"otro",      label:"Otro",           emoji:"📦", color:"#475569" },
+  { id:"salon",     label:"Living room", emoji:"🛋️", color:"#7c3aed" },
+  { id:"cocina",    label:"Kitchen",     emoji:"🍳", color:"#ea580c" },
+  { id:"dormi",     label:"Bedroom",     emoji:"🛏️", color:"#059669" },
+  { id:"bano",      label:"Bathroom",    emoji:"🚿", color:"#0891b2" },
+  { id:"huespedes", label:"Guest room",  emoji:"🏠", color:"#8b5cf6" },
+  { id:"terraza",   label:"Terrace",     emoji:"🌿", color:"#16a34a" },
+  { id:"entrada",   label:"Entry",       emoji:"🚪", color:"#b45309" },
+  { id:"otro",      label:"Other",       emoji:"📦", color:"#475569" },
 ];
 
 export const PRIORIDADES = {
-  alta:  { label:"Alta",  color:"#ef4444", bg:"#fef2f2" },
-  media: { label:"Media", color:"#f59e0b", bg:"#fffbeb" },
-  baja:  { label:"Baja",  color:"#22c55e", bg:"#f0fdf4" },
+  alta:  { label:"High",   color:"#ef4444", bg:"#fef2f2" },
+  media: { label:"Medium", color:"#f59e0b", bg:"#fffbeb" },
+  baja:  { label:"Low",    color:"#22c55e", bg:"#f0fdf4" },
 };
 
 export const ESTADOS = {
-  pendiente:  { label:"Pendiente",  color:"#94a3b8", bg:"#f8fafc" },
-  en_curso:   { label:"En curso",   color:"#f59e0b", bg:"#fffbeb" },
-  completado: { label:"Completado", color:"#22c55e", bg:"#f0fdf4" },
-  bloqueado:  { label:"Bloqueado",  color:"#ef4444", bg:"#fef2f2" },
+  pendiente:  { label:"Pending",     color:"#94a3b8", bg:"#f8fafc" },
+  en_curso:   { label:"In progress", color:"#f59e0b", bg:"#fffbeb" },
+  completado: { label:"Done",        color:"#22c55e", bg:"#f0fdf4" },
+  bloqueado:  { label:"Blocked",     color:"#ef4444", bg:"#fef2f2" },
 };

@@ -17,10 +17,10 @@ import { createStateRouter } from "./interfaces/http/stateRouter.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webDistPath = path.resolve(__dirname, "../../web/dist");
 
-export const createApp = ({ repository, authConfig = env.auth }) => {
+export const createApp = ({ repository, userRepository, authConfig = env.auth }) => {
   const app = express();
   const stateService = new AppStateService(repository);
-  const authService = new AuthService(authConfig);
+  const authService = new AuthService(authConfig, userRepository);
 
   app.disable("x-powered-by");
   app.use(helmet({ contentSecurityPolicy: false }));

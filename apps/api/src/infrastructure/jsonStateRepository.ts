@@ -3,6 +3,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AppState, StateRepository } from "../application/types.js";
 
+type StoredState = AppState | { version: 2; users: Record<string, AppState> };
+
+const DEFAULT_OWNER = "default";
+
+const hasUserStates = (payload: StoredState): payload is { version: 2; users: Record<string, AppState> } =>
+  Boolean(payload && typeof payload === "object" && "users" in payload);
+
 export class JsonStateRepository implements StateRepository {
   private readonly filePath: string;
   private writeQueue: Promise<void>;
@@ -12,24 +19,52 @@ export class JsonStateRepository implements StateRepository {
     this.writeQueue = Promise.resolve();
   }
 
-  async read(): Promise<AppState> {
+  async read(ownerId = DEFAULT_OWNER): Promise<AppState> {
+    const stored = await this.readStoredState();
+
+    if (!hasUserStates(stored)) {
+      return stored;
+    }
+
+    if (!stored.users[ownerId]) {
+      const initialState = createInitialState();
+      await this.write(initialState, ownerId);
+      return initialState;
+    }
+
+    return stored.users[ownerId];
+  }
+
+  async write(state: AppState, ownerId = DEFAULT_OWNER) {
+    this.writeQueue = this.writeQueue.then(async () => {
+      const stored = await this.readStoredState();
+      const next = ownerId === DEFAULT_OWNER && !hasUserStates(stored)
+        ? state
+        : {
+            version: 2 as const,
+            users: {
+              ...(hasUserStates(stored) ? stored.users : { [DEFAULT_OWNER]: stored }),
+              [ownerId]: state,
+            },
+          };
+
+      await mkdir(path.dirname(this.filePath), { recursive: true });
+      await writeFile(this.filePath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+    });
+
+    return this.writeQueue;
+  }
+
+  private async readStoredState(): Promise<StoredState> {
     try {
       const raw = await readFile(this.filePath, "utf8");
       return JSON.parse(raw);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       const initialState = createInitialState();
-      await this.write(initialState);
+      await mkdir(path.dirname(this.filePath), { recursive: true });
+      await writeFile(this.filePath, `${JSON.stringify(initialState, null, 2)}\n`, "utf8");
       return initialState;
     }
-  }
-
-  async write(state: AppState) {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(path.dirname(this.filePath), { recursive: true });
-      await writeFile(this.filePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-    });
-
-    return this.writeQueue;
   }
 }

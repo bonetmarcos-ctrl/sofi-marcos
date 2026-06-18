@@ -4,8 +4,10 @@ import { DIAS } from "../../constants/meses.ts";
 import { fmt } from "../../utils/format.ts";
 import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
+import { useI18n } from "../../i18n.tsx";
 
 export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia, onEvento, onViaje }) {
+  const { t, weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const primer  = new Date(año, mes, 1);
   const total   = new Date(año, mes + 1, 0).getDate();
@@ -45,8 +47,8 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
     <div>
       {/* Cabecera días */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:8, minWidth:isMobile?620:"auto" }}>
-        {DIAS.map(d => (
-          <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:C.txt2, padding:"6px 0", letterSpacing:"0.5px" }}>{d}</div>
+        {DIAS.map((d, index) => (
+          <div key={d} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:C.txt2, padding:"6px 0", letterSpacing:"0.5px" }}>{weekdayName(index)}</div>
         ))}
       </div>
 
@@ -102,8 +104,8 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
                 );
               })}
 
-              {evs.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{evs.length - 2} más</div>}
-              {habOcupada && <div style={{ fontSize:9, color:C.sageDark, fontWeight:700, marginTop:2 }}>🛏️ ocupada</div>}
+              {evs.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{evs.length - 2} {t("more")}</div>}
+              {habOcupada && <div style={{ fontSize:9, color:C.sageDark, fontWeight:700, marginTop:2 }}>🛏️ {t("Occupied")}</div>}
 
               <div style={{ marginTop:2 }}>
                 {gt > 0 && <div style={{ fontSize:9, fontWeight:700, color:C.lavender }}>−{fmt(gt)}</div>}

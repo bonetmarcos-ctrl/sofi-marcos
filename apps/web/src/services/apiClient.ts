@@ -20,6 +20,7 @@ const request = async (path: string, options: RequestInit = {}) => {
 export const apiClient = {
   getSession: () => request("/api/auth/me"),
   login: (credentials) => request("/api/auth/login", { method: "POST", body: JSON.stringify(credentials) }),
+  register: (credentials) => request("/api/auth/register", { method: "POST", body: JSON.stringify(credentials) }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
   getState: () => request("/api/state"),
   replaceState: (state: unknown) => request("/api/state", { method: "PUT", body: JSON.stringify(state) }),

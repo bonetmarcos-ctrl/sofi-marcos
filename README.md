@@ -14,13 +14,26 @@ Monorepo TypeScript con React en frontend, Node.js/Express en backend y un paque
 npm install
 npm run dev
 npm run test
+npm run test:coverage
 npm run lint
 npm run build
-npm run typecheck -w @sofi-marqui/web
+npm run e2e
+npm run e2e:open
+npm run check
 npm start
 ```
 
 En desarrollo, Vite corre en `http://localhost:5173` y la API en `http://localhost:4000`. El frontend usa proxy para `/api`.
+
+## Testing
+
+La suite combina unitarios, funcionales HTTP/componentes y E2E:
+
+- `npm run test`: ejecuta Vitest en los workspaces.
+- `npm run test:coverage`: ejecuta Vitest con cobertura V8 para API, frontend y dominio. Los reportes HTML quedan en las carpetas `coverage` de cada workspace.
+- `npm run e2e`: levanta API + Vite con datos aislados y ejecuta Cypress headless.
+- `npm run e2e:open`: abre Cypress en modo interactivo.
+- `npm run check`: corre lint, tests, build y Cypress E2E.
 
 ## Persistencia
 

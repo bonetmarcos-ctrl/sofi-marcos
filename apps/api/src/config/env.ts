@@ -8,6 +8,7 @@ export const env = {
   port: Number(process.env.PORT || 4000),
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
   dataFile: process.env.DATA_FILE || "./data/state.json",
+  usersFile: process.env.USERS_FILE || "./data/users.json",
   databaseUrl: process.env.DATABASE_URL || "",
   auth: {
     username: process.env.AUTH_USERNAME || "admin",

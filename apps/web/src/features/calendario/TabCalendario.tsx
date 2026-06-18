@@ -6,10 +6,12 @@ import { fmt, fmtd, labelMes } from "../../utils/format.ts";
 import { todayISO, toISO, daysBetween } from "../../utils/dates.ts";
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
+import { useI18n } from "../../i18n.tsx";
 import CalMensual from "./CalMensual.tsx";
 import CalSemanal from "./CalSemanal.tsx";
 
 export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, setModal }) {
+  const { t, monthName } = useI18n();
   const hoy = new Date();
   const { isMobile, isTablet } = useBreakpoint();
   const [vista,   setVista]   = useState("mensual");
@@ -36,7 +38,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
     setInicio(s);
   };
   const finSemana  = new Date(inicio); finSemana.setDate(finSemana.getDate() + 6);
-  const labelSem   = `${inicio.getDate()} ${MESES[inicio.getMonth()].slice(0,3)} — ${finSemana.getDate()} ${MESES[finSemana.getMonth()].slice(0,3)} ${finSemana.getFullYear()}`;
+  const labelSem   = `${inicio.getDate()} ${monthName(inicio.getMonth(), "short")} - ${finSemana.getDate()} ${monthName(finSemana.getMonth(), "short")} ${finSemana.getFullYear()}`;
 
   // ── Panel lateral: métricas del mes ──
   const pref         = `${año}-${String(mes + 1).padStart(2, "0")}`;
@@ -68,7 +70,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             {["mensual","semanal"].map(v => (
               <button key={v} onClick={() => setVista(v)}
                 style={{ background:vista===v?C.cyan:"transparent", color:vista===v?"white":C.txt2, border:"none", borderRadius:8, padding:"6px 16px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", transition:"all 0.15s" }}>
-                {v === "mensual" ? "📅 Mes" : "📋 Semana"}
+                {v === "mensual" ? `📅 ${t("Month")}` : `📋 ${t("Week")}`}
               </button>
             ))}
           </div>
@@ -76,14 +78,14 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             <button onClick={() => vista === "mensual" ? navMes(-1) : navSemana(-1)}
               style={{ background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:9, width:32, height:32, cursor:"pointer", fontSize:16, color:C.cyan, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
             <span style={{ fontSize:isMobile?13:15, fontWeight:700, color:C.txt, minWidth:isMobile?150:190, textAlign:"center" }}>
-              {vista === "mensual" ? `${MESES[mes]} ${año}` : labelSem}
+              {vista === "mensual" ? `${monthName(mes)} ${año}` : labelSem}
             </span>
             <button onClick={() => vista === "mensual" ? navMes(1) : navSemana(1)}
               style={{ background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:9, width:32, height:32, cursor:"pointer", fontSize:16, color:C.cyan, display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
           </div>
           <button onClick={() => setModal({ type:"evento", fecha:todayISO })}
             style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 16px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-            + Evento
+            {t("Add event")}
           </button>
         </div>
 
@@ -91,17 +93,17 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
           <button onClick={() => setModalBloqueo({ tipo:"habitacion" })}
             style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:9, background:C.sageLight, border:`1px solid ${C.sage}`, fontSize:11, fontWeight:700, color:C.sageDark, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-            🛏️ Bloquear habitación
+            🛏️ {t("Block room")}
           </button>
           <button onClick={() => setModalBloqueo({ tipo:"coche" })}
             style={{ display:"flex", alignItems:"center", gap:5, padding:"5px 12px", borderRadius:9, background:"#fef3c7", border:"1px solid #fcd34d", fontSize:11, fontWeight:700, color:"#b45309", cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-            🚗 Bloquear coche
+            🚗 {t("Block car")}
           </button>
           <div style={{ marginLeft:isMobile?0:"auto", display:"flex", gap:10, fontSize:11, color:C.txt2, flexWrap:"wrap" }}>
             <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:C.lavender, display:"inline-block" }}/> Sofi</span>
             <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:C.cyan, display:"inline-block" }}/> Marqui</span>
-            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:C.cyanMid, display:"inline-block", borderRadius:2 }}/> Viaje</span>
-            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:"repeating-linear-gradient(45deg,#ecfdf5,#ecfdf5 3px,#d1fae5 3px,#d1fae5 6px)", display:"inline-block", border:`1px solid ${C.sage}`, borderRadius:2 }}/> Ocupada</span>
+            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:C.cyanMid, display:"inline-block", borderRadius:2 }}/> {t("Trip")}</span>
+            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:"repeating-linear-gradient(45deg,#ecfdf5,#ecfdf5 3px,#d1fae5 3px,#d1fae5 6px)", display:"inline-block", border:`1px solid ${C.sage}`, borderRadius:2 }}/> {t("Occupied")}</span>
           </div>
         </div>
 
@@ -119,30 +121,30 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             style={{ position:"fixed", inset:0, background:"rgba(17,20,24,0.55)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:16 }}>
             <div style={{ background:C.superficie, borderRadius:20, padding:24, width:"100%", maxWidth:360, boxShadow:"0 24px 60px rgba(0,0,0,0.2)", border:`1px solid ${C.borde}` }}>
               <div style={{ fontSize:17, fontWeight:700, color:C.txt, marginBottom:16 }}>
-                {modalBloqueo.tipo === "habitacion" ? "🛏️ Bloquear habitación" : "🚗 Bloquear coche"}
+                {modalBloqueo.tipo === "habitacion" ? `🛏️ ${t("Block room")}` : `🚗 ${t("Block car")}`}
               </div>
               <div style={{ display:"grid", gap:10 }}>
                 <div>
-                  <label style={{ ...labelS, color:C.txt2 }}>Desde</label>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("From")}</label>
                   <input type="date" value={modalBloqueo.inicio || ""} onChange={e => setModalBloqueo(m => ({ ...m, inicio:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                 </div>
                 <div>
-                  <label style={{ ...labelS, color:C.txt2 }}>Hasta</label>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("To")}</label>
                   <input type="date" value={modalBloqueo.fin || ""} onChange={e => setModalBloqueo(m => ({ ...m, fin:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                 </div>
                 <div>
-                  <label style={{ ...labelS, color:C.txt2 }}>Nota</label>
-                  <input value={modalBloqueo.nota || ""} onChange={e => setModalBloqueo(m => ({ ...m, nota:e.target.value }))} placeholder="Huéspedes, motivo..." style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Note")}</label>
+                  <input value={modalBloqueo.nota || ""} onChange={e => setModalBloqueo(m => ({ ...m, nota:e.target.value }))} placeholder={t("Guests, reason...")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                 </div>
                 {modalBloqueo.inicio && modalBloqueo.fin && (
                   <div style={{ background:C.sageLight, borderRadius:9, padding:"9px 12px", fontSize:12, color:C.sageDark, fontWeight:600, border:`1px solid ${C.sage}44` }}>
-                    📅 {daysBetween(modalBloqueo.inicio, modalBloqueo.fin)} noche{daysBetween(modalBloqueo.inicio, modalBloqueo.fin) !== 1 ? "s" : ""}
+                    📅 {daysBetween(modalBloqueo.inicio, modalBloqueo.fin)} {t(daysBetween(modalBloqueo.inicio, modalBloqueo.fin) !== 1 ? "nights" : "night")}
                   </div>
                 )}
                 <button
                   onClick={() => { setBloqueos(prev => [...prev, { ...modalBloqueo, id:Date.now() }]); setModalBloqueo(null); }}
                   style={{ background:C.cyan, color:"white", border:"none", borderRadius:11, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-                  Guardar bloqueo
+                  {t("Save block")}
                 </button>
               </div>
             </div>
@@ -157,17 +159,17 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         <div style={{ background:saldo>=0?"linear-gradient(135deg,#0f2d1a,#1a4728)":"linear-gradient(135deg,#2d0f0f,#471a1a)", borderRadius:16, padding:"16px 18px", color:"white" }}>
           <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:"0.8px" }}>{labelMes(pref)}</div>
           <div style={{ fontSize:28, fontWeight:700, color:saldo>=0?C.exito:"#f87171", marginTop:4, fontFamily:"'Playfair Display',serif" }}>{fmt(saldo)}</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>saldo libre del mes</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t("Monthly free balance")}</div>
         </div>
 
         {/* Extras + Variable */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
           <div style={{ background:C.exitoBg, border:`1px solid ${C.exito}55`, borderRadius:12, padding:"12px 13px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:C.sageDark, textTransform:"uppercase", letterSpacing:"0.6px" }}>Extras</div>
+            <div style={{ fontSize:10, fontWeight:700, color:C.sageDark, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Extras")}</div>
             <div style={{ fontSize:19, fontWeight:700, color:C.sageDark, marginTop:4 }}>{fmt(ingresos_extra)}</div>
           </div>
           <div style={{ background:C.lavLight, border:`1px solid ${C.lavender}44`, borderRadius:12, padding:"12px 13px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:C.lavender, textTransform:"uppercase", letterSpacing:"0.6px" }}>Variable</div>
+            <div style={{ fontSize:10, fontWeight:700, color:C.lavender, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Variable")}</div>
             <div style={{ fontSize:19, fontWeight:700, color:C.lavender, marginTop:4 }}>{fmt(gastos_var + gastos_viaje)}</div>
           </div>
         </div>
@@ -175,7 +177,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         {/* Por categoría */}
         {(porCat.length > 0 || gastos_viaje > 0) && (
           <div style={cardN()}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>Por categoría</div>
+            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>{t("By category")}</div>
             {gastos_viaje > 0 && (
               <div style={{ marginBottom:8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:4 }}>
@@ -190,7 +192,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             {porCat.map(c => (
               <div key={c.key} style={{ marginBottom:8 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:4 }}>
-                  <span style={{ color:c.color, fontWeight:600 }}>{c.emoji} {c.label}</span>
+                  <span style={{ color:c.color, fontWeight:600 }}>{c.emoji} {t(c.label)}</span>
                   <span style={{ fontWeight:700, color:C.txt }}>{fmtd(c.sum)}</span>
                 </div>
                 <div style={{ height:4, background:C.borde, borderRadius:4, overflow:"hidden" }}>
@@ -203,12 +205,12 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
 
         {/* ROI Coche */}
         <div style={cardN()}>
-          <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>ROI Coche 🚗</div>
+          <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>{t("Car ROI")} 🚗</div>
           <div style={{ height:6, background:C.borde, borderRadius:6, overflow:"hidden", marginBottom:6 }}>
             <div style={{ width:`${Math.min(100, (totalCocheAcum / BASE.coste_coche) * 100)}%`, height:"100%", background:`linear-gradient(90deg,${C.cyan},${C.cyanMid})`, borderRadius:6 }}/>
           </div>
           <div style={{ fontSize:11, color:C.txt2 }}>
-            {fmt(totalCocheAcum)} <span style={{ color:C.txt2 }}>de</span> {fmt(BASE.coste_coche)} · <strong style={{ color:C.cyan }}>{((totalCocheAcum / BASE.coste_coche) * 100).toFixed(1)}%</strong>
+            {fmt(totalCocheAcum)} <span style={{ color:C.txt2 }}>{t("of")}</span> {fmt(BASE.coste_coche)} · <strong style={{ color:C.cyan }}>{((totalCocheAcum / BASE.coste_coche) * 100).toFixed(1)}%</strong>
           </div>
         </div>
       </div>
