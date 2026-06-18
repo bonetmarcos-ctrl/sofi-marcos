@@ -1,0 +1,22 @@
+{
+  "name": "@sofi-marqui/domain",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./demo-data": "./src/demoData.js",
+    "./finance": "./src/finance.js",
+    "./schemas": "./src/schemas.js"
+  },
+  "scripts": {
+    "build": "node -e \"import('./src/index.js')\"",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  }
+}

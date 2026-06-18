@@ -1,0 +1,26 @@
+{
+  "name": "@sofi-marqui/api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/main.js",
+    "start": "node src/main.js",
+    "build": "node -e \"import('./src/app.js')\"",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sofi-marqui/domain": "file:../../packages/domain",
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
+    "nanoid": "^5.1.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.1",
+    "vitest": "^2.1.9"
+  }
+}
