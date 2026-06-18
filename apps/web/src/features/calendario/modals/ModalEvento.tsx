@@ -7,7 +7,7 @@ import { labelMes } from "../../../utils/format.ts";
 import { todayISO } from "../../../utils/dates.ts";
 import { useI18n } from "../../../i18n.tsx";
 
-export default function ModalEvento({ fechaInicial, evento, onSave, onDelete, onClose }) {
+export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSave, onDelete, onClose }) {
   const { t } = useI18n();
   const [form, setForm] = useState(evento ? { ...evento } : {
     fecha: fechaInicial || todayISO,
@@ -20,6 +20,7 @@ export default function ModalEvento({ fechaInicial, evento, onSave, onDelete, on
     noches: 1,
     precioPorNoche: 35,
     diasAlquiler: 1,
+    ...defaults,
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

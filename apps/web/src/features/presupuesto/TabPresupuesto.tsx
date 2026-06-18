@@ -14,7 +14,7 @@ import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
-export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros }) {
+export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, setModal }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -191,7 +191,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables eventos={eventos} viajes={viajes} año={año} mesActual={mesActual} suministros={suministros} setSuministros={setSuministros}/>
+      <SeccionGastosVariables eventos={eventos} viajes={viajes} año={año} mesActual={mesActual} suministros={suministros} setSuministros={setSuministros} setModal={setModal}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>

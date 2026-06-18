@@ -7,7 +7,7 @@ import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros }) {
+export default function SeccionGastosVariables({ eventos, viajes, año, mesActual, suministros, setSuministros, setModal }) {
   const { t, monthName } = useI18n();
   const [mesIdx,   setMesIdx]   = useState(mesActual);
   const [editando, setEditando] = useState(null);
@@ -56,6 +56,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
+  const fechaGasto = `${pref}-01`;
 
   // Helpers de layout
   const colHeader = (color, bg, border, dot, label) => (
@@ -92,6 +93,10 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
         </div>
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <button onClick={() => setModal({ type:"evento", fecha:fechaGasto, defaults:{ categoria:"otro", persona:"ambos" } })}
+            style={{ background:C.cyan, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
+            + {t("Variable expense")}
+          </button>
           <button onClick={() => setMesIdx(i => Math.max(0, i-1))}
             style={{ background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:8, width:28, height:28, cursor:"pointer", fontSize:14, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>‹</button>
           <span style={{ fontSize:13, fontWeight:700, color:C.txt, minWidth:100, textAlign:"center" }}>{monthName(mesIdx)} {año}</span>
@@ -123,7 +128,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
         {/* COL 1: Suministros */}
         <div>
-          {colHeader("#d97706","#fef3c7","#d9770633","#d97706",`💡 ${t("Utilities")} (${monthName(mesIdx)})`)}
+          {colHeader("#d97706","#fef3c7","#d9770633","#d97706",`💡 ${t("Utilities")}`)}
           <div style={{ display:"grid", gap:5 }}>
             {suministrosMes.map((s, i) => {
               const ant    = suministrosAnt[i];
@@ -161,7 +166,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
         {/* COL 2: Discrecional */}
         <div>
-          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Discretionary")} (${monthName(mesIdx)})`)}
+          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Discretionary")}`)}
           <div style={{ display:"grid", gap:5 }}>
             {catsCal.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>
@@ -178,7 +183,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
         {/* COL 3: Viajes */}
         <div>
-          {colHeader(COLOR_VIAJE, BG_VIAJE, `${COLOR_VIAJE}33`, COLOR_VIAJE, `✈️ ${t("Trips")} (${monthName(mesIdx)})`)}
+          {colHeader(COLOR_VIAJE, BG_VIAJE, `${COLOR_VIAJE}33`, COLOR_VIAJE, `✈️ ${t("Trips")}`)}
           <div style={{ display:"grid", gap:5 }}>
             {viajesMes.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No trips this month")}</div>

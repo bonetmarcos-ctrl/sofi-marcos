@@ -117,7 +117,7 @@ function AuthenticatedApp({ user, onLogout }) {
       {/* Content */}
       <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"14px 12px 32px":isTablet?"18px 16px 40px":"24px 24px 48px", minWidth:0 }}>
         {tab === "presupuesto" && (
-          <TabPresupuesto eventos={eventos} bloqueos={bloqueos} viajes={viajes} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros}/>
+          <TabPresupuesto eventos={eventos} bloqueos={bloqueos} viajes={viajes} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} setModal={setModal}/>
         )}
         {tab === "calendario" && (
           <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal}/>
@@ -129,7 +129,7 @@ function AuthenticatedApp({ user, onLogout }) {
 
       {/* Global modals */}
       {modal?.type === "evento" && (
-        <ModalEvento fechaInicial={modal.fecha} evento={modal.item} onSave={saveEvent} onDelete={deleteEvent} onClose={() => setModal(null)}/>
+        <ModalEvento fechaInicial={modal.fecha} evento={modal.item} defaults={modal.defaults} onSave={saveEvent} onDelete={deleteEvent} onClose={() => setModal(null)}/>
       )}
       {modal?.type === "viaje" && (
         <ModalViaje viaje={modal.item} onSave={saveTrip} onDelete={deleteTrip} onClose={() => setModal(null)}/>
