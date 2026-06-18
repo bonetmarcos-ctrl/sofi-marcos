@@ -5,6 +5,7 @@ import { useAuth } from "./hooks/useAuth.ts";
 import { useBreakpoint } from "./hooks/useBreakpoint.ts";
 import { useAppState } from "./hooks/useAppState.ts";
 import { todayISO } from "./utils/dates.ts";
+import { BASE } from "./data/demo.ts";
 import TabPresupuesto from "./features/presupuesto/TabPresupuesto.tsx";
 import TabCalendario  from "./features/calendario/TabCalendario.tsx";
 import TabGantt       from "./features/casa/TabGantt.tsx";
@@ -40,7 +41,9 @@ function AuthenticatedApp({ user, onLogout }) {
   const { state, setCollection, loaded, status } = useAppState(user.username);
   const { isMobile, isTablet } = useBreakpoint();
 
-  const { eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables } = state;
+  const { configuracion, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables } = state;
+  const base = configuracion?.[0] || BASE;
+  const setConfiguracion = useCallback(updater => setCollection("configuracion", updater), [setCollection]);
   const setEventos     = useCallback(updater => setCollection("eventos", updater), [setCollection]);
   const setViajes      = useCallback(updater => setCollection("viajes", updater), [setCollection]);
   const setBloqueos    = useCallback(updater => setCollection("bloqueos", updater), [setCollection]);
@@ -118,10 +121,10 @@ function AuthenticatedApp({ user, onLogout }) {
       {/* Content */}
       <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"14px 12px 32px":isTablet?"18px 16px 40px":"24px 24px 48px", minWidth:0 }}>
         {tab === "presupuesto" && (
-          <TabPresupuesto eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+          <TabPresupuesto base={base} setConfiguracion={setConfiguracion} setModal={setModal} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
         )}
         {tab === "calendario" && (
-          <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal}/>
+          <TabCalendario base={base} eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal}/>
         )}
         {tab === "casa" && (
           <TabGantt proyectos={proyectos} setProyectos={setProyectos}/>

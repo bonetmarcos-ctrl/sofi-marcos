@@ -14,7 +14,7 @@ const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
 const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
 
-export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function SeccionGastosVariables({ base = BASE, setModal, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
   const [modalSuministro, setModalSuministro] = useState(null);
@@ -26,7 +26,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
   const prefAnterior = mesIdx > 0 ? `${año}-${String(mesIdx).padStart(2, "0")}` : `${año - 1}-12`;
-  const fixedCostForMonth = BASE.monthlyOverrides?.[pref]?.fixedExpenses ?? BASE.gastos_fijos;
+  const fixedCostForMonth = base.monthlyOverrides?.[pref]?.fixedExpenses ?? base.gastos_fijos;
 
   // Suministros del mes
   const suministrosPorClave = useMemo(() => {
@@ -105,6 +105,22 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
+  const editableDiscretionaryItems = useMemo(() => [
+    ...evMes.map(evento => ({
+      key:`evento-${evento.id}`,
+      label:evento.titulo,
+      amount:calculateExpenseCashImpactForMonth(evento, pref),
+      source:t("Calendar"),
+      onEdit:() => setModal?.({ type:"evento", item:evento }),
+    })),
+    ...lineasMes.map(gasto => ({
+      key:`gasto-${gasto.id}`,
+      label:gasto.titulo,
+      amount:calculateExpenseCashImpactForMonth(gasto, pref),
+      source:t("Variable expense"),
+      onEdit:() => setModalGasto(gasto),
+    })),
+  ], [evMes, lineasMes, pref, setModal, t]);
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const guardarGastoVariable = (gasto) => {
     const origenFondos = gasto.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
@@ -195,16 +211,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         <div>
           {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
           <div style={{ display:"grid", gap:5 }}>
-            {(BASE.detalle_fijos || [])
-              .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche","Seguro auto"].includes(d.nombre))
-              .map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))
-            }
-            {(() => {
-              const com = (BASE.detalle_fijos || []).find(d => d.nombre === "Comunidad");
-              const der = (BASE.detalle_fijos || []).find(d => d.nombre === "Derramas");
-              const sum = (com?.importe||0) + (der?.importe||0);
-              return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b") : null;
-            })()}
+            {(base.detalle_fijos || []).map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))}
             {rowTotal(t("Monthly total"), fixedCostForMonth, "#64748b", "white")}
           </div>
         </div>
@@ -259,6 +266,20 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
               ))
             }
             {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
+            {editableDiscretionaryItems.length > 0 && (
+              <div style={{ display:"grid", gap:5, marginTop:4 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.5px" }}>{t("Editable records")}</div>
+                {editableDiscretionaryItems.map(item => (
+                  <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, fontSize:12, padding:"7px 9px", background:"white", borderRadius:9, border:`1px solid ${C.borde}` }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ color:C.txt, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label}</div>
+                      <div style={{ fontSize:10, color:C.txt2 }}>{item.source} · {fmt(item.amount)}</div>
+                    </div>
+                    <button onClick={item.onEdit} aria-label={`${t("Edit")} ${item.label}`} style={{ width:25, height:25, borderRadius:7, border:`1px solid ${C.lavender}33`, background:C.lavLight, color:C.lavender, cursor:"pointer", flexShrink:0 }}>✏️</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -272,9 +293,12 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
                 const total = Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0);
                 return (
                   <div key={v.id} style={{ fontSize:13, padding:"8px 12px", background:BG_VIAJE, borderRadius:9, border:`1px solid ${COLOR_VIAJE}33` }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <span style={{ color:COLOR_VIAJE, fontWeight:600 }}>{v.emoji||"✈️"} {v.nombre}</span>
-                      <span style={{ fontWeight:700, color:COLOR_VIAJE }}>{fmt(total)}</span>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                      <span style={{ color:COLOR_VIAJE, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{v.emoji||"✈️"} {v.nombre}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                        <span style={{ fontWeight:700, color:COLOR_VIAJE }}>{fmt(total)}</span>
+                        <button onClick={() => setModal?.({ type:"viaje", item:v })} aria-label={`${t("Edit trip")} ${v.nombre}`} style={{ width:24, height:24, borderRadius:7, border:`1px solid ${COLOR_VIAJE}33`, background:"white", color:COLOR_VIAJE, cursor:"pointer" }}>✏️</button>
+                      </div>
                     </div>
                     {Object.entries(v.gastos || {}).filter(([, val]) => Number(val || 0) > 0).map(([k, val]) => (
                       <div key={k} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.txt2, marginTop:3, paddingLeft:8 }}>

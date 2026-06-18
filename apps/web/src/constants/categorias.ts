@@ -8,6 +8,7 @@ export const CATEGORIAS = {
   ropa:        { label:"Clothes",    emoji:"👗", color:"#FF86C8", bg:"#FFF0FA", tipo:"gasto" },
   habitacion:  { label:"Room",       emoji:"🛏️", color:"#FFBF81", bg:"#FFF7EE", tipo:"ingreso" },
   coche:       { label:"Car",        emoji:"🔑", color:"#FFDC5E", bg:"#FFFBE6", tipo:"ingreso" },
+  ingreso:     { label:"Income",     emoji:"💶", color:"#3A949E", bg:"#E6F2F4", tipo:"ingreso" },
   viaje:       { label:"Trip",       emoji:"✈️", color:"#FF69EB", bg:"#FFF0FD", tipo:"gasto" },
   otro:        { label:"Supermarket", emoji:"🛒", color:"#22333B", bg:"#EAE0D5", tipo:"gasto" },
 };

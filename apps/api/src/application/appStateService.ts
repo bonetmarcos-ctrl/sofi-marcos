@@ -10,11 +10,11 @@ export class AppStateService {
   }
 
   async getState(): Promise<AppState> {
-    return this.repository.read();
+    return this.normalizeState(await this.repository.read());
   }
 
   async getUserState(ownerId: string): Promise<AppState> {
-    return this.repository.read(ownerId);
+    return this.normalizeState(await this.repository.read(ownerId));
   }
 
   async resetState(ownerId?: string): Promise<AppState> {
@@ -29,6 +29,8 @@ export class AppStateService {
     for (const collection of collectionNames as CollectionName[]) {
       state[collection] = Array.isArray(payload[collection])
         ? payload[collection].map((item) => this.parse(collection, item))
+        : collection === "configuracion"
+          ? state[collection]
         : [];
     }
 
@@ -38,14 +40,14 @@ export class AppStateService {
 
   async list(collection: string, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read(ownerId);
+    const state = this.normalizeState(await this.repository.read(ownerId));
     return state[collection] || [];
   }
 
   async create(collection: string, payload: Record<string, unknown>, ownerId?: string) {
     this.assertCollection(collection);
     const item = this.parse(collection, { ...payload, id: payload.id ?? nanoid(10) });
-    const state = await this.repository.read(ownerId);
+    const state = this.normalizeState(await this.repository.read(ownerId));
     const next = { ...state, [collection]: [...(state[collection] || []), item] };
     await this.repository.write(next, ownerId);
     return item;
@@ -53,7 +55,7 @@ export class AppStateService {
 
   async update(collection: string, id: string, payload: Record<string, unknown>, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read(ownerId);
+    const state = this.normalizeState(await this.repository.read(ownerId));
     const current = (state[collection] || []) as CollectionItem[];
     const index = current.findIndex((item) => String(item.id) === String(id));
 
@@ -73,7 +75,7 @@ export class AppStateService {
 
   async remove(collection: string, id: string, ownerId?: string) {
     this.assertCollection(collection);
-    const state = await this.repository.read(ownerId);
+    const state = this.normalizeState(await this.repository.read(ownerId));
     const current = (state[collection] || []) as CollectionItem[];
     const nextCollection = current.filter((item) => String(item.id) !== String(id));
 
@@ -106,5 +108,18 @@ export class AppStateService {
     }
 
     return result.data;
+  }
+
+  private normalizeState(state: AppState): AppState {
+    const initialState = createInitialState() as AppState;
+    const normalized = { ...initialState, ...state };
+
+    for (const collection of collectionNames as CollectionName[]) {
+      if (!Array.isArray(normalized[collection])) {
+        normalized[collection] = initialState[collection];
+      }
+    }
+
+    return normalized;
   }
 }

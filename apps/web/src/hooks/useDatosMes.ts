@@ -7,9 +7,9 @@ import { BASE } from "../data/demo.ts";
  * Calcula la cuota de deudas activa para un mes dado ("YYYY-MM").
  * Función pura — extraída aquí para ser reutilizable y testeable.
  */
-export const calcCuotaDeudaMes = (deudas, pref) => {
-  if (BASE.monthlyOverrides?.[pref]?.debtExpenses !== undefined) {
-    return BASE.monthlyOverrides[pref].debtExpenses;
+export const calcCuotaDeudaMes = (deudas, pref, base = BASE) => {
+  if (base.monthlyOverrides?.[pref]?.debtExpenses !== undefined) {
+    return base.monthlyOverrides[pref].debtExpenses;
   }
 
   return calculateDebtInstallmentForMonth(deudas, pref);
@@ -24,9 +24,9 @@ export const calcCuotaDeudaMes = (deudas, pref) => {
  *
  * Todo memoizado — solo recalcula cuando cambian los inputs.
  */
-export const useDatosMes = ({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual }) => {
+export const useDatosMes = ({ base = BASE, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual }) => {
   return useMemo(() => calculateMonthlyBudget({
-    base: BASE,
+    base,
     categories: CATEGORIAS,
     events: eventos,
     blocks: bloqueos,
@@ -38,5 +38,5 @@ export const useDatosMes = ({ eventos, bloqueos, viajes, palancas, deudas, sumin
     projects: proyectos,
     year: año,
     currentMonth: mesActual,
-  }), [eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual]);
+  }), [base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual]);
 };

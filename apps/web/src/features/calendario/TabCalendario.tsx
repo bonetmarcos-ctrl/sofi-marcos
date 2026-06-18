@@ -11,7 +11,7 @@ import { useI18n } from "../../i18n.tsx";
 import CalMensual from "./CalMensual.tsx";
 import CalSemanal from "./CalSemanal.tsx";
 
-export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, setModal }) {
+export default function TabCalendario({ base = BASE, eventos, viajes, bloqueos, setBloqueos, setModal }) {
   const { t, monthName } = useI18n();
   const hoy = new Date();
   const { isMobile, isTablet } = useBreakpoint();
@@ -51,9 +51,10 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   const gastos_var     = useMemo(() => eventos.filter(e => eventoVisibleEnCalendario(e) && categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + calculateExpenseCashImpactForMonth(e, pref), 0), [eventos, pref]);
   const viajes_mes     = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastos_viaje   = useMemo(() => viajes_mes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0), [viajes_mes]);
-  const saldo          = (BASE.ingresos_fijos + ingresos_extra) - (BASE.gastos_fijos + BASE.deudas + BASE.previsiones + gastos_var + gastos_viaje);
+  const saldo          = (base.ingresos_fijos + ingresos_extra) - (base.gastos_fijos + base.deudas + base.previsiones + gastos_var + gastos_viaje);
 
   const totalCocheAcum = useMemo(() => eventos.filter(e => e.categoria === "coche").reduce((a, e) => a + e.importe, 0) + bloqueos.filter(b => b.tipo === "coche").reduce((a, b) => a + Number(b.importe || 0), 0), [eventos, bloqueos]);
+  const costeCoche = Math.max(1, Number(base.coste_coche || 0));
 
   const porCat = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
@@ -253,10 +254,10 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         <div style={cardN()}>
           <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>{t("Car ROI")} 🚗</div>
           <div style={{ height:6, background:C.borde, borderRadius:6, overflow:"hidden", marginBottom:6 }}>
-            <div style={{ width:`${Math.min(100, (totalCocheAcum / BASE.coste_coche) * 100)}%`, height:"100%", background:`linear-gradient(90deg,${C.cyan},${C.cyanMid})`, borderRadius:6 }}/>
+            <div style={{ width:`${Math.min(100, (totalCocheAcum / costeCoche) * 100)}%`, height:"100%", background:`linear-gradient(90deg,${C.cyan},${C.cyanMid})`, borderRadius:6 }}/>
           </div>
           <div style={{ fontSize:11, color:C.txt2 }}>
-            {fmt(totalCocheAcum)} <span style={{ color:C.txt2 }}>{t("of")}</span> {fmt(BASE.coste_coche)} · <strong style={{ color:C.cyan }}>{((totalCocheAcum / BASE.coste_coche) * 100).toFixed(1)}%</strong>
+            {fmt(totalCocheAcum)} <span style={{ color:C.txt2 }}>{t("of")}</span> {fmt(costeCoche)} · <strong style={{ color:C.cyan }}>{((totalCocheAcum / costeCoche) * 100).toFixed(1)}%</strong>
           </div>
         </div>
       </div>

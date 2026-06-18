@@ -26,8 +26,21 @@ const saveLocalState = (state, ownerId) => {
 const resolveUpdater = (updater, currentValue) =>
   typeof updater === "function" ? updater(currentValue) : updater;
 
+const normalizeState = (state) => {
+  const initialState = createInitialState();
+  const normalized = { ...initialState, ...(state || {}) };
+
+  Object.keys(initialState).forEach((collection) => {
+    if (!Array.isArray(normalized[collection])) {
+      normalized[collection] = initialState[collection];
+    }
+  });
+
+  return normalized;
+};
+
 export const useAppState = (ownerId = "default") => {
-  const [state, setState] = useState(() => loadLocalState(ownerId) || createInitialState());
+  const [state, setState] = useState(() => normalizeState(loadLocalState(ownerId)));
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState("loading");
   const hydratedRef = useRef(false);
@@ -39,8 +52,9 @@ export const useAppState = (ownerId = "default") => {
       .getState()
       .then((remoteState) => {
         if (cancelled) return;
-        setState(remoteState);
-        saveLocalState(remoteState, ownerId);
+        const normalizedState = normalizeState(remoteState);
+        setState(normalizedState);
+        saveLocalState(normalizedState, ownerId);
         setStatus("api");
       })
       .catch(() => {

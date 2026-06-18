@@ -11,12 +11,13 @@ import { useI18n } from "../../i18n.tsx";
 import { BASE } from "../../data/demo.ts";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
+import PanelConfiguracionPresupuesto from "./PanelConfiguracionPresupuesto.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
 const UTILITY_UNIT_FALLBACK = { luz:"kWh", gas:"m3", agua:"m3" };
 
-export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -30,6 +31,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [showDeudas,  setShowDeudas]  = useState(false);
+  const [showConfig,  setShowConfig]  = useState(false);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -41,14 +43,15 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   // ── Handlers deudas ──
   const guardarDeuda    = (d) => { setDeudas(prev => d.id && prev.find(x=>x.id===d.id) ? prev.map(x=>x.id===d.id?d:x) : [...prev,d]); setModalDeuda(null); };
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
+  const guardarConfiguracion = (nextBase) => { setConfiguracion?.(() => [{ ...nextBase, id:nextBase.id || "base" }]); setShowConfig(false); };
 
   // ── Datos calculados ──
-  const { datosMes } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
+  const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
   const resumenMes = datosMes[mesVista] || datosMes[mesActual];
 
   // KPIs deudas
-  const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista), [deudas, prefVista]);
+  const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [deudas, prefVista, base]);
   const totalPendienteMes = useMemo(() => calcularDeudaPendienteMes(deudas, prefVista), [deudas, prefVista]);
   const proxVencimiento = useMemo(() => deudas
     .map(d=>({ ...d, fin:addMeses(d.mes_inicio, d.cuotas_totales-1) }))
@@ -119,12 +122,12 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const palancasPotResumen = useMemo(() => palancas
     .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
 
-  const ingresosFijosResumen = BASE.monthlyOverrides?.[prefVista]?.fixedIncome ?? BASE.ingresos_fijos;
-  const ajusteIngresosMes = ingresosFijosResumen - BASE.detalle_ingresos.reduce((a, d) => a + Number(d.importe || 0), 0);
+  const ingresosFijosResumen = base.monthlyOverrides?.[prefVista]?.fixedIncome ?? base.ingresos_fijos;
+  const ajusteIngresosMes = ingresosFijosResumen - (base.detalle_ingresos || []).reduce((a, d) => a + Number(d.importe || 0), 0);
   const detalleIngresosMes = Math.abs(ajusteIngresosMes) > 0.005
-    ? [...BASE.detalle_ingresos, { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
-    : BASE.detalle_ingresos;
-  const gastosFijosResumen = (BASE.monthlyOverrides?.[prefVista]?.fixedExpenses ?? BASE.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (BASE.previsiones || 0);
+    ? [...(base.detalle_ingresos || []), { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
+    : (base.detalle_ingresos || []);
+  const gastosFijosResumen = (base.monthlyOverrides?.[prefVista]?.fixedExpenses ?? base.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (base.previsiones || 0);
   const presionResumen = resumenMes?.presion || 0;
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -246,7 +249,11 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Monthly summary")}</div>
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Income · expenses · debt snapshot")}</div>
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+          <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",justifyContent:"flex-end" }}>
+            <button onClick={() => setShowConfig(true)}
+              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:9,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:700,color:C.cyan,fontFamily:"'Lato',sans-serif" }}>
+              {t("Edit base data")}
+            </button>
             <button onClick={() => setMesVista(i => Math.max(0, i-1))}
               style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
             <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesVista)} {año}</span>
@@ -390,7 +397,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+      <SeccionGastosVariables base={base} setModal={setModal} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
@@ -413,13 +420,13 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
         <div style={{ overflowX:isMobile?"auto":"visible", paddingBottom:isMobile?6:0 }}>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(12,minmax(34px,1fr))",gap:3,alignItems:"end",height:160,position:"relative",minWidth:isMobile?520:"auto" }}>
           {(() => {
-            const maxG = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), BASE.ingresos_fijos, 1);
-            const fixedPx = Math.min(138,(BASE.ingresos_fijos/maxG)*140);
+            const maxG = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), base.ingresos_fijos, 1);
+            const fixedPx = Math.min(138,(base.ingresos_fijos/maxG)*140);
             return <div style={{ position:"absolute",left:0,right:0,bottom:`${fixedPx}px`,height:1,background:C.cyan,opacity:0.5,pointerEvents:"none",zIndex:1 }}/>;
           })()}
 
           {datosMes.map((m,i) => {
-            const maxG     = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), BASE.ingresos_fijos, 1);
+            const maxG     = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), base.ingresos_fijos, 1);
             const totalH   = Math.max(4,(m.total_gastos/maxG)*140);
             const h1       = m.total_gastos>0?(m.gasto_estructural/m.total_gastos)*totalH:0;
             const h2       = m.total_gastos>0?(m.gasto_suministros/m.total_gastos)*totalH:0;
@@ -486,7 +493,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             </div>
             <div style={{ display:"grid",gridTemplateColumns:expenseLayerColumns,gap:8,marginBottom:12 }}>
               {[
-                {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
+                {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(base.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? base.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
                 {key:"suministros", l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
                 {key:"discrecional", l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
                 {key:"viajes", l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
@@ -637,7 +644,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
 
             {explorerLayer === "estructural" && (() => {
               const month = datosMes[explorerMonth];
-              const fixedExpenses = BASE.monthlyOverrides?.[month.pref]?.fixedExpenses ?? BASE.gastos_fijos;
+              const fixedExpenses = base.monthlyOverrides?.[month.pref]?.fixedExpenses ?? base.gastos_fijos;
               return (
                 <div style={{ display:"grid",gap:10 }}>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Fixed expenses")}</span><strong>{fmt(fixedExpenses)}</strong></div>
@@ -747,13 +754,13 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             return{...d,activa,esUltima,pendientes,cuotaMes:activa?d.cuota+(d.interes_mensual||0):0};
           });
           const totalCuotas=detalleDeudas.reduce((a,d)=>a+d.cuotaMes,0);
-          const saldoLibre=BASE.ingresos_fijos-BASE.gastos_fijos-totalCuotas;
+          const saldoLibre=base.ingresos_fijos-base.gastos_fijos-totalCuotas;
           const liberaciones=detalleDeudas.filter(d=>d.esUltima);
           return{pref,detalleDeudas,totalCuotas,saldoLibre,liberaciones};
         });
         const totalLiberado=deudas.reduce((a,d)=>a+d.cuota+(d.interes_mensual||0),0);
-        const saldoHoy=BASE.ingresos_fijos-BASE.gastos_fijos-(filas[0]?.totalCuotas||0);
-        const saldoFinal=BASE.ingresos_fijos-BASE.gastos_fijos;
+        const saldoHoy=base.ingresos_fijos-base.gastos_fijos-(filas[0]?.totalCuotas||0);
+        const saldoFinal=base.ingresos_fijos-base.gastos_fijos;
         return(
           <div style={{ ...cardN(isMobile ? { padding:"14px 12px" } : undefined),background:"linear-gradient(135deg,#0f2420,#1a3d30)",border:"none" }}>
             <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:4 }}>🔮 {t("Monthly debt-free projection")}</div>
@@ -812,6 +819,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
 
       {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
+      {showConfig && <PanelConfiguracionPresupuesto base={base} prefVista={prefVista} onSave={guardarConfiguracion} onClose={()=>setShowConfig(false)}/>} 
     </div>
   );
 }

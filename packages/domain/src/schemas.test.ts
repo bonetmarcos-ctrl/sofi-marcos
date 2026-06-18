@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { collectionNames, eventSchema, tripSchema, debtSchema } from "./schemas.js";
+import { collectionNames, eventSchema, tripSchema, debtSchema, budgetConfigSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
     expect(collectionNames).toEqual([
+      "configuracion",
       "eventos",
       "viajes",
       "bloqueos",
@@ -54,5 +55,25 @@ describe("domain schemas", () => {
         mes_inicio: "2026-01",
       }),
     ).toThrow();
+  });
+
+  it("coerces editable budget configuration tables", () => {
+    const parsed = budgetConfigSchema.parse({
+      ingresos_fijos: "1000",
+      gastos_fijos: "500",
+      deudas: "100",
+      previsiones: "20",
+      presupuesto_variable: "80",
+      coste_coche: "5500",
+      detalle_fijos: [{ nombre: "Hipoteca", importe: "750" }],
+      detalle_ingresos: [{ nombre: "Sueldo", importe: "1000", recurrente: "true" }],
+      monthlyOverrides: { "2026-06": { fixedIncome: "1200", fixedExpenses: "600" } },
+    });
+
+    expect(parsed.id).toBe("base");
+    expect(parsed.ingresos_fijos).toBe(1000);
+    expect(parsed.detalle_fijos[0].importe).toBe(750);
+    expect(parsed.detalle_ingresos[0].recurrente).toBe(true);
+    expect(parsed.monthlyOverrides["2026-06"].fixedIncome).toBe(1200);
   });
 });

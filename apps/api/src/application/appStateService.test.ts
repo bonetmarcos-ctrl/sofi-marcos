@@ -57,5 +57,17 @@ describe("AppStateService", () => {
     expect(state.eventos[0]).toMatchObject({ importe: 35, hora: "", notas: "" });
     expect(state.viajes[0]).toMatchObject({ presupuesto: 800, gastos: { hotel: 300 } });
     expect(state.palancas).toEqual([]);
+    expect(state.configuracion[0]).toMatchObject({ id: "base" });
+  });
+
+  it("normalizes legacy states and allows editing imported budget configuration", async () => {
+    const { configuracion: _configuracion, ...legacyState } = createInitialState() as Record<string, unknown[]>;
+    const service = new AppStateService(new MemoryStateRepository(legacyState as never));
+
+    const state = await service.getState();
+    expect(state.configuracion[0]).toMatchObject({ id: "base" });
+
+    const updated = await service.update("configuracion", "base", { ingresos_fijos: "7777" });
+    expect(updated).toMatchObject({ id: "base", ingresos_fijos: 7777 });
   });
 });
