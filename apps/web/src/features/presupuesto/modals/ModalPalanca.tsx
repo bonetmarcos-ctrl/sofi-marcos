@@ -5,13 +5,14 @@ import { C, inputS, labelS } from "../../../constants/colores.ts";
 import { fmt, labelMes } from "../../../utils/format.ts";
 import { useI18n } from "../../../i18n.tsx";
 
-export default function ModalPalanca({ palanca, onSave, onDelete, onClose }) {
+export default function ModalPalanca({ palanca, defaults = {}, onSave, onDelete, onClose }) {
   const { t } = useI18n();
   const año = new Date().getFullYear();
   const [form, setForm] = useState(palanca ? { ...palanca } : {
     nombre: "", subcategoria: "habitacion", importe: "",
     mes: `${año}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
     activa: false, notas: "",
+    ...defaults,
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const sub = SUBCAT_VAR[form.subcategoria];

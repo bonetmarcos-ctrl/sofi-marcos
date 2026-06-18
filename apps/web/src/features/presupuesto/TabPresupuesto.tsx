@@ -21,13 +21,15 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const { isMobile, isTablet } = useBreakpoint();
 
   const [mesDetalle,  setMesDetalle]  = useState(null);
+  const [mesIngresos, setMesIngresos] = useState(mesActual);
   const [hoveredMes,  setHoveredMes]  = useState(null);
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [showDeudas,  setShowDeudas]  = useState(false);
+  const prefIngresos = `${año}-${String(mesIngresos+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
-  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes ? `${año}-${palanca.mes.slice(5, 7)}` : `${año}-${String(mesActual+1).padStart(2,"0")}` });
+  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes ? `${año}-${palanca.mes.slice(5, 7)}` : prefIngresos });
   const guardarPalanca  = (palancaDraft) => { const palanca = normalizarMesPalanca(palancaDraft); setPalancas(prev => palanca.id && prev.find(x=>x.id===palanca.id) ? prev.map(x=>x.id===palanca.id?palanca:x) : [...prev,palanca]); setModalPalanca(null); };
   const eliminarPalanca = (id) => { setPalancas(prev=>prev.filter(x=>x.id!==id)); setModalPalanca(null); };
   const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?normalizarMesPalanca({ ...p, activa:!p.activa }):p));
@@ -56,7 +58,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año]);
 
   const ingresosVariablesMes = useMemo(() => {
-    const dm = datosMes[mesActual];
+    const dm = datosMes[mesIngresos];
     return Object.entries(SUBCAT_VAR)
       .map(([k, v]) => ({
         key:k,
@@ -64,7 +66,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
         val:k==="habitacion"?dm?.ing_habitacion:k==="coche"?dm?.ing_coche:k==="ventas"?dm?.ing_ventas:dm?.ing_otros,
       }))
       .filter(item => Number(item.val || 0) > 0);
-  }, [datosMes, mesActual]);
+  }, [datosMes, mesIngresos]);
+
+  const palancasMesIngresos = useMemo(() => palancas
+    .filter(p => p.mes?.slice(5, 7) === prefIngresos.slice(5, 7)), [palancas, prefIngresos]);
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -117,10 +122,18 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
-        <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:4 }}>{t("Income structure")}</div>
-        <div style={{ fontSize:12,color:C.txt2,marginBottom:16 }}>
-          {t("Guaranteed fixed · Recorded variable · Activatable potential")}
-          <strong style={{ color:C.txt, marginLeft:8 }}>→ {monthName(mesActual)} {año}</strong>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10 }}>
+          <div>
+            <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:4 }}>{t("Income structure")}</div>
+            <div style={{ fontSize:12,color:C.txt2 }}>{t("Guaranteed fixed · Recorded variable · Activatable potential")}</div>
+          </div>
+          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
+            <button onClick={() => setMesIngresos(i => Math.max(0, i-1))}
+              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
+            <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesIngresos)} {año}</span>
+            <button onClick={() => setMesIngresos(i => Math.min(11, i+1))}
+              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>›</button>
+          </div>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:threeColumns, gap:isMobile?12:16 }}>
 
@@ -157,7 +170,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                 </div>
               ))}
               <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.lavender,borderRadius:9,color:"white",marginTop:2 }}>
-                <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesActual]?.ingresos_var_total||0)}</span>
+                <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesIngresos]?.ingresos_var_total||0)}</span>
               </div>
             </div>
           </div>
@@ -169,11 +182,11 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
                 <div style={{ width:10,height:10,borderRadius:"50%",background:C.sage,flexShrink:0 }}/>
                 <span style={{ fontSize:12,fontWeight:700,color:C.sageDark,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Levers")}</span>
               </div>
-              <button onClick={()=>setModalPalanca({})} style={{ background:C.sage,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
+              <button onClick={()=>setModalPalanca({ mes:prefIngresos })} style={{ background:C.sage,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
             </div>
             <div style={{ display:"grid", gap:6 }}>
-              {palancas.length === 0 && <div style={{ textAlign:"center",padding:"20px 0",fontSize:12,color:C.txt2 }}>{t("No levers yet")}</div>}
-              {palancas.map(p => {
+              {palancasMesIngresos.length === 0 && <div style={{ textAlign:"center",padding:"20px 0",fontSize:12,color:C.txt2 }}>{t("No levers yet")}</div>}
+              {palancasMesIngresos.map(p => {
                 const sub = SUBCAT_VAR[p.subcategoria];
                 return (
                   <div key={p.id} style={{ padding:"9px 12px",background:p.activa?C.sageLight:C.fondo,borderRadius:10,border:`1px solid ${p.activa?C.sage+"66":C.borde}`,transition:"all 0.2s" }}>
@@ -454,7 +467,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
         );
       })()}
 
-      {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
+      {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
     </div>
   );
