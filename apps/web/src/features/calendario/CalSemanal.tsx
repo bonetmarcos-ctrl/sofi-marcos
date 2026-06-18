@@ -1,3 +1,4 @@
+import { FUNDING_SOURCES } from "@sofi-marqui/domain";
 import { CATEGORIAS, PERSONAS, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
@@ -7,7 +8,7 @@ import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
 export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, onEvento, onViaje, onBloqueo }) {
-  const { weekdayName } = useI18n();
+  const { t, weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const dias = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(inicio);
@@ -91,11 +92,13 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                   const cat   = CATEGORIAS[categoriaEventoKey(ev)];
                   const esIng = cat?.tipo === "ingreso";
                   const muestraImporte = eventoMuestraImporteEnCalendario(ev);
+                  const origenFondos = ev.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
                   return (
                     <div key={ev.id} onClick={() => onEvento(ev)}
                       style={{ padding:"8px 9px", borderRadius:10, cursor:"pointer", background:esIng?C.exitoBg:cat?.bg, border:`1px solid ${esIng?C.exito+"55":cat?.color+"33"}` }}>
                       <div style={{ fontSize:11, fontWeight:700, color:esIng?C.sageDark:cat?.color }}>{cat?.emoji} {ev.titulo}</div>
                       {ev.hora && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {ev.hora}</div>}
+                      {!esIng && origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>💳 {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? `${Number(ev.cuotasTarjeta || 1)} ${t("Installments").toLowerCase()}` : t("Credit card next month")}</div>}
                       {muestraImporte && <div style={{ fontSize:12, fontWeight:700, color:esIng?C.sageDark:C.txt, marginTop:3 }}>{esIng?"+":"−"}{fmtd(ev.importe)}</div>}
                     </div>
                   );

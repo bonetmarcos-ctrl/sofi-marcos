@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { calculateExpenseCashImpactForMonth } from "@sofi-marqui/domain";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
@@ -78,11 +79,11 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .map(([k,v])=>{
       const monthly = MESES.map((_, index) => {
         const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
-        const eventItems = eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha?.startsWith(prefMes));
-        const expenseItems = gastosVariables.filter(g=>g.categoria===k&&g.mes?.startsWith(prefMes));
+        const eventItems = eventos.filter(e=>categoriaEventoKey(e)===k&&calculateExpenseCashImpactForMonth(e, prefMes)>0);
+        const expenseItems = gastosVariables.filter(g=>g.categoria===k&&calculateExpenseCashImpactForMonth(g, prefMes)>0);
         const projectItems = k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(prefMes)) : [];
-        const importe = eventItems.reduce((a,e)=>a+Number(e.importe||0),0)
-          + expenseItems.reduce((a,g)=>a+Number(g.importe||0),0)
+        const importe = eventItems.reduce((a,e)=>a+calculateExpenseCashImpactForMonth(e, prefMes),0)
+          + expenseItems.reduce((a,g)=>a+calculateExpenseCashImpactForMonth(g, prefMes),0)
           + projectItems.reduce((a,p)=>a+Number(p.gasto||0),0);
         return { mes:index, pref:prefMes, importe, eventItems, expenseItems, projectItems };
       });
@@ -669,8 +670,8 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             {explorerLayer === "discrecional" && selectedCategory && (() => {
               const month = selectedCategory.monthly[explorerMonth];
               const records = [
-                ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importe })),
-                ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importe })),
+                ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:calculateExpenseCashImpactForMonth(item, month.pref) })),
+                ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:calculateExpenseCashImpactForMonth(item, month.pref) })),
                 ...(month?.projectItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.gasto })),
               ];
               return (

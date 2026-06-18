@@ -1,5 +1,46 @@
 import { addMonths } from "./dates.js";
 
+export const FUNDING_SOURCES = {
+  MONTH_INCOME: "ingresos_mes",
+  CREDIT_NEXT_MONTH: "tarjeta_mes_siguiente",
+  CREDIT_INSTALLMENTS: "tarjeta_cuotas",
+} as const;
+
+const monthDiff = (fromYearMonth, toYearMonth) => {
+  const [fromYear, fromMonth] = fromYearMonth.split("-").map(Number);
+  const [toYear, toMonth] = toYearMonth.split("-").map(Number);
+  return (toYear - fromYear) * 12 + (toMonth - fromMonth);
+};
+
+export const expensePurchaseMonth = (expense) => expense.mes || expense.fecha?.slice(0, 7) || "";
+
+export const expenseFirstChargeMonth = (expense) => {
+  const purchaseMonth = expensePurchaseMonth(expense);
+  if (!purchaseMonth) return "";
+  return expense.mesPrimerCargo || addMonths(purchaseMonth, 1);
+};
+
+export const calculateExpenseCashImpactForMonth = (expense, yearMonth) => {
+  const amount = Number(expense.importe || 0);
+  if (!amount || !yearMonth) return 0;
+
+  const fundingSource = expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+  const purchaseMonth = expensePurchaseMonth(expense);
+
+  if (fundingSource === FUNDING_SOURCES.CREDIT_NEXT_MONTH) {
+    return expenseFirstChargeMonth(expense) === yearMonth ? amount : 0;
+  }
+
+  if (fundingSource === FUNDING_SOURCES.CREDIT_INSTALLMENTS) {
+    const firstChargeMonth = expenseFirstChargeMonth(expense);
+    const installments = Math.max(1, Number(expense.cuotasTarjeta || 1));
+    const offset = firstChargeMonth ? monthDiff(firstChargeMonth, yearMonth) : -1;
+    return offset >= 0 && offset < installments ? amount / installments : 0;
+  }
+
+  return purchaseMonth === yearMonth ? amount : 0;
+};
+
 export const calculateDebt = (debt) => {
   const paidInstallments = Number(debt.cuota_actual || 0);
   const totalInstallments = Number(debt.cuotas_totales || 0);
@@ -59,7 +100,6 @@ export const calculateMonthlyBudget = ({
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
-    const monthVariableExpenses = variableExpenses.filter((expense) => expense.mes === prefix);
     const monthCompletedHomeExpenses = projects
       .filter((project) => project.estado === "completado" && project.fin?.startsWith(prefix))
       .reduce((sum, project) => sum + Number(project.gasto || 0), 0);
@@ -100,11 +140,11 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
 
     const variableIncomeTotal = roomIncome + carIncome + otherIncome + leverTotal;
-    const calendarVariableExpenses = monthEvents
+    const calendarVariableExpenses = events
       .filter((event) => categories[event.categoria]?.tipo === "gasto")
-      .reduce((sum, event) => sum + Number(event.importe || 0), 0);
-    const monthlyVariableExpenses = monthVariableExpenses
-      .reduce((sum, expense) => sum + Number(expense.importe || 0), 0);
+      .reduce((sum, event) => sum + calculateExpenseCashImpactForMonth(event, prefix), 0);
+    const monthlyVariableExpenses = variableExpenses
+      .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, prefix), 0);
     const tripExpenses = trips
       .filter((trip) => trip.inicio?.startsWith(prefix) || trip.fin?.startsWith(prefix))
       .reduce(

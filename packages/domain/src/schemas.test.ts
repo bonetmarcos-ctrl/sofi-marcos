@@ -26,6 +26,9 @@ describe("domain schemas", () => {
     expect(parsed.importe).toBe(42.5);
     expect(parsed.hora).toBe("");
     expect(parsed.notas).toBe("");
+    expect(parsed.origenFondos).toBe("ingresos_mes");
+    expect(parsed.cuotasTarjeta).toBe(1);
+    expect(parsed.mesPrimerCargo).toBe("");
   });
 
   it("validates trips with numeric expense records", () => {

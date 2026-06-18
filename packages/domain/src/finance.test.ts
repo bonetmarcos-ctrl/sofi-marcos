@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDebt, calculateDebtInstallmentForMonth, calculateMonthlyBudget } from "./finance.js";
+import { calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -82,6 +82,22 @@ describe("finance domain", () => {
     expect(result.datosMes[5].gastos_var).toBe(45);
     expect(result.datosMes[5].gastos_variables_lineas).toBe(45);
     expect(result.datosMes[5].gasto_discrecional).toBe(45);
+  });
+
+  it("moves credit card expenses to the first charge month", () => {
+    const expense = { fecha: "2026-06-18", importe: 120, origenFondos: "tarjeta_mes_siguiente" };
+
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-06")).toBe(0);
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-07")).toBe(120);
+  });
+
+  it("spreads credit card installments across following months", () => {
+    const expense = { fecha: "2026-06-18", importe: 120, origenFondos: "tarjeta_cuotas", cuotasTarjeta: 3 };
+
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-06")).toBe(0);
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-07")).toBe(40);
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-09")).toBe(40);
+    expect(calculateExpenseCashImpactForMonth(expense, "2026-10")).toBe(0);
   });
 
   it("includes completed home task spending in the finish month discretionary expenses", () => {

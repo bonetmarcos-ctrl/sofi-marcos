@@ -11,6 +11,9 @@ export const eventSchema = z.object({
   hora: optionalText,
   categoria: z.string().min(1),
   importe: amount,
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
   notas: optionalText,
   persona: z.string().optional(),
   huespedes: z.string().optional(),
@@ -98,6 +101,9 @@ export const variableExpenseSchema = z.object({
   titulo: z.string().min(1),
   categoria: z.string().min(1),
   importe: amount,
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
   notas: optionalText,
 });
 

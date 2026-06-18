@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
+import { addMeses } from "../../utils/dates.ts";
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -90,22 +92,31 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
   ].filter(Boolean).join(" · ");
 
   // Gastos calendario del mes
-  const evMes       = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref) && categoriaEvento(e)?.tipo === "gasto"), [eventos, pref]);
-  const lineasMes   = useMemo(() => gastosVariables.filter(g => g.mes === pref), [gastosVariables, pref]);
+  const evMes       = useMemo(() => eventos.filter(e => categoriaEvento(e)?.tipo === "gasto" && calculateExpenseCashImpactForMonth(e, pref) > 0), [eventos, pref]);
+  const lineasMes   = useMemo(() => gastosVariables.filter(g => calculateExpenseCashImpactForMonth(g, pref) > 0), [gastosVariables, pref]);
   const tareasCasaMes = useMemo(() => proyectos.filter(p => p.estado === "completado" && p.fin?.startsWith(pref)), [proyectos, pref]);
   const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
 
   const catsCal = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+e.importe, 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+Number(g.importe||0), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+calculateExpenseCashImpactForMonth(e, pref), 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+calculateExpenseCashImpactForMonth(g, pref), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const guardarGastoVariable = (gasto) => {
-    const item = { ...gasto, id:gasto.id || Date.now(), mes:pref, importe:Number(gasto.importe || 0) };
+    const origenFondos = gasto.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+    const item = {
+      ...gasto,
+      id:gasto.id || Date.now(),
+      mes:pref,
+      importe:Number(gasto.importe || 0),
+      origenFondos,
+      cuotasTarjeta:origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(1, Number(gasto.cuotasTarjeta || 1)) : 1,
+      mesPrimerCargo:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (gasto.mesPrimerCargo || addMeses(pref, 1)),
+    };
     setGastosVariables(prev => item.id && prev.find(g => g.id === item.id) ? prev.map(g => g.id === item.id ? item : g) : [...prev, item]);
     setModalGasto(null);
   };
@@ -113,6 +124,22 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
     setGastosVariables(prev => prev.filter(g => g.id !== id));
     setModalGasto(null);
   };
+
+  const modalOrigenFondos = modalGasto?.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+  const modalMesCargo = modalGasto?.mesPrimerCargo || addMeses(pref, 1);
+  const modalCuotasTarjeta = Math.max(1, Number(modalGasto?.cuotasTarjeta || 1));
+  const modalCuotaTarjeta = Number(modalGasto?.importe || 0) / modalCuotasTarjeta;
+  const opcionesFondos = [
+    { key:FUNDING_SOURCES.MONTH_INCOME, label:t("Monthly income") },
+    { key:FUNDING_SOURCES.CREDIT_NEXT_MONTH, label:t("Credit card next month") },
+    { key:FUNDING_SOURCES.CREDIT_INSTALLMENTS, label:t("Credit card installments") },
+  ];
+  const setOrigenGasto = (value) => setModalGasto(g => ({
+    ...g,
+    origenFondos:value,
+    cuotasTarjeta:value === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(g.cuotasTarjeta || 2)) : 1,
+    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (g.mesPrimerCargo || addMeses(pref, 1)),
+  }));
 
   // Helpers de layout
   const colHeader = (color, bg, border, dot, label) => (
@@ -149,7 +176,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         </div>
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", notas:"" })}
+          <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", origenFondos:FUNDING_SOURCES.MONTH_INCOME, cuotasTarjeta:1, mesPrimerCargo:"", notas:"" })}
             style={{ background:C.cyan, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
             + {t("Variable expense")}
           </button>
@@ -351,6 +378,33 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
               <label style={{ ...labelS, color:C.txt2 }}>{t("Amount (€)")}</label>
               <input type="number" step="0.01" min="0" value={modalGasto.importe || ""} onChange={e => setModalGasto(g => ({ ...g, importe:+e.target.value }))} placeholder="0.00" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
             </div>
+            <div style={{ display:"grid", gap:10 }}>
+              <div>
+                <label style={{ ...labelS, color:C.txt2 }}>{t("Funding source")}</label>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:6 }}>
+                  {opcionesFondos.map(option => (
+                    <button key={option.key} onClick={() => setOrigenGasto(option.key)}
+                      style={{ minHeight:38, padding:"6px 8px", borderRadius:10, border:`1px solid ${modalOrigenFondos === option.key ? C.cyan : C.borde}`, background:modalOrigenFondos === option.key ? C.cyanLight : C.fondo, color:modalOrigenFondos === option.key ? C.cyan : C.txt2, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.15 }}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {modalOrigenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
+                <div style={{ display:"grid", gridTemplateColumns:modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "1fr 1fr" : "1fr", gap:10 }}>
+                  <div>
+                    <label style={{ ...labelS, color:C.txt2 }}>{modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? t("First debit month") : t("Debit month")}</label>
+                    <input type="month" value={modalMesCargo} onChange={e => setModalGasto(g => ({ ...g, mesPrimerCargo:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                  </div>
+                  {modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && (
+                    <div>
+                      <label style={{ ...labelS, color:C.txt2 }}>{t("Installments")}</label>
+                      <input type="number" min="1" step="1" value={modalCuotasTarjeta} onChange={e => setModalGasto(g => ({ ...g, cuotasTarjeta:+e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div>
               <label style={{ ...labelS, color:C.txt2 }}>{t("Notes")}</label>
               <input value={modalGasto.notas || ""} onChange={e => setModalGasto(g => ({ ...g, notas:e.target.value }))} placeholder={t("Details...")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
@@ -358,6 +412,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
             <div style={{ background:C.lavLight, borderRadius:10, padding:"10px 14px", fontSize:12, color:C.lavender, border:`1px solid ${C.lavender}44` }}>
               {t("Variable expense")} {'->'} {monthName(mesIdx)} {año}
               {Number(modalGasto.importe || 0) > 0 && <strong> · {fmtd(Number(modalGasto.importe || 0))}</strong>}
+              {modalOrigenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ marginTop:4, color:C.txt2 }}>{t(modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "Credit card installments" : "Credit card next month")} · {modalMesCargo}{modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? ` · ${modalCuotasTarjeta} ${t("Installments").toLowerCase()} · ${fmtd(modalCuotaTarjeta)}/${t("month")}` : ""}</div>}
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={() => guardarGastoVariable(modalGasto)} disabled={!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0}
