@@ -8,6 +8,10 @@ import { BASE } from "../data/demo.ts";
  * Función pura — extraída aquí para ser reutilizable y testeable.
  */
 export const calcCuotaDeudaMes = (deudas, pref) => {
+  if (BASE.monthlyOverrides?.[pref]?.debtExpenses !== undefined) {
+    return BASE.monthlyOverrides[pref].debtExpenses;
+  }
+
   return calculateDebtInstallmentForMonth(deudas, pref);
 };
 

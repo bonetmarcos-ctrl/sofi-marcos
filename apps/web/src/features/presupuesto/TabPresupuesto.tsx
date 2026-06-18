@@ -280,7 +280,7 @@ export default function TabPresupuesto({ eventos, viajes, palancas, setPalancas,
             </div>
             <div style={{ display:"grid",gridTemplateColumns:isMobile?"1fr":threeColumns,gap:8,marginBottom:12 }}>
               {[
-                {l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
+                {l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
                 {l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
                 {l:`3 ${t("Discretionary")}`, v:fmt(detalle.gasto_discrecional), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)} + ${t("Trips")} ${fmt(detalle.gastos_viaje)}`},
               ].map(x=>(

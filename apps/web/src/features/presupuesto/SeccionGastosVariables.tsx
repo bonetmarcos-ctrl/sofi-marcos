@@ -15,6 +15,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
   const prefAnterior = mesIdx > 0 ? `${año}-${String(mesIdx).padStart(2, "0")}` : `${año - 1}-12`;
+  const fixedCostForMonth = BASE.monthlyOverrides?.[pref]?.fixedExpenses ?? BASE.gastos_fijos;
 
   // Suministros del mes
   const suministrosPorClave = useMemo(() => {
@@ -107,7 +108,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
           {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
           <div style={{ display:"grid", gap:5 }}>
             {(BASE.detalle_fijos || [])
-              .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche"].includes(d.nombre))
+              .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche","Seguro auto"].includes(d.nombre))
               .map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))
             }
             {(() => {
@@ -116,7 +117,7 @@ export default function SeccionGastosVariables({ eventos, viajes, año, mesActua
               const sum = (com?.importe||0) + (der?.importe||0);
               return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b") : null;
             })()}
-            {rowTotal(t("Monthly total"), BASE.gastos_fijos, "#64748b", "white")}
+            {rowTotal(t("Monthly total"), fixedCostForMonth, "#64748b", "white")}
           </div>
         </div>
 

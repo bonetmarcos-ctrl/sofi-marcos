@@ -53,8 +53,11 @@ export const calculateMonthlyBudget = ({
 }) => {
   const months = Array.from({ length: 12 }, (_, index) => {
     const prefix = `${year}-${String(index + 1).padStart(2, "0")}`;
+    const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const isFuture = index > currentMonth;
+    const fixedIncome = monthlyOverride.fixedIncome ?? Number(base.ingresos_fijos || 0);
+    const fixedExpenses = monthlyOverride.fixedExpenses ?? Number(base.gastos_fijos || 0);
 
     const roomIncome = monthEvents
       .filter((event) => event.categoria === "habitacion")
@@ -93,14 +96,14 @@ export const calculateMonthlyBudget = ({
           sum + Object.values(trip.gastos || {}).reduce<number>((tripSum, amount) => tripSum + Number(amount || 0), 0),
         0,
       );
-    const debtExpenses = calculateDebtInstallmentForMonth(debts, prefix);
+    const debtExpenses = monthlyOverride.debtExpenses ?? calculateDebtInstallmentForMonth(debts, prefix);
     const utilityExpenses = utilities
       .filter((utility) => utility.mes === prefix)
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
 
-    const structuralExpenses = Number(base.gastos_fijos || 0) + debtExpenses;
+    const structuralExpenses = fixedExpenses + debtExpenses;
     const discretionaryExpenses = variableExpenses + tripExpenses;
-    const totalIncome = Number(base.ingresos_fijos || 0) + variableIncomeTotal;
+    const totalIncome = fixedIncome + variableIncomeTotal;
     const totalExpenses = structuralExpenses + utilityExpenses + discretionaryExpenses;
     const balance = totalIncome - totalExpenses;
 
