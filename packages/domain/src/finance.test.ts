@@ -44,4 +44,23 @@ describe("finance domain", () => {
     expect(result.datosMes[5].gasto_suministros).toBe(50);
     expect(result.totales.varAnual).toBe(250);
   });
+
+  it("applies active levers to the same budget month when their stored year is stale", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [{ mes: "2025-06", subcategoria: "habitacion", importe: 280, activa: true }],
+      debts: [],
+      utilities: [],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].ing_habitacion).toBe(280);
+    expect(result.datosMes[5].ingresos_var_total).toBe(280);
+    expect(result.totales.varAnual).toBe(280);
+  });
 });

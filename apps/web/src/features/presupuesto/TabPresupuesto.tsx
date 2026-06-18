@@ -27,9 +27,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, palancas, se
   const [showDeudas,  setShowDeudas]  = useState(false);
 
   // ── Handlers palancas ──
-  const guardarPalanca  = (p) => { setPalancas(prev => p.id && prev.find(x=>x.id===p.id) ? prev.map(x=>x.id===p.id?p:x) : [...prev,p]); setModalPalanca(null); };
+  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes ? `${año}-${palanca.mes.slice(5, 7)}` : `${año}-${String(mesActual+1).padStart(2,"0")}` });
+  const guardarPalanca  = (palancaDraft) => { const palanca = normalizarMesPalanca(palancaDraft); setPalancas(prev => palanca.id && prev.find(x=>x.id===palanca.id) ? prev.map(x=>x.id===palanca.id?palanca:x) : [...prev,palanca]); setModalPalanca(null); };
   const eliminarPalanca = (id) => { setPalancas(prev=>prev.filter(x=>x.id!==id)); setModalPalanca(null); };
-  const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?{...p,activa:!p.activa}:p));
+  const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?normalizarMesPalanca({ ...p, activa:!p.activa }):p));
 
   // ── Handlers deudas ──
   const guardarDeuda    = (d) => { setDeudas(prev => d.id && prev.find(x=>x.id===d.id) ? prev.map(x=>x.id===d.id?d:x) : [...prev,d]); setModalDeuda(null); };

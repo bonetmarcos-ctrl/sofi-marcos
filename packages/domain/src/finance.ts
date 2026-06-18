@@ -82,7 +82,7 @@ export const calculateMonthlyBudget = ({
       )
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
 
-    const activeLevers = levers.filter((lever) => lever.activa && lever.mes === prefix);
+    const activeLevers = levers.filter((lever) => lever.activa && matchesBudgetMonth(lever, prefix));
     const leverRoom = sumLevers(activeLevers, "habitacion");
     const leverCar = sumLevers(activeLevers, "coche");
     const leverSales = sumLevers(activeLevers, "ventas");
@@ -90,7 +90,7 @@ export const calculateMonthlyBudget = ({
     const leverTotal = leverRoom + leverCar + leverSales + leverOther;
 
     const potentialLevers = levers
-      .filter((lever) => !lever.activa && lever.mes === prefix)
+      .filter((lever) => !lever.activa && matchesBudgetMonth(lever, prefix))
       .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
 
     const variableIncomeTotal = roomIncome + carIncome + otherIncome + leverTotal;
@@ -146,7 +146,9 @@ export const calculateMonthlyBudget = ({
     datosMes: months,
     totales: {
       varAnual: months.reduce((sum, month) => sum + month.ingresos_var_total, 0),
-      potencial: levers.filter((lever) => !lever.activa).reduce((sum, lever) => sum + Number(lever.importe || 0), 0),
+      potencial: levers
+        .filter((lever) => !lever.activa && months.some((month) => matchesBudgetMonth(lever, month.pref)))
+        .reduce((sum, lever) => sum + Number(lever.importe || 0), 0),
       presionActual: months[currentMonth]?.presion || 0,
     },
   };
@@ -156,3 +158,9 @@ const sumLevers = (levers, subcategory) =>
   levers
     .filter((lever) => lever.subcategoria === subcategory)
     .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
+
+const matchesBudgetMonth = (lever, yearMonth) => {
+  if (!lever.mes || !yearMonth) return false;
+  if (lever.mes === yearMonth) return true;
+  return lever.mes.slice(5, 7) === yearMonth.slice(5, 7);
+};
