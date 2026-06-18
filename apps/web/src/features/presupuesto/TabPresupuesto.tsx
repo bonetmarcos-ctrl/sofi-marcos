@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { CATEGORIAS, SUBCAT_VAR, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
+import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN } from "../../constants/colores.ts";
-import { MESES, MESES_CORTO } from "../../constants/meses.ts";
-import { fmt, fmtd, labelMes } from "../../utils/format.ts";
+import { MESES } from "../../constants/meses.ts";
+import { fmt, labelMes } from "../../utils/format.ts";
 import { todayISO, addMeses, daysBetween } from "../../utils/dates.ts";
 import { useDatosMes, calcCuotaDeudaMes } from "../../hooks/useDatosMes.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
@@ -13,6 +13,8 @@ import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
+const UTILITY_UNIT_FALLBACK = { luz:"kWh", gas:"m3", agua:"m3" };
+
 export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
@@ -22,6 +24,8 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const [mesDetalle,  setMesDetalle]  = useState(null);
   const [mesVista,    setMesVista]    = useState(mesActual);
   const [hoveredMes,  setHoveredMes]  = useState(null);
+  const [explorerLayer, setExplorerLayer] = useState("suministros");
+  const [explorerKey, setExplorerKey] = useState(null);
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [showDeudas,  setShowDeudas]  = useState(false);
@@ -50,11 +54,53 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .filter(d=>d.fin>=todayISO.slice(0,7))
     .sort((a,b)=>a.fin.localeCompare(b.fin))[0], [deudas]);
 
-  // Gastos por categoría anual
-  const gastosCatAnual = useMemo(() => Object.entries(CATEGORIAS)
+  const utilityBreakdown = useMemo(() => SUMINISTROS_TIPOS
+    .map(tipo => {
+      const monthly = MESES.map((_, index) => {
+        const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
+        const registros = suministros.filter(s => s.mes === prefMes && s.tipo === tipo.key);
+        const importe = registros.reduce((sum, item) => sum + Number(item.importe || 0), 0);
+        const consumo = registros.reduce((sum, item) => sum + Number(item.consumo || 0), 0);
+        return { mes:index, pref:prefMes, importe, consumo, registros };
+      });
+      return {
+        ...tipo,
+        monthly,
+        total:monthly.reduce((sum, item) => sum + item.importe, 0),
+        consumoTotal:monthly.reduce((sum, item) => sum + item.consumo, 0),
+      };
+    })
+    .filter(item => item.total > 0 || item.consumoTotal > 0), [suministros, año]);
+
+  const discretionaryBreakdown = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([,v])=>v.tipo==="gasto")
-    .map(([k,v])=>({ ...v, key:k, sum:eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha.startsWith(`${año}`)).reduce((a,e)=>a+e.importe,0) + gastosVariables.filter(g=>g.categoria===k&&g.mes.startsWith(`${año}`)).reduce((a,g)=>a+Number(g.importe||0),0) + (k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(`${año}`)).reduce((a,p)=>a+Number(p.gasto||0),0) : 0) }))
+    .filter(([k])=>k!=="viaje")
+    .map(([k,v])=>{
+      const monthly = MESES.map((_, index) => {
+        const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
+        const eventItems = eventos.filter(e=>categoriaEventoKey(e)===k&&e.fecha?.startsWith(prefMes));
+        const expenseItems = gastosVariables.filter(g=>g.categoria===k&&g.mes?.startsWith(prefMes));
+        const projectItems = k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(prefMes)) : [];
+        const importe = eventItems.reduce((a,e)=>a+Number(e.importe||0),0)
+          + expenseItems.reduce((a,g)=>a+Number(g.importe||0),0)
+          + projectItems.reduce((a,p)=>a+Number(p.gasto||0),0);
+        return { mes:index, pref:prefMes, importe, eventItems, expenseItems, projectItems };
+      });
+      return { ...v, key:k, monthly, sum:monthly.reduce((a,m)=>a+m.importe,0) };
+    })
     .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año]);
+
+  const tripBreakdown = useMemo(() => viajes
+    .map(v=>{
+      const total = Object.values(v.gastos||{}).reduce<number>((a,b)=>a+Number(b || 0),0);
+      const monthly = MESES.map((_, index) => {
+        const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
+        const inMonth = v.inicio?.startsWith(prefMes) || v.fin?.startsWith(prefMes);
+        return { mes:index, pref:prefMes, importe:inMonth ? total : 0 };
+      });
+      return { ...v, total, monthly };
+    })
+    .filter(v=>v.total>0 || v.inicio?.startsWith(`${año}`) || v.fin?.startsWith(`${año}`)), [viajes, año]);
 
   const ingresosVariablesMes = useMemo(() => {
     const dm = datosMes[mesVista];
@@ -84,6 +130,49 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const expenseLayerColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const debtProjectionColumns = `92px ${deudas.map(() => "minmax(86px,1fr)").join(" ")} 96px 104px`;
+  const explorerColumns = isMobile ? "1fr" : "minmax(0,1.35fr) minmax(280px,0.65fr)";
+  const explorerMonth = mesDetalle ?? mesVista;
+  const expenseLayers = [
+    { key:"estructural", color:"#64748b", bg:"#f8fafc", label:`1 ${t("Structural")}` },
+    { key:"suministros", color:"#d97706", bg:"#fef3c7", label:`2 ${t("Utilities")}` },
+    { key:"discrecional", color:C.lavender, bg:C.lavLight, label:`3 ${t("Discretionary")}` },
+    { key:"viajes", color:COLOR_VIAJE, bg:BG_VIAJE, label:`4 ${t("Trips")}` },
+  ];
+  const selectedLayer = expenseLayers.find(layer => layer.key === explorerLayer) || expenseLayers[1];
+  const selectedUtility = utilityBreakdown.find(item => item.key === explorerKey) || utilityBreakdown[0];
+  const selectedCategory = discretionaryBreakdown.find(item => item.key === explorerKey) || discretionaryBreakdown[0];
+  const selectedTrip = tripBreakdown.find(item => String(item.id) === String(explorerKey));
+  const tripMonthlyTotal = MESES.map((_, index) => ({
+    mes:index,
+    pref:`${año}-${String(index + 1).padStart(2, "0")}`,
+    importe:tripBreakdown.reduce((sum, trip) => sum + Number(trip.monthly[index]?.importe || 0), 0),
+  }));
+  const structuralMonthly = datosMes.map(month => ({ mes:month.mes, pref:month.pref, importe:month.gasto_estructural }));
+  const numberFmt = (value) => Number(value || 0).toLocaleString("es-ES", { maximumFractionDigits:1 });
+  const selectExplorer = (layer, key = null) => { setExplorerLayer(layer); setExplorerKey(key); };
+  const renderMonthlyBars = (monthly, color, valueKey = "importe", suffix = "") => {
+    const max = Math.max(...monthly.map(item => Number(item[valueKey] || 0)), 1);
+    return (
+      <div style={{ display:"grid",gridTemplateColumns:"repeat(12,minmax(34px,1fr))",gap:4,alignItems:"end",minWidth:isMobile?520:"auto" }}>
+        {monthly.map(item => {
+          const value = Number(item[valueKey] || 0);
+          const selected = explorerMonth === item.mes;
+          const barHeight = value > 0 ? Math.max(6, (value / max) * 76) : 0;
+          const label = valueKey === "importe" ? fmt(value) : `${numberFmt(value)} ${suffix}`.trim();
+          return (
+            <button key={item.pref} onClick={() => setMesDetalle(item.mes)}
+              style={{ border:"none",background:"transparent",padding:0,cursor:"pointer",fontFamily:"'Lato',sans-serif",display:"flex",flexDirection:"column",alignItems:"center",gap:3,minWidth:0 }}>
+              <div style={{ width:"100%",height:82,display:"flex",alignItems:"flex-end",borderRadius:6,background:selected?`${color}18`:C.fondo,outline:selected?`2px solid ${color}`:"2px solid transparent",overflow:"hidden" }}>
+                <div style={{ width:"100%",height:barHeight,background:color,opacity:value>0?0.95:0.15,borderRadius:"6px 6px 0 0",transition:"height 0.25s" }}/>
+              </div>
+              <div style={{ fontSize:8,fontWeight:700,color:value>0?color:C.txt2,minHeight:10,whiteSpace:"nowrap" }}>{value>0?label.replace("€","").trim():""}</div>
+              <div style={{ fontSize:9,color:selected?color:C.txt2,fontWeight:selected?700:400 }}>{monthName(item.mes, "short")}</div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div style={{ display:"grid", gap:20, minWidth:0 }}>
@@ -249,11 +338,12 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Hover each bar · future months are gray estimates")}</div>
           </div>
           <div style={{ display:"flex",gap:12,alignItems:"center",flexWrap:"wrap" }}>
-            {[{color:"#64748b",label:`1 ${t("Structural")}`},{color:"#d97706",label:`2 ${t("Utilities")}`},{color:C.lavender,label:`3 ${t("Discretionary")}`},{color:COLOR_VIAJE,label:`4 ${t("Trips")}`}].map(l=>(
-              <div key={l.label} style={{ display:"flex",alignItems:"center",gap:4 }}>
+            {expenseLayers.map(l=>(
+              <button key={l.key} onClick={() => selectExplorer(l.key)}
+                style={{ display:"flex",alignItems:"center",gap:4,border:`1px solid ${explorerLayer===l.key?`${l.color}55`:"transparent"}`,background:explorerLayer===l.key?l.bg:"transparent",borderRadius:8,padding:"4px 6px",cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
                 <div style={{ width:10,height:10,borderRadius:2,background:l.color,flexShrink:0 }}/>
                 <span style={{ fontSize:10,color:C.txt2,fontWeight:600 }}>{l.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -334,16 +424,17 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
             </div>
             <div style={{ display:"grid",gridTemplateColumns:expenseLayerColumns,gap:8,marginBottom:12 }}>
               {[
-                {l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
-                {l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
-                {l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
-                {l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
+                {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
+                {key:"suministros", l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
+                {key:"discrecional", l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
+                {key:"viajes", l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
               ].map(x=>(
-                <div key={x.l} style={{ background:x.bg,borderRadius:10,padding:"12px 14px",border:`1px solid ${x.c}33` }}>
+                <button key={x.l} onClick={() => selectExplorer(x.key)}
+                  style={{ textAlign:"left",background:x.bg,borderRadius:10,padding:"12px 14px",border:`1px solid ${explorerLayer===x.key?x.c:`${x.c}33`}`,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
                   <div style={{ fontSize:10,color:x.c,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:4 }}>{x.l}</div>
                   <div style={{ fontSize:18,fontWeight:700,color:x.c,fontFamily:"'Playfair Display',serif" }}>{x.v}</div>
                   <div style={{ fontSize:10,color:x.c,opacity:0.7,marginTop:3 }}>{x.sub}</div>
-                </div>
+                </button>
               ))}
             </div>
             {detalle.palancasMes.length > 0 && (
@@ -366,54 +457,222 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
         )}
       </div>
 
-      {/* ── GASTOS POR CATEGORÍA ── */}
-      {gastosCatAnual.length > 0 && (
-        <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
-          <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:14 }}>{t("Variable expenses by category")} - {año}</div>
-          <div style={{ display:"grid", gap:10 }}>
-            {gastosCatAnual.map(c=>(
-              <div key={c.key}>
-                <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:5 }}>
-                  <span style={{ color:c.color,fontWeight:600 }}>{c.emoji} {t(c.label)}</span>
-                  <span style={{ fontWeight:700,color:C.txt }}>{fmtd(c.sum)}</span>
-                </div>
-                <div style={{ height:6,background:C.borde,borderRadius:6,overflow:"hidden" }}>
-                  <div style={{ width:`${(c.sum/gastosCatAnual[0].sum)*100}%`,height:"100%",background:c.color,borderRadius:6,transition:"width 0.5s" }}/>
-                </div>
-              </div>
+      {/* ── EXPLORADOR DE GASTOS ── */}
+      <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>🔎 {t("Expense explorer")} - {año}</div>
+            <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{selectedLayer.label} · {monthName(explorerMonth)} {año}</div>
+          </div>
+          <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+            {expenseLayers.map(layer => (
+              <button key={layer.key} onClick={() => selectExplorer(layer.key)}
+                style={{ display:"flex",alignItems:"center",gap:5,border:`1px solid ${explorerLayer===layer.key?layer.color:C.borde}`,background:explorerLayer===layer.key?layer.bg:"white",color:explorerLayer===layer.key?layer.color:C.txt2,borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                <span style={{ width:8,height:8,borderRadius:2,background:layer.color,display:"inline-block" }}/>{layer.label}
+              </button>
             ))}
           </div>
         </div>
-      )}
 
-      {/* ── VIAJES ── */}
-      {viajes.length > 0 && (
-        <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
-          <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:14 }}>✈️ {t("Trips")} {año}</div>
-          <div style={{ display:"grid", gap:8 }}>
-            {viajes.map(v=>{
-              const total=Object.values(v.gastos||{}).reduce<number>((a,b)=>a+Number(b || 0),0);
-              const pct=v.presupuesto>0?Math.min(100,(total/v.presupuesto)*100):0;
-              return(
-                <div key={v.id} style={{ padding:"12px 14px",background:C.fondo,borderRadius:12,border:`1px solid ${C.borde}` }}>
-                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8 }}>
-                    <div>
-                      <span style={{ fontSize:20,marginRight:8 }}>{v.emoji}</span>
-                      <span style={{ fontWeight:700,color:v.color||C.lavender,fontSize:15 }}>{v.nombre}</span>
-                      {v.inicio&&<div style={{ fontSize:11,color:C.txt2,marginTop:2 }}>{v.inicio.split("-").reverse().join("/")} → {v.fin?.split("-").reverse().join("/")} · {daysBetween(v.inicio,v.fin)}n</div>}
+        <div style={{ display:"grid",gridTemplateColumns:explorerColumns,gap:16,alignItems:"start" }}>
+          <div style={{ overflowX:isMobile?"auto":"visible",minWidth:0 }}>
+            {explorerLayer === "estructural" && (
+              <div>
+                <div style={{ fontSize:12,fontWeight:700,color:"#64748b",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")}</div>
+                {renderMonthlyBars(structuralMonthly, "#64748b")}
+              </div>
+            )}
+
+            {explorerLayer === "suministros" && (
+              <div>
+                {utilityBreakdown.length === 0 ? (
+                  <div style={{ padding:24,textAlign:"center",color:C.txt2,fontSize:13,background:C.fondo,borderRadius:12 }}>{t("No utility data")}</div>
+                ) : (
+                  <>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:12 }}>
+                      {utilityBreakdown.map(item => (
+                        <button key={item.key} onClick={() => selectExplorer("suministros", item.key)}
+                          style={{ border:`1px solid ${selectedUtility?.key===item.key?"#d97706":C.borde}`,background:selectedUtility?.key===item.key?"#fef3c7":"white",color:selectedUtility?.key===item.key?"#d97706":C.txt2,borderRadius:999,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                          {item.emoji} {t(item.label)} · {fmt(item.total)}
+                        </button>
+                      ))}
                     </div>
-                    <div style={{ textAlign:"right" }}>
-                      <div style={{ fontSize:18,fontWeight:700,color:C.txt }}>{fmt(total)}</div>
-                      {v.presupuesto>0&&<div style={{ fontSize:11,color:C.txt2 }}>{t("of")} {fmt(v.presupuesto)}</div>}
+                    {selectedUtility && (
+                      <>
+                        <div style={{ fontSize:12,fontWeight:700,color:"#d97706",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedUtility.emoji} {t(selectedUtility.label)}</div>
+                        {renderMonthlyBars(selectedUtility.monthly, "#d97706")}
+                        {selectedUtility.consumoTotal > 0 && (
+                          <div style={{ marginTop:16 }}>
+                            <div style={{ fontSize:12,fontWeight:700,color:C.cyan,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Consumption")}</div>
+                            {renderMonthlyBars(selectedUtility.monthly, C.cyan, "consumo", selectedUtility.monthly.find(m=>m.registros?.[0]?.unidad)?.registros?.[0]?.unidad || UTILITY_UNIT_FALLBACK[selectedUtility.key] || "")}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {explorerLayer === "discrecional" && (
+              <div>
+                {discretionaryBreakdown.length === 0 ? (
+                  <div style={{ padding:24,textAlign:"center",color:C.txt2,fontSize:13,background:C.fondo,borderRadius:12 }}>{t("No records")}</div>
+                ) : (
+                  <>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:12 }}>
+                      {discretionaryBreakdown.map(item => (
+                        <button key={item.key} onClick={() => selectExplorer("discrecional", item.key)}
+                          style={{ border:`1px solid ${selectedCategory?.key===item.key?item.color:C.borde}`,background:selectedCategory?.key===item.key?item.bg:"white",color:selectedCategory?.key===item.key?item.color:C.txt2,borderRadius:999,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                          {item.emoji} {t(item.label)} · {fmt(item.sum)}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                  {v.presupuesto>0&&<div style={{ height:4,background:C.borde,borderRadius:4,overflow:"hidden" }}><div style={{ width:`${pct}%`,height:"100%",background:v.color||C.lavender,borderRadius:4 }}/></div>}
+                    {selectedCategory && (
+                      <>
+                        <div style={{ fontSize:12,fontWeight:700,color:selectedCategory.color,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedCategory.emoji} {t(selectedCategory.label)}</div>
+                        {renderMonthlyBars(selectedCategory.monthly, selectedCategory.color)}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {explorerLayer === "viajes" && (
+              <div>
+                {tripBreakdown.length === 0 ? (
+                  <div style={{ padding:24,textAlign:"center",color:C.txt2,fontSize:13,background:C.fondo,borderRadius:12 }}>{t("No trips this month")}</div>
+                ) : (
+                  <>
+                    <div style={{ display:"flex",gap:6,flexWrap:"wrap",marginBottom:12 }}>
+                      <button onClick={() => selectExplorer("viajes")}
+                        style={{ border:`1px solid ${!selectedTrip?COLOR_VIAJE:C.borde}`,background:!selectedTrip?BG_VIAJE:"white",color:!selectedTrip?COLOR_VIAJE:C.txt2,borderRadius:999,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                        {t("All")} · {fmt(tripBreakdown.reduce((sum, trip)=>sum+trip.total,0))}
+                      </button>
+                      {tripBreakdown.map(trip => (
+                        <button key={trip.id} onClick={() => selectExplorer("viajes", trip.id)}
+                          style={{ border:`1px solid ${selectedTrip?.id===trip.id?COLOR_VIAJE:C.borde}`,background:selectedTrip?.id===trip.id?BG_VIAJE:"white",color:selectedTrip?.id===trip.id?COLOR_VIAJE:C.txt2,borderRadius:999,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                          {trip.emoji || "✈️"} {trip.nombre} · {fmt(trip.total)}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:12,fontWeight:700,color:COLOR_VIAJE,marginBottom:10,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Monthly evolution")} · {selectedTrip ? selectedTrip.nombre : t("All")}</div>
+                    {renderMonthlyBars(selectedTrip ? selectedTrip.monthly : tripMonthlyTotal, COLOR_VIAJE)}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ background:C.fondo,borderRadius:12,border:`1px solid ${C.borde}`,padding:14,minWidth:0 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:12 }}>
+              <span style={{ fontSize:12,fontWeight:700,color:selectedLayer.color,textTransform:"uppercase",letterSpacing:"0.5px" }}>{t("Selected month")}</span>
+              <span style={{ fontSize:12,fontWeight:700,color:C.txt }}>{monthName(explorerMonth)} {año}</span>
+            </div>
+
+            {explorerLayer === "estructural" && (() => {
+              const month = datosMes[explorerMonth];
+              const fixedExpenses = BASE.monthlyOverrides?.[month.pref]?.fixedExpenses ?? BASE.gastos_fijos;
+              return (
+                <div style={{ display:"grid",gap:10 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(structuralMonthly.reduce((sum,item)=>sum+item.importe,0))}</strong></div>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(structuralMonthly.reduce((sum,item)=>sum+item.importe,0)/12)}</strong></div>
+                  <div style={{ height:1,background:C.borde }}/>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Fixed expenses")}</span><strong>{fmt(fixedExpenses)}</strong></div>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Debt")}</span><strong>{fmt(month.gasto_deudas)}</strong></div>
                 </div>
               );
-            })}
+            })()}
+
+            {explorerLayer === "suministros" && selectedUtility && (() => {
+              const month = selectedUtility.monthly[explorerMonth];
+              const records = month?.registros || [];
+              const unit = records[0]?.unidad || UTILITY_UNIT_FALLBACK[selectedUtility.key] || "";
+              const price = month?.consumo > 0 ? month.importe / month.consumo : null;
+              return (
+                <div style={{ display:"grid",gap:10 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(selectedUtility.total)}</strong></div>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(selectedUtility.total/12)}</strong></div>
+                  <div style={{ height:1,background:C.borde }}/>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Amount (€)")}</span><strong>{fmt(month?.importe || 0)}</strong></div>
+                  {month?.consumo > 0 && <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Consumption")}</span><strong>{numberFmt(month.consumo)} {unit}</strong></div>}
+                  {price !== null && unit && <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>€/{unit}</span><strong>{price.toFixed(2)}</strong></div>}
+                  <div style={{ height:1,background:C.borde }}/>
+                  {records.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : records.map(record => (
+                    <div key={record.id || `${record.mes}-${record.tipo}`} style={{ background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}><span style={{ fontSize:12,fontWeight:700,color:"#d97706" }}>{record.proveedor || t(selectedUtility.label)}</span><strong style={{ fontSize:12 }}>{fmt(record.importe)}</strong></div>
+                      <div style={{ fontSize:10,color:C.txt2,marginTop:3 }}>{[record.frecuencia, record.periodoInicio && record.periodoFin ? `${record.periodoInicio} → ${record.periodoFin}` : "", record.notas].filter(Boolean).join(" · ")}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {explorerLayer === "discrecional" && selectedCategory && (() => {
+              const month = selectedCategory.monthly[explorerMonth];
+              const records = [
+                ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importe })),
+                ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importe })),
+                ...(month?.projectItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.gasto })),
+              ];
+              return (
+                <div style={{ display:"grid",gap:10 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(selectedCategory.sum)}</strong></div>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Average")}</span><strong>{fmt(selectedCategory.sum/12)}</strong></div>
+                  <div style={{ height:1,background:C.borde }}/>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Selected month")}</span><strong>{fmt(month?.importe || 0)}</strong></div>
+                  {records.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : records.map(record => (
+                    <div key={record.id || record.label} style={{ display:"flex",justifyContent:"space-between",gap:10,background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                      <span style={{ fontSize:12,color:C.txt,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{record.label}</span>
+                      <strong style={{ fontSize:12,color:selectedCategory.color }}>{fmt(record.amount)}</strong>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {explorerLayer === "viajes" && (() => {
+              const totalTrips = tripBreakdown.reduce((sum, trip)=>sum+trip.total,0);
+              if (tripBreakdown.length === 0) return <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div>;
+              if (selectedTrip) {
+                const pct = selectedTrip.presupuesto > 0 ? Math.min(100, (selectedTrip.total / selectedTrip.presupuesto) * 100) : 0;
+                const entries = Object.entries(selectedTrip.gastos || {}).filter(([, value]) => Number(value || 0) > 0);
+                return (
+                  <div style={{ display:"grid",gap:10 }}>
+                    <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{selectedTrip.nombre}</span><strong>{fmt(selectedTrip.total)}</strong></div>
+                    {selectedTrip.presupuesto > 0 && <div style={{ height:6,background:C.borde,borderRadius:6,overflow:"hidden" }}><div style={{ width:`${pct}%`,height:"100%",background:COLOR_VIAJE,borderRadius:6 }}/></div>}
+                    {selectedTrip.inicio && <div style={{ fontSize:11,color:C.txt2 }}>{selectedTrip.inicio.split("-").reverse().join("/")} → {selectedTrip.fin?.split("-").reverse().join("/")} · {daysBetween(selectedTrip.inicio,selectedTrip.fin)}n</div>}
+                    <div style={{ height:1,background:C.borde }}/>
+                    {entries.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : entries.map(([key, value]) => (
+                      <div key={key} style={{ display:"flex",justifyContent:"space-between",background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                        <span style={{ fontSize:12,color:C.txt }}>{key}</span>
+                        <strong style={{ fontSize:12,color:COLOR_VIAJE }}>{fmt(Number(value || 0))}</strong>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return (
+                <div style={{ display:"grid",gap:10 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Annual total")}</span><strong>{fmt(totalTrips)}</strong></div>
+                  <div style={{ height:1,background:C.borde }}/>
+                  {tripBreakdown.map(trip => {
+                    const pct = trip.presupuesto > 0 ? Math.min(100, (trip.total / trip.presupuesto) * 100) : 0;
+                    return (
+                      <button key={trip.id} onClick={() => selectExplorer("viajes", trip.id)}
+                        style={{ textAlign:"left",background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}`,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                        <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}><span style={{ fontSize:12,fontWeight:700,color:COLOR_VIAJE }}>{trip.emoji || "✈️"} {trip.nombre}</span><strong style={{ fontSize:12,color:C.txt }}>{fmt(trip.total)}</strong></div>
+                        {trip.presupuesto > 0 && <div style={{ height:4,background:C.borde,borderRadius:4,overflow:"hidden",marginTop:6 }}><div style={{ width:`${pct}%`,height:"100%",background:COLOR_VIAJE,borderRadius:4 }}/></div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── PANEL DEUDAS ── */}
       {showDeudas && (
