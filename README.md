@@ -1,12 +1,12 @@
 # Sofi Marqui
 
-Monorepo con React en frontend, Node.js/Express en backend y un paquete de dominio compartido para reglas de negocio testeables.
+Monorepo TypeScript con React en frontend, Node.js/Express en backend y un paquete de dominio compartido para reglas de negocio testeables.
 
 ## Estructura
 
-- `apps/web`: aplicacion React + Vite.
-- `apps/api`: API Node.js con capas `application`, `infrastructure` e `interfaces/http`.
-- `packages/domain`: datos iniciales, esquemas Zod y calculos puros de presupuesto/deudas.
+- `apps/web`: aplicacion React + Vite + TypeScript.
+- `apps/api`: API Node.js + Express + TypeScript con capas `application`, `infrastructure` e `interfaces/http`.
+- `packages/domain`: datos iniciales, esquemas Zod y calculos puros de presupuesto/deudas compilados con TypeScript.
 
 ## Comandos
 
@@ -16,6 +16,7 @@ npm run dev
 npm run test
 npm run lint
 npm run build
+npm run typecheck -w @sofi-marqui/web
 npm start
 ```
 

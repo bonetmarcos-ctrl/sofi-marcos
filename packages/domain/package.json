@@ -3,14 +3,28 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./demo-data": "./src/demoData.js",
-    "./finance": "./src/finance.js",
-    "./schemas": "./src/schemas.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./demo-data": {
+      "types": "./dist/demoData.d.ts",
+      "import": "./dist/demoData.js"
+    },
+    "./finance": {
+      "types": "./dist/finance.d.ts",
+      "import": "./dist/finance.js"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "import": "./dist/schemas.js"
+    }
   },
   "scripts": {
-    "build": "node -e \"import('./src/index.js')\"",
+    "build": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
