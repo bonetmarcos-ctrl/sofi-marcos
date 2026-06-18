@@ -73,6 +73,10 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
 
   const ingresosFijosResumen = BASE.monthlyOverrides?.[prefVista]?.fixedIncome ?? BASE.ingresos_fijos;
+  const ajusteIngresosMes = ingresosFijosResumen - BASE.detalle_ingresos.reduce((a, d) => a + Number(d.importe || 0), 0);
+  const detalleIngresosMes = Math.abs(ajusteIngresosMes) > 0.005
+    ? [...BASE.detalle_ingresos, { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
+    : BASE.detalle_ingresos;
   const gastosFijosResumen = (BASE.monthlyOverrides?.[prefVista]?.fixedExpenses ?? BASE.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (BASE.previsiones || 0);
   const presionResumen = resumenMes?.presion || 0;
 
@@ -164,14 +168,14 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               <span style={{ fontSize:12,fontWeight:700,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Fixed income")}</span>
             </div>
             <div style={{ display:"grid", gap:5 }}>
-              {BASE.detalle_ingresos.map(d => (
+              {detalleIngresosMes.map(d => (
                 <div key={d.nombre} style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"8px 12px",background:C.fondo,borderRadius:9,border:`1px solid ${C.borde}` }}>
                   <span style={{ color:C.txt2 }}>{d.nombre}</span>
-                  <span style={{ fontWeight:700,color:C.txt }}>{fmt(d.importe)}</span>
+                  <span style={{ fontWeight:700,color:Number(d.importe || 0)<0?C.error:C.txt }}>{fmt(d.importe)}</span>
                 </div>
               ))}
               <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.cyan,borderRadius:9,color:"white",marginTop:2 }}>
-                <span style={{ fontWeight:700 }}>{t("Monthly total")}</span><span style={{ fontWeight:700 }}>{fmt(BASE.ingresos_fijos)}</span>
+                <span style={{ fontWeight:700 }}>{t("Monthly total")}</span><span style={{ fontWeight:700 }}>{fmt(ingresosFijosResumen)}</span>
               </div>
             </div>
           </div>
