@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS, categoriaEvento, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
@@ -67,9 +67,10 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
           const iso   = toISO(dia);
           const evsDia = eventos.filter(e => e.fecha === iso);
           const evs   = evsDia.filter(eventoVisibleEnCalendario);
+          const evsImporte = evs.filter(eventoMuestraImporteEnCalendario);
           const bls   = bxf[iso] || [];
           const isToday = iso === todayISO;
-          const tg    = evs.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
+          const tg    = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
           const ti    = bls.reduce((a, b) => a + Number(b.importe || 0), 0);
 
           return (
@@ -89,12 +90,13 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                 {evs.map(ev => {
                   const cat   = CATEGORIAS[categoriaEventoKey(ev)];
                   const esIng = cat?.tipo === "ingreso";
+                  const muestraImporte = eventoMuestraImporteEnCalendario(ev);
                   return (
                     <div key={ev.id} onClick={() => onEvento(ev)}
                       style={{ padding:"8px 9px", borderRadius:10, cursor:"pointer", background:esIng?C.exitoBg:cat?.bg, border:`1px solid ${esIng?C.exito+"55":cat?.color+"33"}` }}>
                       <div style={{ fontSize:11, fontWeight:700, color:esIng?C.sageDark:cat?.color }}>{cat?.emoji} {ev.titulo}</div>
                       {ev.hora && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {ev.hora}</div>}
-                      <div style={{ fontSize:12, fontWeight:700, color:esIng?C.sageDark:C.txt, marginTop:3 }}>{esIng?"+":"−"}{fmtd(ev.importe)}</div>
+                      {muestraImporte && <div style={{ fontSize:12, fontWeight:700, color:esIng?C.sageDark:C.txt, marginTop:3 }}>{esIng?"+":"−"}{fmtd(ev.importe)}</div>}
                     </div>
                   );
                 })}

@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt } from "../../utils/format.ts";
@@ -60,11 +60,12 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
           const iso         = `${año}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
           const evsDia      = eventos.filter(e => e.fecha === iso);
           const evs         = evsDia.filter(eventoVisibleEnCalendario);
+          const evsImporte  = evs.filter(eventoMuestraImporteEnCalendario);
           const vh          = vxf[iso] || [];
           const bh          = bxf[iso] || [];
           const isToday     = iso === todayISO;
-          const gt          = evs.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
-          const it          = evs.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
+          const gt          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
+          const it          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
           const habOcupada  = bh.some(b => b.tipo === "habitacion");
           const cocheOcupado = bh.some(b => b.tipo === "coche");
           const esViaje     = vh.length > 0;

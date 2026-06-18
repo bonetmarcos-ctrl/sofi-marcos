@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIAS, categoriaEvento, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd, labelMes } from "../../utils/format.ts";
@@ -56,7 +56,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
 
   const porCat = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ ...v, key:k, sum:visibles_mes.filter(e => categoriaEventoKey(e) === k).reduce((a, e) => a + e.importe, 0) }))
+    .map(([k, v]) => ({ ...v, key:k, sum:visibles_mes.filter(e => eventoMuestraImporteEnCalendario(e) && categoriaEventoKey(e) === k).reduce((a, e) => a + e.importe, 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum), [visibles_mes]);
   const maxCat = Math.max(porCat[0]?.sum || 1, gastos_viaje || 1);

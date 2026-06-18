@@ -23,6 +23,10 @@ export const CATEGORIAS_OCULTAS_CALENDARIO = new Set(["otro", "transporte", "hog
 
 export const eventoVisibleEnCalendario = (evento) => !CATEGORIAS_OCULTAS_CALENDARIO.has(categoriaEventoKey(evento));
 
+export const CATEGORIAS_IMPORTE_OCULTO_CALENDARIO = new Set(["ocio", "restaurante"]);
+
+export const eventoMuestraImporteEnCalendario = (evento) => !CATEGORIAS_IMPORTE_OCULTO_CALENDARIO.has(categoriaEventoKey(evento));
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 export const SUMINISTROS_TIPOS = [
   { key:"luz",      label:"Power",    emoji:"⚡" },
