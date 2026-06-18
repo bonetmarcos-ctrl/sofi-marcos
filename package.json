@@ -27,9 +27,7 @@
     "start": "npm run start -w @sofi-marqui/api"
   },
   "devDependencies": {
-    "@esbuild/win32-x64": "^0.21.5",
     "@eslint/js": "^9.29.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.62.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -55,5 +53,9 @@
     "start-server-and-test": "^3.0.11",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "^0.21.5",
+    "@rollup/rollup-win32-x64-msvc": "^4.62.0"
   }
 }
