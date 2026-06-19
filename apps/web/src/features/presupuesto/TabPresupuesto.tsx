@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { calculateExpenseCashImpactForMonth } from "@sofi-marqui/domain";
+import { useCallback, useMemo, useState } from "react";
+import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
@@ -11,13 +11,12 @@ import { useI18n } from "../../i18n.tsx";
 import { BASE } from "../../data/demo.ts";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
-import PanelConfiguracionPresupuesto from "./PanelConfiguracionPresupuesto.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
 const UTILITY_UNIT_FALLBACK = { luz:"kWh", gas:"m3", agua:"m3" };
 
-export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -28,10 +27,10 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
   const [hoveredMes,  setHoveredMes]  = useState(null);
   const [explorerLayer, setExplorerLayer] = useState("suministros");
   const [explorerKey, setExplorerKey] = useState(null);
+  const [expenseTimingMode, setExpenseTimingMode] = useState("cash");
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [showDeudas,  setShowDeudas]  = useState(false);
-  const [showConfig,  setShowConfig]  = useState(false);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -43,15 +42,14 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
   // ── Handlers deudas ──
   const guardarDeuda    = (d) => { setDeudas(prev => d.id && prev.find(x=>x.id===d.id) ? prev.map(x=>x.id===d.id?d:x) : [...prev,d]); setModalDeuda(null); };
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
-  const guardarConfiguracion = (nextBase) => { setConfiguracion?.(() => [{ ...nextBase, id:nextBase.id || "base" }]); setShowConfig(false); };
 
   // ── Datos calculados ──
-  const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
+  const { datosMes } = useDatosMes({ eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
   const resumenMes = datosMes[mesVista] || datosMes[mesActual];
 
   // KPIs deudas
-  const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [deudas, prefVista, base]);
+  const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista), [deudas, prefVista]);
   const totalPendienteMes = useMemo(() => calcularDeudaPendienteMes(deudas, prefVista), [deudas, prefVista]);
   const proxVencimiento = useMemo(() => deudas
     .map(d=>({ ...d, fin:addMeses(d.mes_inicio, d.cuotas_totales-1) }))
@@ -62,7 +60,7 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
     .map(tipo => {
       const monthly = MESES.map((_, index) => {
         const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
-        const registros = suministros.filter(s => s.mes === prefMes && s.tipo === tipo.key);
+        const registros = suministros.filter(s => utilityCashMonth(s) === prefMes && s.tipo === tipo.key);
         const importe = registros.reduce((sum, item) => sum + Number(item.importe || 0), 0);
         const consumo = registros.reduce((sum, item) => sum + Number(item.consumo || 0), 0);
         return { mes:index, pref:prefMes, importe, consumo, registros };
@@ -76,23 +74,31 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
     })
     .filter(item => item.total > 0 || item.consumoTotal > 0), [suministros, año]);
 
+  const explorerExpenseAmount = useCallback((expense, prefMes) => expenseTimingMode === "purchase"
+    ? (expensePurchaseMonth(expense) === prefMes ? Number(expense.importe || 0) : 0)
+    : calculateExpenseCashImpactForMonth(expense, prefMes), [expenseTimingMode]);
+
   const discretionaryBreakdown = useMemo(() => Object.entries(CATEGORIAS)
     .filter(([,v])=>v.tipo==="gasto")
     .filter(([k])=>k!=="viaje")
     .map(([k,v])=>{
       const monthly = MESES.map((_, index) => {
         const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
-        const eventItems = eventos.filter(e=>categoriaEventoKey(e)===k&&calculateExpenseCashImpactForMonth(e, prefMes)>0);
-        const expenseItems = gastosVariables.filter(g=>g.categoria===k&&calculateExpenseCashImpactForMonth(g, prefMes)>0);
+        const eventItems = eventos
+          .map(e=>({ ...e, importeExplorer:explorerExpenseAmount(e, prefMes) }))
+          .filter(e=>categoriaEventoKey(e)===k&&e.importeExplorer>0);
+        const expenseItems = gastosVariables
+          .map(g=>({ ...g, importeExplorer:explorerExpenseAmount(g, prefMes) }))
+          .filter(g=>g.categoria===k&&g.importeExplorer>0);
         const projectItems = k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(prefMes)) : [];
-        const importe = eventItems.reduce((a,e)=>a+calculateExpenseCashImpactForMonth(e, prefMes),0)
-          + expenseItems.reduce((a,g)=>a+calculateExpenseCashImpactForMonth(g, prefMes),0)
+        const importe = eventItems.reduce((a,e)=>a+Number(e.importeExplorer||0),0)
+          + expenseItems.reduce((a,g)=>a+Number(g.importeExplorer||0),0)
           + projectItems.reduce((a,p)=>a+Number(p.gasto||0),0);
         return { mes:index, pref:prefMes, importe, eventItems, expenseItems, projectItems };
       });
       return { ...v, key:k, monthly, sum:monthly.reduce((a,m)=>a+m.importe,0) };
     })
-    .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año]);
+    .filter(c=>c.sum>0).sort((a,b)=>b.sum-a.sum), [eventos, gastosVariables, proyectos, año, explorerExpenseAmount]);
 
   const tripBreakdown = useMemo(() => viajes
     .map(v=>{
@@ -122,12 +128,12 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
   const palancasPotResumen = useMemo(() => palancas
     .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
 
-  const ingresosFijosResumen = base.monthlyOverrides?.[prefVista]?.fixedIncome ?? base.ingresos_fijos;
-  const ajusteIngresosMes = ingresosFijosResumen - (base.detalle_ingresos || []).reduce((a, d) => a + Number(d.importe || 0), 0);
+  const ingresosFijosResumen = BASE.monthlyOverrides?.[prefVista]?.fixedIncome ?? BASE.ingresos_fijos;
+  const ajusteIngresosMes = ingresosFijosResumen - BASE.detalle_ingresos.reduce((a, d) => a + Number(d.importe || 0), 0);
   const detalleIngresosMes = Math.abs(ajusteIngresosMes) > 0.005
-    ? [...(base.detalle_ingresos || []), { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
-    : (base.detalle_ingresos || []);
-  const gastosFijosResumen = (base.monthlyOverrides?.[prefVista]?.fixedExpenses ?? base.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (base.previsiones || 0);
+    ? [...BASE.detalle_ingresos, { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
+    : BASE.detalle_ingresos;
+  const gastosFijosResumen = (BASE.monthlyOverrides?.[prefVista]?.fixedExpenses ?? BASE.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (BASE.previsiones || 0);
   const presionResumen = resumenMes?.presion || 0;
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -156,6 +162,17 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
   const sumMonthly = (monthly, valueKey = "importe") => monthly.reduce((sum, item) => sum + Number(item[valueKey] || 0), 0);
   const selectedMonthlyValue = (monthly, valueKey = "importe") => Number(monthly.find(item => item.mes === explorerMonth)?.[valueKey] || 0);
   const selectExplorer = (layer, key = null) => { setExplorerLayer(layer); setExplorerKey(key); };
+  const formatCardDetail = (item, prefMes) => {
+    const fundingSource = item.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+    if (fundingSource === FUNDING_SOURCES.MONTH_INCOME) return "";
+
+    const card = item.tarjetaNombre || t("Card");
+    const close = item.tarjetaDiaCierre ? `${t("Card closing day")} ${item.tarjetaDiaCierre}` : "";
+    const charge = expenseFirstChargeMonth(item);
+    const chargeLabel = charge ? `${t("First debit month")} ${labelMes(charge)}` : "";
+    const purchaseLabel = expensePurchaseMonth(item) && expensePurchaseMonth(item) !== prefMes ? `${t("Purchase month")} ${labelMes(expensePurchaseMonth(item))}` : "";
+    return [fundingSource === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? t("Credit card installments") : t("Credit card next month"), card, close, chargeLabel, purchaseLabel].filter(Boolean).join(" · ");
+  };
   const renderMetricStrip = (metrics, color) => (
     <div style={{ display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,minmax(0,1fr))",background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:12,overflow:"hidden",marginBottom:16 }}>
       {metrics.map((metric, index) => (
@@ -249,11 +266,7 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
             <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Monthly summary")}</div>
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Income · expenses · debt snapshot")}</div>
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",justifyContent:"flex-end" }}>
-            <button onClick={() => setShowConfig(true)}
-              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:9,padding:"7px 12px",cursor:"pointer",fontSize:12,fontWeight:700,color:C.cyan,fontFamily:"'Lato',sans-serif" }}>
-              {t("Edit base data")}
-            </button>
+          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
             <button onClick={() => setMesVista(i => Math.max(0, i-1))}
               style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
             <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesVista)} {año}</span>
@@ -397,7 +410,7 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables base={base} setModal={setModal} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+      <SeccionGastosVariables eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} setDeudas={setDeudas}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
@@ -420,13 +433,13 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
         <div style={{ overflowX:isMobile?"auto":"visible", paddingBottom:isMobile?6:0 }}>
         <div style={{ display:"grid",gridTemplateColumns:"repeat(12,minmax(34px,1fr))",gap:3,alignItems:"end",height:160,position:"relative",minWidth:isMobile?520:"auto" }}>
           {(() => {
-            const maxG = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), base.ingresos_fijos, 1);
-            const fixedPx = Math.min(138,(base.ingresos_fijos/maxG)*140);
+            const maxG = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), BASE.ingresos_fijos, 1);
+            const fixedPx = Math.min(138,(BASE.ingresos_fijos/maxG)*140);
             return <div style={{ position:"absolute",left:0,right:0,bottom:`${fixedPx}px`,height:1,background:C.cyan,opacity:0.5,pointerEvents:"none",zIndex:1 }}/>;
           })()}
 
           {datosMes.map((m,i) => {
-            const maxG     = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), base.ingresos_fijos, 1);
+            const maxG     = Math.max(...datosMes.map(d=>Math.max(d.total_gastos,d.total_ingresos)), BASE.ingresos_fijos, 1);
             const totalH   = Math.max(4,(m.total_gastos/maxG)*140);
             const h1       = m.total_gastos>0?(m.gasto_estructural/m.total_gastos)*totalH:0;
             const h2       = m.total_gastos>0?(m.gasto_suministros/m.total_gastos)*totalH:0;
@@ -493,7 +506,7 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
             </div>
             <div style={{ display:"grid",gridTemplateColumns:expenseLayerColumns,gap:8,marginBottom:12 }}>
               {[
-                {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(base.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? base.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
+                {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(BASE.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? BASE.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
                 {key:"suministros", l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
                 {key:"discrecional", l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
                 {key:"viajes", l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
@@ -534,6 +547,15 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{selectedLayer.label} · {monthName(explorerMonth)} {año}</div>
           </div>
           <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+            {explorerLayer === "discrecional" && [
+              { key:"cash", label:t("Real pressure") },
+              { key:"purchase", label:t("Purchase month") },
+            ].map(mode => (
+              <button key={mode.key} onClick={() => setExpenseTimingMode(mode.key)}
+                style={{ border:`1px solid ${expenseTimingMode===mode.key?C.cyan:C.borde}`,background:expenseTimingMode===mode.key?C.cyanLight:"white",color:expenseTimingMode===mode.key?C.cyan:C.txt2,borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
+                {mode.label}
+              </button>
+            ))}
             {expenseLayers.map(layer => (
               <button key={layer.key} onClick={() => selectExplorer(layer.key)}
                 style={{ display:"flex",alignItems:"center",gap:5,border:`1px solid ${explorerLayer===layer.key?layer.color:C.borde}`,background:explorerLayer===layer.key?layer.bg:"white",color:explorerLayer===layer.key?layer.color:C.txt2,borderRadius:9,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>
@@ -644,11 +666,23 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
 
             {explorerLayer === "estructural" && (() => {
               const month = datosMes[explorerMonth];
-              const fixedExpenses = base.monthlyOverrides?.[month.pref]?.fixedExpenses ?? base.gastos_fijos;
+              const fixedExpenses = BASE.monthlyOverrides?.[month.pref]?.fixedExpenses ?? BASE.gastos_fijos;
+              const activeDebts = deudas
+                .map(deuda => ({ ...deuda, cuotaMes:calcularCuotaDeudaEnMes(deuda, month.pref) }))
+                .filter(deuda => deuda.cuotaMes > 0);
               return (
                 <div style={{ display:"grid",gap:10 }}>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Fixed expenses")}</span><strong>{fmt(fixedExpenses)}</strong></div>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Debt")}</span><strong>{fmt(month.gasto_deudas)}</strong></div>
+                  {activeDebts.length > 0 && (
+                    <div style={{ height:1,background:C.borde }}/>
+                  )}
+                  {activeDebts.map(deuda => (
+                    <div key={deuda.id} style={{ background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}><span style={{ fontSize:12,fontWeight:700,color:deuda.origen===FUNDING_SOURCES.CREDIT_INSTALLMENTS?C.lavender:C.txt }}>{deuda.nombre}</span><strong style={{ fontSize:12 }}>{fmt(deuda.cuotaMes)}</strong></div>
+                      <div style={{ fontSize:10,color:C.txt2,marginTop:3 }}>{[deuda.tarjetaNombre, deuda.tarjetaDiaCierre ? `${t("Card closing day")} ${deuda.tarjetaDiaCierre}` : "", deuda.compraMes ? `${t("Purchase month")} ${labelMes(deuda.compraMes)}` : "", `${deuda.cuotas_totales} ${t("Installments").toLowerCase()}`].filter(Boolean).join(" · ")}</div>
+                    </div>
+                  ))}
                 </div>
               );
             })()}
@@ -667,7 +701,7 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
                   {records.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : records.map(record => (
                     <div key={record.id || `${record.mes}-${record.tipo}`} style={{ background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
                       <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}><span style={{ fontSize:12,fontWeight:700,color:"#d97706" }}>{record.proveedor || t(selectedUtility.label)}</span><strong style={{ fontSize:12 }}>{fmt(record.importe)}</strong></div>
-                      <div style={{ fontSize:10,color:C.txt2,marginTop:3 }}>{[record.frecuencia, record.periodoInicio && record.periodoFin ? `${record.periodoInicio} → ${record.periodoFin}` : "", record.notas].filter(Boolean).join(" · ")}</div>
+                      <div style={{ fontSize:10,color:C.txt2,marginTop:3 }}>{[record.frecuencia, utilityAvailabilityDate(record) ? `${t("Money needed")} ${utilityAvailabilityDate(record).split("-").reverse().join("/")}` : "", record.periodoInicio && record.periodoFin ? `${record.periodoInicio} → ${record.periodoFin}` : "", record.notas].filter(Boolean).join(" · ")}</div>
                     </div>
                   ))}
                 </div>
@@ -677,17 +711,20 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
             {explorerLayer === "discrecional" && selectedCategory && (() => {
               const month = selectedCategory.monthly[explorerMonth];
               const records = [
-                ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:calculateExpenseCashImpactForMonth(item, month.pref) })),
-                ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:calculateExpenseCashImpactForMonth(item, month.pref) })),
+                ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importeExplorer ?? explorerExpenseAmount(item, month.pref), detail:formatCardDetail(item, month.pref) })),
+                ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importeExplorer ?? explorerExpenseAmount(item, month.pref), detail:formatCardDetail(item, month.pref) })),
                 ...(month?.projectItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.gasto })),
               ];
               return (
                 <div style={{ display:"grid",gap:10 }}>
                   <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{t("Selected month")}</span><strong>{fmt(month?.importe || 0)}</strong></div>
                   {records.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : records.map(record => (
-                    <div key={record.id || record.label} style={{ display:"flex",justifyContent:"space-between",gap:10,background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
-                      <span style={{ fontSize:12,color:C.txt,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{record.label}</span>
-                      <strong style={{ fontSize:12,color:selectedCategory.color }}>{fmt(record.amount)}</strong>
+                    <div key={record.id || record.label} style={{ background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}>
+                        <span style={{ fontSize:12,color:C.txt,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{record.label}</span>
+                        <strong style={{ fontSize:12,color:selectedCategory.color }}>{fmt(record.amount)}</strong>
+                      </div>
+                      {record.detail && <div style={{ fontSize:10,color:C.txt2,marginTop:3,lineHeight:1.35 }}>{record.detail}</div>}
                     </div>
                   ))}
                 </div>
@@ -754,13 +791,13 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
             return{...d,activa,esUltima,pendientes,cuotaMes:activa?d.cuota+(d.interes_mensual||0):0};
           });
           const totalCuotas=detalleDeudas.reduce((a,d)=>a+d.cuotaMes,0);
-          const saldoLibre=base.ingresos_fijos-base.gastos_fijos-totalCuotas;
+          const saldoLibre=BASE.ingresos_fijos-BASE.gastos_fijos-totalCuotas;
           const liberaciones=detalleDeudas.filter(d=>d.esUltima);
           return{pref,detalleDeudas,totalCuotas,saldoLibre,liberaciones};
         });
         const totalLiberado=deudas.reduce((a,d)=>a+d.cuota+(d.interes_mensual||0),0);
-        const saldoHoy=base.ingresos_fijos-base.gastos_fijos-(filas[0]?.totalCuotas||0);
-        const saldoFinal=base.ingresos_fijos-base.gastos_fijos;
+        const saldoHoy=BASE.ingresos_fijos-BASE.gastos_fijos-(filas[0]?.totalCuotas||0);
+        const saldoFinal=BASE.ingresos_fijos-BASE.gastos_fijos;
         return(
           <div style={{ ...cardN(isMobile ? { padding:"14px 12px" } : undefined),background:"linear-gradient(135deg,#0f2420,#1a3d30)",border:"none" }}>
             <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:4 }}>🔮 {t("Monthly debt-free projection")}</div>
@@ -819,7 +856,6 @@ export default function TabPresupuesto({ base = BASE, setConfiguracion, setModal
 
       {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
-      {showConfig && <PanelConfiguracionPresupuesto base={base} prefVista={prefVista} onSave={guardarConfiguracion} onClose={()=>setShowConfig(false)}/>} 
     </div>
   );
 }
@@ -833,4 +869,12 @@ const calcularDeudaPendienteMes = (deudas, pref) => {
     const cuotasPendientes = offset < 0 ? cuotasTotales : Math.max(0, cuotasTotales - offset);
     return total + cuotasPendientes * (Number(deuda.cuota || 0) + Number(deuda.interes_mensual || 0));
   }, 0);
+};
+
+const calcularCuotaDeudaEnMes = (deuda, pref) => {
+  const [añoObjetivo, mesObjetivo] = pref.split("-").map(Number);
+  const [añoInicio, mesInicio] = deuda.mes_inicio.split("-").map(Number);
+  const offset = (añoObjetivo - añoInicio) * 12 + (mesObjetivo - mesInicio);
+  const activa = offset >= Number(deuda.cuota_actual || 0) && offset < Number(deuda.cuotas_totales || 0);
+  return activa ? Number(deuda.cuota || 0) + Number(deuda.interes_mensual || 0) : 0;
 };

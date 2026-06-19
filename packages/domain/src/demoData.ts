@@ -1072,7 +1072,6 @@ export const DEMO_SUMINISTROS = [
 ];
 
 export const createInitialState = () => ({
-  configuracion: [structuredClone({ ...BASE, id: "base" })],
   eventos: structuredClone(DEMO_EVENTOS),
   viajes: structuredClone(DEMO_VIAJES),
   bloqueos: [],

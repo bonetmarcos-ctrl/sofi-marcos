@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
@@ -14,7 +14,7 @@ const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
 const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
 
-export default function SeccionGastosVariables({ base = BASE, setModal, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, setDeudas }) {
   const { t, monthName } = useI18n();
   const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
   const [modalSuministro, setModalSuministro] = useState(null);
@@ -26,18 +26,18 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
   const prefAnterior = mesIdx > 0 ? `${año}-${String(mesIdx).padStart(2, "0")}` : `${año - 1}-12`;
-  const fixedCostForMonth = base.monthlyOverrides?.[pref]?.fixedExpenses ?? base.gastos_fijos;
+  const fixedCostForMonth = BASE.monthlyOverrides?.[pref]?.fixedExpenses ?? BASE.gastos_fijos;
 
   // Suministros del mes
   const suministrosPorClave = useMemo(() => {
     const index = new Map();
-    suministros.forEach(s => index.set(`${s.mes}:${s.tipo}`, s));
+    suministros.forEach(s => index.set(`${utilityCashMonth(s)}:${s.tipo}`, s));
     return index;
   }, [suministros]);
 
   const suministrosMes = SUMINISTROS_TIPOS.map(t => {
     const reg = suministrosPorClave.get(`${pref}:${t.key}`);
-    return { ...t, ...reg, key:t.key, label:t.label, emoji:t.emoji, mes:pref, tipo:t.key, importe:reg?.importe ?? 0, notas:reg?.notas ?? "" };
+    return { ...t, ...reg, key:t.key, label:t.label, emoji:t.emoji, mes:reg?.mes || pref, tipo:t.key, importe:reg?.importe ?? 0, notas:reg?.notas ?? "" };
   });
   const totalSuministros = suministrosMes.reduce((a, s) => a + (+s.importe || 0), 0);
 
@@ -48,7 +48,7 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
 
   const abrirSuministro = (suministro) => setModalSuministro({
     id:suministro.id,
-    mes:pref,
+    mes:suministro.mes || pref,
     tipo:suministro.key,
     label:suministro.label,
     emoji:suministro.emoji,
@@ -57,6 +57,9 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
     frecuencia:suministro.frecuencia || "mensual",
     consumo:suministro.consumo ?? "",
     unidad:suministro.unidad || UNIDADES_SUMINISTRO[suministro.key] || "",
+    fechaFactura:suministro.fechaFactura || "",
+    fechaVencimiento:suministro.fechaVencimiento || "",
+    fechaDisponible:suministro.fechaDisponible || predictUtilityAvailabilityDate(suministros, suministro.key, pref),
     periodoInicio:suministro.periodoInicio || "",
     periodoFin:suministro.periodoFin || "",
     notas:suministro.notas || "",
@@ -65,21 +68,27 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
   const guardarSuministro = (draft) => {
     const item = {
       id:draft.id || Date.now()+Math.random(),
-      mes:pref,
+      mes:draft.mes || pref,
       tipo:draft.tipo,
       importe:Number(draft.importe || 0),
       proveedor:draft.proveedor || "",
       frecuencia:draft.frecuencia || "",
       consumo:draft.consumo === "" || draft.consumo === null || draft.consumo === undefined ? undefined : Number(draft.consumo || 0),
       unidad:draft.unidad || "",
+      fechaFactura:draft.fechaFactura || "",
+      fechaVencimiento:draft.fechaVencimiento || "",
+      fechaDisponible:draft.fechaDisponible || draft.fechaVencimiento || draft.fechaFactura || "",
       periodoInicio:draft.periodoInicio || "",
       periodoFin:draft.periodoFin || "",
       notas:draft.notas || "",
     };
 
     setSuministros(prev => {
-      const exist = prev.find(s => s.mes === pref && s.tipo === item.tipo);
-      if (exist) return prev.map(s => s.mes===pref && s.tipo===item.tipo ? item : s);
+      const targetCashMonth = utilityCashMonth(item) || pref;
+      const exist = item.id
+        ? prev.find(s => String(s.id) === String(item.id))
+        : prev.find(s => utilityCashMonth(s) === targetCashMonth && s.tipo === item.tipo);
+      if (exist) return prev.map(s => String(s.id) === String(exist.id) ? item : s);
       return [...prev, item];
     });
     setModalSuministro(null);
@@ -88,6 +97,7 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
   const resumenSuministro = (s) => [
     s.consumo ? `${s.consumo} ${s.unidad || UNIDADES_SUMINISTRO[s.key] || ""}`.trim() : "",
     s.frecuencia ? t(etiquetasFrecuencia[s.frecuencia] || s.frecuencia) : "",
+    utilityAvailabilityDate(s) ? `${t("Money needed")} ${utilityAvailabilityDate(s).split("-").reverse().join("/")}` : "",
     s.proveedor || "",
   ].filter(Boolean).join(" · ");
 
@@ -105,44 +115,43 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
     .sort((a, b) => b.sum - a.sum);
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
-  const editableDiscretionaryItems = useMemo(() => [
-    ...evMes.map(evento => ({
-      key:`evento-${evento.id}`,
-      label:evento.titulo,
-      amount:calculateExpenseCashImpactForMonth(evento, pref),
-      source:t("Calendar"),
-      onEdit:() => setModal?.({ type:"evento", item:evento }),
-    })),
-    ...lineasMes.map(gasto => ({
-      key:`gasto-${gasto.id}`,
-      label:gasto.titulo,
-      amount:calculateExpenseCashImpactForMonth(gasto, pref),
-      source:t("Variable expense"),
-      onEdit:() => setModalGasto(gasto),
-    })),
-  ], [evMes, lineasMes, pref, setModal, t]);
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const guardarGastoVariable = (gasto) => {
     const origenFondos = gasto.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+    const id = gasto.id || Date.now();
     const item = {
       ...gasto,
-      id:gasto.id || Date.now(),
+      id,
       mes:pref,
       importe:Number(gasto.importe || 0),
       origenFondos,
       cuotasTarjeta:origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(1, Number(gasto.cuotasTarjeta || 1)) : 1,
-      mesPrimerCargo:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (gasto.mesPrimerCargo || addMeses(pref, 1)),
+      mesPrimerCargo:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (gasto.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...gasto, mes:pref })),
+      tarjetaNombre:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (gasto.tarjetaNombre || ""),
+      tarjetaDiaCierre:origenFondos === FUNDING_SOURCES.MONTH_INCOME || !gasto.tarjetaDiaCierre ? undefined : Number(gasto.tarjetaDiaCierre),
     };
-    setGastosVariables(prev => item.id && prev.find(g => g.id === item.id) ? prev.map(g => g.id === item.id ? item : g) : [...prev, item]);
+    const debt = buildCreditCardDebtFromExpense(item, "gastosVariables");
+    const finalItem = debt ? { ...item, deudaTarjetaId:debt.id } : { ...item, deudaTarjetaId:"" };
+
+    setDeudas?.(prev => {
+      const withoutLinked = prev.filter(deuda => {
+        if (item.deudaTarjetaId && String(deuda.id) === String(item.deudaTarjetaId)) return false;
+        return !(deuda.origenColeccion === "gastosVariables" && String(deuda.origenId) === String(item.id));
+      });
+      return debt ? [...withoutLinked, debt] : withoutLinked;
+    });
+
+    setGastosVariables(prev => finalItem.id && prev.find(g => g.id === finalItem.id) ? prev.map(g => g.id === finalItem.id ? finalItem : g) : [...prev, finalItem]);
     setModalGasto(null);
   };
   const eliminarGastoVariable = (id) => {
     setGastosVariables(prev => prev.filter(g => g.id !== id));
+    setDeudas?.(prev => prev.filter(deuda => !(deuda.origenColeccion === "gastosVariables" && String(deuda.origenId) === String(id))));
     setModalGasto(null);
   };
 
   const modalOrigenFondos = modalGasto?.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
-  const modalMesCargo = modalGasto?.mesPrimerCargo || addMeses(pref, 1);
+  const modalMesCargo = modalGasto?.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...modalGasto, mes:pref }) || addMeses(pref, 1);
   const modalCuotasTarjeta = Math.max(1, Number(modalGasto?.cuotasTarjeta || 1));
   const modalCuotaTarjeta = Number(modalGasto?.importe || 0) / modalCuotasTarjeta;
   const opcionesFondos = [
@@ -154,7 +163,7 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
     ...g,
     origenFondos:value,
     cuotasTarjeta:value === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(g.cuotasTarjeta || 2)) : 1,
-    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (g.mesPrimerCargo || addMeses(pref, 1)),
+    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (g.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...g, mes:pref }) || addMeses(pref, 1)),
   }));
 
   // Helpers de layout
@@ -192,7 +201,7 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
         </div>
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", origenFondos:FUNDING_SOURCES.MONTH_INCOME, cuotasTarjeta:1, mesPrimerCargo:"", notas:"" })}
+          <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", origenFondos:FUNDING_SOURCES.MONTH_INCOME, cuotasTarjeta:1, mesPrimerCargo:"", tarjetaNombre:"", tarjetaDiaCierre:"", notas:"" })}
             style={{ background:C.cyan, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
             + {t("Variable expense")}
           </button>
@@ -211,7 +220,16 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
         <div>
           {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
           <div style={{ display:"grid", gap:5 }}>
-            {(base.detalle_fijos || []).map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))}
+            {(BASE.detalle_fijos || [])
+              .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche","Seguro auto"].includes(d.nombre))
+              .map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))
+            }
+            {(() => {
+              const com = (BASE.detalle_fijos || []).find(d => d.nombre === "Comunidad");
+              const der = (BASE.detalle_fijos || []).find(d => d.nombre === "Derramas");
+              const sum = (com?.importe||0) + (der?.importe||0);
+              return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b") : null;
+            })()}
             {rowTotal(t("Monthly total"), fixedCostForMonth, "#64748b", "white")}
           </div>
         </div>
@@ -266,20 +284,6 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
               ))
             }
             {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
-            {editableDiscretionaryItems.length > 0 && (
-              <div style={{ display:"grid", gap:5, marginTop:4 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.5px" }}>{t("Editable records")}</div>
-                {editableDiscretionaryItems.map(item => (
-                  <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, fontSize:12, padding:"7px 9px", background:"white", borderRadius:9, border:`1px solid ${C.borde}` }}>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ color:C.txt, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label}</div>
-                      <div style={{ fontSize:10, color:C.txt2 }}>{item.source} · {fmt(item.amount)}</div>
-                    </div>
-                    <button onClick={item.onEdit} aria-label={`${t("Edit")} ${item.label}`} style={{ width:25, height:25, borderRadius:7, border:`1px solid ${C.lavender}33`, background:C.lavLight, color:C.lavender, cursor:"pointer", flexShrink:0 }}>✏️</button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
@@ -293,12 +297,9 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
                 const total = Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0);
                 return (
                   <div key={v.id} style={{ fontSize:13, padding:"8px 12px", background:BG_VIAJE, borderRadius:9, border:`1px solid ${COLOR_VIAJE}33` }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                      <span style={{ color:COLOR_VIAJE, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{v.emoji||"✈️"} {v.nombre}</span>
-                      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-                        <span style={{ fontWeight:700, color:COLOR_VIAJE }}>{fmt(total)}</span>
-                        <button onClick={() => setModal?.({ type:"viaje", item:v })} aria-label={`${t("Edit trip")} ${v.nombre}`} style={{ width:24, height:24, borderRadius:7, border:`1px solid ${COLOR_VIAJE}33`, background:"white", color:COLOR_VIAJE, cursor:"pointer" }}>✏️</button>
-                      </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ color:COLOR_VIAJE, fontWeight:600 }}>{v.emoji||"✈️"} {v.nombre}</span>
+                      <span style={{ fontWeight:700, color:COLOR_VIAJE }}>{fmt(total)}</span>
                     </div>
                     {Object.entries(v.gastos || {}).filter(([, val]) => Number(val || 0) > 0).map(([k, val]) => (
                       <div key={k} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.txt2, marginTop:3, paddingLeft:8 }}>
@@ -357,6 +358,18 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
                     <input type="date" value={modalSuministro.periodoFin || ""} onChange={e => setModalSuministro(s => ({ ...s, periodoFin:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
                   </div>
                 </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Invoice date")}</label>
+                  <input type="date" value={modalSuministro.fechaFactura || ""} onChange={e => setModalSuministro(s => ({ ...s, fechaFactura:e.target.value, fechaDisponible:s.fechaDisponible || e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Due date")}</label>
+                  <input type="date" value={modalSuministro.fechaVencimiento || ""} onChange={e => setModalSuministro(s => ({ ...s, fechaVencimiento:e.target.value, fechaDisponible:e.target.value || s.fechaDisponible }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Money available date")}</label>
+                  <input type="date" value={modalSuministro.fechaDisponible || ""} onChange={e => setModalSuministro(s => ({ ...s, fechaDisponible:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
               </div>
               <div>
                 <label style={{ ...labelS, color:C.txt2 }}>{t("Notes")}</label>
@@ -364,6 +377,7 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
               </div>
               <div style={{ background:"#fef3c7", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#d97706", border:"1px solid #d9770644" }}>
                 {t("Cash flow month")} {'->'} {monthName(mesIdx)} {año}
+                {utilityAvailabilityDate(modalSuministro) && <span> · {t("Money needed")} {utilityAvailabilityDate(modalSuministro).split("-").reverse().join("/")}</span>}
                 {importe > 0 && <strong> · {fmtd(importe)}</strong>}
                 {consumo > 0 && <span> · {consumo} {modalSuministro.unidad || UNIDADES_SUMINISTRO[modalSuministro.tipo] || ""}</span>}
                 {precioUnidad !== null && modalSuministro.unidad && <span> · {precioUnidad.toFixed(2)} €/{modalSuministro.unidad}</span>}
@@ -415,7 +429,15 @@ export default function SeccionGastosVariables({ base = BASE, setModal, eventos,
                 </div>
               </div>
               {modalOrigenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
-                <div style={{ display:"grid", gridTemplateColumns:modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "1fr 1fr" : "1fr", gap:10 }}>
+                <div style={{ display:"grid", gridTemplateColumns:modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "1fr 1fr" : "1fr 1fr", gap:10 }}>
+                  <div>
+                    <label style={{ ...labelS, color:C.txt2 }}>{t("Card")}</label>
+                    <input value={modalGasto.tarjetaNombre || ""} onChange={e => setModalGasto(g => ({ ...g, tarjetaNombre:e.target.value }))} placeholder={t("Card name")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                  </div>
+                  <div>
+                    <label style={{ ...labelS, color:C.txt2 }}>{t("Card closing day")}</label>
+                    <input type="number" min="1" max="31" step="1" value={modalGasto.tarjetaDiaCierre || ""} onChange={e => setModalGasto(g => ({ ...g, tarjetaDiaCierre:e.target.value, mesPrimerCargo:estimateCreditCardFirstChargeMonth({ ...g, mes:pref, tarjetaDiaCierre:e.target.value }) || g.mesPrimerCargo }))} placeholder="25" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                  </div>
                   <div>
                     <label style={{ ...labelS, color:C.txt2 }}>{modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? t("First debit month") : t("Debit month")}</label>
                     <input type="month" value={modalMesCargo} onChange={e => setModalGasto(g => ({ ...g, mesPrimerCargo:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>

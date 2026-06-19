@@ -2,7 +2,7 @@ import { useState } from "react";
 import Modal from "../../../components/Modal.tsx";
 import { CATEGORIAS, PERSONAS } from "../../../constants/categorias.ts";
 import { C, inputS, labelS } from "../../../constants/colores.ts";
-import { FUNDING_SOURCES } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqui/domain";
 import { fmtd } from "../../../utils/format.ts";
 import { labelMes } from "../../../utils/format.ts";
 import { addMeses, todayISO } from "../../../utils/dates.ts";
@@ -19,6 +19,8 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
     origenFondos: FUNDING_SOURCES.MONTH_INCOME,
     cuotasTarjeta: 1,
     mesPrimerCargo: "",
+    tarjetaNombre: "",
+    tarjetaDiaCierre: "",
     notas: "",
     huespedes: "",
     noches: 1,
@@ -35,7 +37,7 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
   const esGasto     = CATEGORIAS[form.categoria]?.tipo === "gasto";
   const origenFondos = form.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
   const mesCompra = (form.fecha || todayISO).slice(0, 7);
-  const mesCargo = form.mesPrimerCargo || addMeses(mesCompra, 1);
+  const mesCargo = form.mesPrimerCargo || estimateCreditCardFirstChargeMonth(form) || addMeses(mesCompra, 1);
   const cuotasTarjeta = Math.max(1, Number(form.cuotasTarjeta || 1));
   const cuotaTarjeta = Number(form.importe || 0) / cuotasTarjeta;
   const opcionesFondos = [
@@ -48,7 +50,7 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
     ...f,
     origenFondos:value,
     cuotasTarjeta:value === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(f.cuotasTarjeta || 2)) : 1,
-    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (f.mesPrimerCargo || addMeses((f.fecha || todayISO).slice(0, 7), 1)),
+    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (f.mesPrimerCargo || estimateCreditCardFirstChargeMonth(f) || addMeses((f.fecha || todayISO).slice(0, 7), 1)),
   }));
 
   const guardarEvento = () => {
@@ -60,6 +62,8 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
       origenFondos:fuente,
       cuotasTarjeta:fuente === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? cuotasTarjeta : 1,
       mesPrimerCargo:fuente === FUNDING_SOURCES.MONTH_INCOME ? "" : mesCargo,
+      tarjetaNombre:fuente === FUNDING_SOURCES.MONTH_INCOME ? "" : (form.tarjetaNombre || ""),
+      tarjetaDiaCierre:fuente === FUNDING_SOURCES.MONTH_INCOME || !form.tarjetaDiaCierre ? undefined : Number(form.tarjetaDiaCierre),
     });
   };
 
@@ -107,7 +111,7 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
           <div>
             <label style={{ ...labelS, color:C.txt2 }}>{t("Date")}</label>
-            <input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+            <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha:e.target.value, mesPrimerCargo:(f.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.MONTH_INCOME ? "" : (estimateCreditCardFirstChargeMonth({ ...f, fecha:e.target.value }) || f.mesPrimerCargo) }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
           </div>
           <div>
             <label style={{ ...labelS, color:C.txt2 }}>{t("Time")}</label>
@@ -134,7 +138,15 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
               </div>
             </div>
             {origenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
-              <div style={{ display:"grid", gridTemplateColumns:origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "1fr 1fr" : "1fr", gap:10 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Card")}</label>
+                  <input value={form.tarjetaNombre || ""} onChange={e => set("tarjetaNombre", e.target.value)} placeholder={t("Card name")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
+                <div>
+                  <label style={{ ...labelS, color:C.txt2 }}>{t("Card closing day")}</label>
+                  <input type="number" min="1" max="31" step="1" value={form.tarjetaDiaCierre || ""} onChange={e => setForm(f => ({ ...f, tarjetaDiaCierre:e.target.value, mesPrimerCargo:estimateCreditCardFirstChargeMonth({ ...f, tarjetaDiaCierre:e.target.value }) || f.mesPrimerCargo }))} placeholder="25" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>
+                </div>
                 <div>
                   <label style={{ ...labelS, color:C.txt2 }}>{origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? t("First debit month") : t("Debit month")}</label>
                   <input type="month" value={mesCargo} onChange={e => set("mesPrimerCargo", e.target.value)} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}` }}/>

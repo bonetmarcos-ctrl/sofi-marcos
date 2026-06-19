@@ -29,8 +29,6 @@ export class AppStateService {
     for (const collection of collectionNames as CollectionName[]) {
       state[collection] = Array.isArray(payload[collection])
         ? payload[collection].map((item) => this.parse(collection, item))
-        : collection === "configuracion"
-          ? state[collection]
         : [];
     }
 

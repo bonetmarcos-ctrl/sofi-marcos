@@ -4,24 +4,6 @@ const idSchema = z.union([z.string(), z.number()]);
 const optionalText = z.string().optional().default("");
 const amount = z.coerce.number().finite().default(0);
 
-const namedAmountSchema = z.object({
-  id: idSchema.optional(),
-  nombre: z.string().min(1),
-  importe: amount,
-  notas: optionalText,
-});
-
-const incomeLineSchema = namedAmountSchema.extend({
-  recurrente: z.coerce.boolean().default(false),
-  desde: optionalText,
-});
-
-const monthlyOverrideSchema = z.object({
-  fixedIncome: z.coerce.number().finite().optional(),
-  fixedExpenses: z.coerce.number().finite().optional(),
-  debtExpenses: z.coerce.number().finite().optional(),
-});
-
 export const eventSchema = z.object({
   id: idSchema.optional(),
   fecha: z.string().min(1),
@@ -32,6 +14,9 @@ export const eventSchema = z.object({
   origenFondos: z.string().default("ingresos_mes"),
   cuotasTarjeta: z.coerce.number().int().positive().default(1),
   mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  deudaTarjetaId: optionalText,
   notas: optionalText,
   persona: z.string().optional(),
   huespedes: z.string().optional(),
@@ -97,6 +82,12 @@ export const debtSchema = z.object({
   cuota_actual: z.coerce.number().int().nonnegative().default(0),
   mes_inicio: z.string().min(1),
   notas: optionalText,
+  origen: optionalText,
+  origenColeccion: optionalText,
+  origenId: idSchema.optional(),
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  compraMes: optionalText,
 });
 
 export const utilitySchema = z.object({
@@ -108,6 +99,9 @@ export const utilitySchema = z.object({
   frecuencia: optionalText,
   consumo: z.coerce.number().finite().nonnegative().optional(),
   unidad: optionalText,
+  fechaFactura: optionalText,
+  fechaVencimiento: optionalText,
+  fechaDisponible: optionalText,
   periodoInicio: optionalText,
   periodoFin: optionalText,
   notas: optionalText,
@@ -122,30 +116,13 @@ export const variableExpenseSchema = z.object({
   origenFondos: z.string().default("ingresos_mes"),
   cuotasTarjeta: z.coerce.number().int().positive().default(1),
   mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  deudaTarjetaId: optionalText,
   notas: optionalText,
 });
 
-export const budgetConfigSchema = z.object({
-  id: idSchema.optional().default("base"),
-  ingresos_fijos: amount,
-  gastos_fijos: amount,
-  deudas: amount,
-  previsiones: amount,
-  presupuesto_variable: amount,
-  coste_coche: amount,
-  detalle_fijos: z.array(namedAmountSchema).default([]),
-  detalle_ingresos: z.array(incomeLineSchema).default([]),
-  detalle_deudas: z.array(namedAmountSchema).default([]),
-  ingresos_puntuales_mayo: z.array(namedAmountSchema).default([]),
-  prestamo_coche: z.object({
-    importe: amount,
-    vence: optionalText,
-  }).default({ importe: 0, vence: "" }),
-  monthlyOverrides: z.record(monthlyOverrideSchema).default({}),
-});
-
 export const collectionSchemas = {
-  configuracion: budgetConfigSchema,
   eventos: eventSchema,
   viajes: tripSchema,
   bloqueos: blockSchema,

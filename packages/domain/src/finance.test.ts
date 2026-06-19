@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget } from "./finance.js";
+import { buildCreditCardDebtFromExpense, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, expenseFirstChargeMonth, predictUtilityAvailabilityDate } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -98,6 +98,61 @@ describe("finance domain", () => {
     expect(calculateExpenseCashImpactForMonth(expense, "2026-07")).toBe(40);
     expect(calculateExpenseCashImpactForMonth(expense, "2026-09")).toBe(40);
     expect(calculateExpenseCashImpactForMonth(expense, "2026-10")).toBe(0);
+  });
+
+  it("uses the card close day to calculate the first charge month", () => {
+    expect(expenseFirstChargeMonth({ fecha: "2026-06-18", tarjetaDiaCierre: 20 })).toBe("2026-07");
+    expect(expenseFirstChargeMonth({ fecha: "2026-06-21", tarjetaDiaCierre: 20 })).toBe("2026-08");
+  });
+
+  it("builds a linked debt for card installment expenses", () => {
+    const debt = buildCreditCardDebtFromExpense({
+      id: "g-1",
+      mes: "2026-06",
+      titulo: "Heladera",
+      importe: 600,
+      origenFondos: "tarjeta_cuotas",
+      cuotasTarjeta: 6,
+      tarjetaNombre: "Visa BBVA",
+      tarjetaDiaCierre: 25,
+    });
+
+    expect(debt).toEqual(expect.objectContaining({
+      id: "tarjeta-gastosVariables-g-1",
+      nombre: "Visa BBVA · Heladera",
+      cuota: 100,
+      cuotas_totales: 6,
+      mes_inicio: "2026-07",
+      origenColeccion: "gastosVariables",
+      origenId: "g-1",
+    }));
+
+    expect(calculateExpenseCashImpactForMonth({ origenFondos: "tarjeta_cuotas", importe: 600, cuotasTarjeta: 6, mesPrimerCargo: "2026-07", deudaTarjetaId: debt?.id }, "2026-07")).toBe(0);
+  });
+
+  it("uses utility due dates as the cash-flow month", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [],
+      utilities: [{ mes: "2026-06", tipo: "luz", importe: 50, fechaFactura: "2026-06-28", fechaVencimiento: "2026-07-05" }],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].gasto_suministros).toBe(0);
+    expect(result.datosMes[6].gasto_suministros).toBe(50);
+  });
+
+  it("predicts utility availability dates from previous bills", () => {
+    expect(predictUtilityAvailabilityDate([
+      { mes: "2026-04", tipo: "agua", fechaFactura: "2026-04-22" },
+      { mes: "2026-05", tipo: "agua", fechaVencimiento: "2026-05-24" },
+    ], "agua", "2026-06")).toBe("2026-06-24");
   });
 
   it("includes completed home task spending in the finish month discretionary expenses", () => {

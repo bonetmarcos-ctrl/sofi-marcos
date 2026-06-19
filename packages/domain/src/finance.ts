@@ -12,12 +12,79 @@ const monthDiff = (fromYearMonth, toYearMonth) => {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth);
 };
 
+const isYearMonth = (value) => /^\d{4}-\d{2}$/.test(String(value || ""));
+
+const normalizeCloseDay = (value) => {
+  const day = Math.trunc(Number(value || 0));
+  return Number.isFinite(day) && day > 0 ? Math.min(31, day) : null;
+};
+
+const isoDay = (value) => {
+  const day = Number(String(value || "").slice(8, 10));
+  return Number.isFinite(day) && day > 0 ? day : null;
+};
+
 export const expensePurchaseMonth = (expense) => expense.mes || expense.fecha?.slice(0, 7) || "";
+
+export const estimateCreditCardFirstChargeMonth = (expense) => {
+  const purchaseMonth = expensePurchaseMonth(expense);
+  if (!purchaseMonth) return "";
+
+  const closeDay = normalizeCloseDay(expense.tarjetaDiaCierre);
+  const purchaseDay = isoDay(expense.fecha);
+  if (!closeDay || !purchaseDay) return addMonths(purchaseMonth, 1);
+
+  return addMonths(purchaseMonth, purchaseDay <= closeDay ? 1 : 2);
+};
 
 export const expenseFirstChargeMonth = (expense) => {
   const purchaseMonth = expensePurchaseMonth(expense);
   if (!purchaseMonth) return "";
-  return expense.mesPrimerCargo || addMonths(purchaseMonth, 1);
+  return isYearMonth(expense.mesPrimerCargo) ? expense.mesPrimerCargo : estimateCreditCardFirstChargeMonth(expense);
+};
+
+export const creditCardDebtIdForExpense = (expense, collection = "gastosVariables") =>
+  `tarjeta-${collection}-${expense.id}`;
+
+export const buildCreditCardDebtFromExpense = (expense, collection = "gastosVariables") => {
+  const fundingSource = expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+  const amount = Number(expense.importe || 0);
+  const installments = Math.max(1, Number(expense.cuotasTarjeta || 1));
+
+  if (fundingSource !== FUNDING_SOURCES.CREDIT_INSTALLMENTS || amount <= 0 || installments <= 1 || !expense.id) {
+    return null;
+  }
+
+  const firstChargeMonth = expenseFirstChargeMonth(expense);
+  if (!firstChargeMonth) return null;
+
+  const debtId = expense.deudaTarjetaId || creditCardDebtIdForExpense(expense, collection);
+  const cardName = String(expense.tarjetaNombre || "Tarjeta").trim() || "Tarjeta";
+  const title = String(expense.titulo || expense.nombre || "Compra").trim() || "Compra";
+  const closeDay = normalizeCloseDay(expense.tarjetaDiaCierre);
+  const notes = [
+    `${expensePurchaseMonth(expense)} compra`,
+    closeDay ? `cierre dia ${closeDay}` : "",
+    expense.notas || "",
+  ].filter(Boolean).join(" · ");
+
+  return {
+    id: debtId,
+    nombre: `${cardName} · ${title}`,
+    tipo: FUNDING_SOURCES.CREDIT_INSTALLMENTS,
+    cuota: amount / installments,
+    interes_mensual: 0,
+    cuotas_totales: installments,
+    cuota_actual: 0,
+    mes_inicio: firstChargeMonth,
+    notas: notes,
+    origen: FUNDING_SOURCES.CREDIT_INSTALLMENTS,
+    origenColeccion: collection,
+    origenId: expense.id,
+    tarjetaNombre: cardName,
+    tarjetaDiaCierre: closeDay || undefined,
+    compraMes: expensePurchaseMonth(expense),
+  };
 };
 
 export const calculateExpenseCashImpactForMonth = (expense, yearMonth) => {
@@ -32,6 +99,8 @@ export const calculateExpenseCashImpactForMonth = (expense, yearMonth) => {
   }
 
   if (fundingSource === FUNDING_SOURCES.CREDIT_INSTALLMENTS) {
+    if (expense.deudaTarjetaId) return 0;
+
     const firstChargeMonth = expenseFirstChargeMonth(expense);
     const installments = Math.max(1, Number(expense.cuotasTarjeta || 1));
     const offset = firstChargeMonth ? monthDiff(firstChargeMonth, yearMonth) : -1;
@@ -39,6 +108,27 @@ export const calculateExpenseCashImpactForMonth = (expense, yearMonth) => {
   }
 
   return purchaseMonth === yearMonth ? amount : 0;
+};
+
+export const utilityCashMonth = (utility) =>
+  utility.fechaVencimiento?.slice(0, 7) || utility.fechaDisponible?.slice(0, 7) || utility.fechaFactura?.slice(0, 7) || utility.mes || "";
+
+export const utilityAvailabilityDate = (utility) =>
+  utility.fechaDisponible || utility.fechaVencimiento || utility.fechaFactura || (utility.mes ? `${utility.mes}-01` : "");
+
+export const predictUtilityAvailabilityDate = (utilities, type, yearMonth) => {
+  if (!type || !yearMonth) return "";
+
+  const historical = utilities
+    .filter((utility) => utility.tipo === type)
+    .map((utility) => utilityAvailabilityDate(utility))
+    .filter(Boolean)
+    .sort();
+  const lastDate = historical[historical.length - 1];
+  if (!lastDate) return "";
+
+  const day = Math.min(Number(lastDate.slice(8, 10)) || 1, new Date(Number(yearMonth.slice(0, 4)), Number(yearMonth.slice(5, 7)), 0).getDate());
+  return `${yearMonth}-${String(day).padStart(2, "0")}`;
 };
 
 export const calculateDebt = (debt) => {
@@ -154,7 +244,7 @@ export const calculateMonthlyBudget = ({
       );
     const debtExpenses = monthlyOverride.debtExpenses ?? calculateDebtInstallmentForMonth(debts, prefix);
     const utilityExpenses = utilities
-      .filter((utility) => utility.mes === prefix)
+      .filter((utility) => utilityCashMonth(utility) === prefix)
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
 
     const structuralExpenses = fixedExpenses + debtExpenses;
