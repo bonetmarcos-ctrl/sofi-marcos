@@ -7,7 +7,7 @@ import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, onEvento, onViaje, onBloqueo }) {
+export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumpleanos = [], onDia, onEvento, onViaje, onBloqueo }) {
   const { t, weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const dias = Array.from({ length: 7 }, (_, i) => {
@@ -70,6 +70,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
           const evs   = evsDia.filter(eventoVisibleEnCalendario);
           const evsImporte = evs.filter(eventoMuestraImporteEnCalendario);
           const bls   = bxf[iso] || [];
+          const cumpleDia = cumpleanos.filter(cumple => birthdayMatchesDate(cumple.fecha, iso));
           const isToday = iso === todayISO;
           const tg    = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
           const ti    = bls.reduce((a, b) => a + Number(b.importe || 0), 0);
@@ -112,6 +113,13 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
                   </div>
                 ))}
 
+                {cumpleDia.map(cumple => (
+                  <div key={cumple.id || `${cumple.nombre}-${cumple.fecha}`} style={{ padding:"8px 9px", borderRadius:10, background:"#fffbeb", border:"1px solid #fcd34d" }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"#b45309" }}>🎂 {cumple.nombre}</div>
+                    {Number(cumple.presupuestoRegalo || 0) > 0 && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>{fmtd(Number(cumple.presupuestoRegalo || 0))}</div>}
+                  </div>
+                ))}
+
                 {/* Botón añadir */}
                 <div onClick={() => onDia(iso)}
                   style={{ border:`1.5px dashed ${C.borde}`, borderRadius:10, padding:8, textAlign:"center", fontSize:18, color:C.borde, cursor:"pointer", transition:"all 0.15s" }}
@@ -130,3 +138,5 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, onDia, o
     </div>
   );
 }
+
+const birthdayMatchesDate = (birthday, isoDate) => Boolean(birthday && isoDate && birthday.slice(5, 10) === isoDate.slice(5, 10));

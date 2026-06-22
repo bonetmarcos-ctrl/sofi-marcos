@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -36,6 +36,14 @@ describe("JsonStateRepository", () => {
 
     const state = await repository.read();
     expect(state.eventos).toEqual([{ id: "b" }]);
+  });
+
+  it("reads states with an escaped newline suffix", async () => {
+    const filePath = path.join(tempDir, "state.json");
+    await writeFile(filePath, '{"eventos":[{"id":"a"}],"viajes":[],"bloqueos":[],"proyectos":[],"palancas":[],"deudas":[],"suministros":[],"gastosVariables":[],"comprasSuper":[],"cumpleanos":[]}\\n', "utf8");
+    const repository = new JsonStateRepository(filePath);
+
+    await expect(repository.read()).resolves.toMatchObject({ eventos: [{ id: "a" }] });
   });
 
   it("stores separate state for each user", async () => {

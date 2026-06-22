@@ -1080,4 +1080,6 @@ export const createInitialState = () => ({
   deudas: structuredClone(DEMO_DEUDAS),
   suministros: structuredClone(DEMO_SUMINISTROS),
   gastosVariables: [],
+  comprasSuper: [],
+  cumpleanos: [],
 });

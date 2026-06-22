@@ -1,17 +1,15 @@
 import { useMemo, useState } from "react";
-import { calculateExpenseCashImpactForMonth } from "@sofi-marqui/domain";
-import { CATEGORIAS, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqui/domain";
+import { CATEGORIAS, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
-import { MESES } from "../../constants/meses.ts";
-import { fmt, fmtd, labelMes } from "../../utils/format.ts";
-import { todayISO, toISO, daysBetween } from "../../utils/dates.ts";
-import { BASE } from "../../data/demo.ts";
+import { fmtd, labelMes } from "../../utils/format.ts";
+import { todayISO, daysBetween } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import CalMensual from "./CalMensual.tsx";
 import CalSemanal from "./CalSemanal.tsx";
 
-export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, setModal }) {
+export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, setModal, comprasSuper = [], onSaveSuperPurchase, onDeleteSuperPurchase, cumpleanos = [], setCumpleanos }) {
   const { t, monthName } = useI18n();
   const hoy = new Date();
   const { isMobile, isTablet } = useBreakpoint();
@@ -25,6 +23,10 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
     return new Date(d);
   });
   const [modalBloqueo, setModalBloqueo] = useState(null);
+  const nuevaCompraSuper = () => ({ fecha:todayISO, comercio:"", importe:"", origenFondos:FUNDING_SOURCES.MONTH_INCOME, cuotasTarjeta:1, mesPrimerCargo:"", tarjetaNombre:"", tarjetaDiaCierre:"", notas:"", lineas:[] });
+  const [compraSuper, setCompraSuper] = useState<any>(nuevaCompraSuper);
+  const [lineaSuper, setLineaSuper] = useState<any>({ producto:"", cantidad:1, unidad:"", importe:"", categoria:"" });
+  const [cumpleForm, setCumpleForm] = useState<any>({ nombre:"", fecha:"", relacion:"", presupuestoRegalo:"", notas:"" });
 
   // Navegación
   const navMes = (d) => {
@@ -41,27 +43,76 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   const finSemana  = new Date(inicio); finSemana.setDate(finSemana.getDate() + 6);
   const labelSem   = `${inicio.getDate()} ${monthName(inicio.getMonth(), "short")} - ${finSemana.getDate()} ${monthName(finSemana.getMonth(), "short")} ${finSemana.getFullYear()}`;
 
-  // ── Panel lateral: métricas del mes ──
   const pref         = `${año}-${String(mes + 1).padStart(2, "0")}`;
-  const del_mes      = useMemo(() => eventos.filter(e => e.fecha.startsWith(pref)), [eventos, pref]);
-  const visibles_mes = useMemo(() => del_mes.filter(eventoVisibleEnCalendario), [del_mes]);
-  const bloqueos_mes = useMemo(() => bloqueos.filter(b => b.inicio?.startsWith(pref) || b.fin?.startsWith(pref)), [bloqueos, pref]);
-  const ingresos_bloqueos = useMemo(() => bloqueos_mes.reduce((a, b) => a + Number(b.importe || 0), 0), [bloqueos_mes]);
-  const ingresos_extra = useMemo(() => visibles_mes.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + ingresos_bloqueos, [visibles_mes, ingresos_bloqueos]);
-  const gastos_var     = useMemo(() => eventos.filter(e => eventoVisibleEnCalendario(e) && categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + calculateExpenseCashImpactForMonth(e, pref), 0), [eventos, pref]);
   const viajes_mes     = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
-  const gastos_viaje   = useMemo(() => viajes_mes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0), [viajes_mes]);
-  const saldo          = (BASE.ingresos_fijos + ingresos_extra) - (BASE.gastos_fijos + BASE.deudas + BASE.previsiones + gastos_var + gastos_viaje);
+  const gastosPorOrigen = useMemo(() => {
+    const mapa = new Map();
+    const addRow = (categoryKey, fundingSource, amount, count = 1) => {
+      if (amount <= 0) return;
+      const key = `${categoryKey}-${fundingSource}`;
+      const previous = mapa.get(key) || { categoryKey, fundingSource, sum:0, count:0 };
+      mapa.set(key, { ...previous, sum:previous.sum + amount, count:previous.count + count });
+    };
 
-  const totalCocheAcum = useMemo(() => eventos.filter(e => e.categoria === "coche").reduce((a, e) => a + e.importe, 0) + bloqueos.filter(b => b.tipo === "coche").reduce((a, b) => a + Number(b.importe || 0), 0), [eventos, bloqueos]);
+    eventos
+      .filter(evento => evento.fecha?.startsWith(pref) && categoriaEvento(evento)?.tipo === "gasto")
+      .forEach(evento => addRow(categoriaEventoKey(evento), evento.origenFondos || FUNDING_SOURCES.MONTH_INCOME, Number(evento.importe || 0)));
 
-  const porCat = useMemo(() => Object.entries(CATEGORIAS)
-    .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ ...v, key:k, sum:eventos.filter(e => eventoVisibleEnCalendario(e) && eventoMuestraImporteEnCalendario(e) && categoriaEventoKey(e) === k).reduce((a, e) => a + calculateExpenseCashImpactForMonth(e, pref), 0) }))
-    .filter(c => c.sum > 0)
-    .sort((a, b) => b.sum - a.sum), [eventos, pref]);
-  const maxCat = Math.max(porCat[0]?.sum || 1, gastos_viaje || 1);
+    viajes_mes.forEach(viaje => {
+      const totalViaje = Object.values(viaje.gastos || {}).reduce<number>((sum, amount) => sum + Number(amount || 0), 0);
+      addRow("viaje", FUNDING_SOURCES.MONTH_INCOME, totalViaje);
+    });
+
+    return Array.from(mapa.values()).sort((a, b) => b.sum - a.sum);
+  }, [eventos, pref, viajes_mes]);
+  const totalGastosMes = gastosPorOrigen.reduce((sum, row) => sum + row.sum, 0);
+  const maxGastoOrigen = Math.max(gastosPorOrigen[0]?.sum || 1, 1);
+  const comprasSuperMes = useMemo(() => comprasSuper.filter(compra => compra.fecha?.startsWith(pref)).sort((a, b) => String(b.fecha || "").localeCompare(String(a.fecha || ""))), [comprasSuper, pref]);
+  const totalSuperMes = comprasSuperMes.reduce((sum, compra) => sum + Number(compra.importe || 0), 0);
+  const productosSuperMes = comprasSuperMes.reduce((sum, compra) => sum + (compra.lineas || []).length, 0);
+  const compraSuperLineasTotal = (compraSuper.lineas || []).reduce((sum, linea) => sum + Number(linea.importe || 0), 0);
+  const compraSuperTotal = Number(compraSuper.importe || 0) || compraSuperLineasTotal;
+  const compraSuperMesCargo = compraSuper.origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (compraSuper.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...compraSuper, fecha:compraSuper.fecha }) || `${pref}`);
+  const proximosCumpleanos = useMemo(() => cumpleanos
+    .map(cumple => ({ ...cumple, proximo:nextBirthdayDate(cumple.fecha, hoy) }))
+    .filter(cumple => cumple.proximo)
+    .sort((a, b) => a.proximo.getTime() - b.proximo.getTime())
+    .slice(0, 5), [cumpleanos]);
   const layoutColumns = isMobile || isTablet ? "1fr" : "minmax(0,1fr) 290px";
+
+  const setOrigenCompraSuper = (value) => setCompraSuper(form => ({
+    ...form,
+    origenFondos:value,
+    cuotasTarjeta:value === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(form.cuotasTarjeta || 2)) : 1,
+    mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (form.mesPrimerCargo || estimateCreditCardFirstChargeMonth(form) || pref),
+  }));
+
+  const agregarLineaSuper = () => {
+    if (!String(lineaSuper.producto || "").trim() && Number(lineaSuper.importe || 0) <= 0) return;
+    setCompraSuper(form => ({ ...form, lineas:[...(form.lineas || []), { ...lineaSuper, producto:String(lineaSuper.producto || "").trim() || "Producto", cantidad:Number(lineaSuper.cantidad || 1), importe:Number(lineaSuper.importe || 0) }] }));
+    setLineaSuper({ producto:"", cantidad:1, unidad:"", importe:"", categoria:"" });
+  };
+
+  const guardarCompraSuper = () => {
+    if (!onSaveSuperPurchase || !compraSuper.fecha || compraSuperTotal <= 0) return;
+    onSaveSuperPurchase({
+      ...compraSuper,
+      importe:compraSuperTotal,
+      mesPrimerCargo:compraSuper.origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : compraSuperMesCargo,
+      tarjetaDiaCierre:compraSuper.tarjetaDiaCierre ? Number(compraSuper.tarjetaDiaCierre) : undefined,
+    });
+    setCompraSuper(nuevaCompraSuper());
+    setLineaSuper({ producto:"", cantidad:1, unidad:"", importe:"", categoria:"" });
+  };
+
+  const guardarCumpleanos = () => {
+    if (!setCumpleanos || !cumpleForm.nombre.trim() || !cumpleForm.fecha) return;
+    const item = { ...cumpleForm, id:cumpleForm.id || Date.now(), nombre:cumpleForm.nombre.trim(), presupuestoRegalo:Number(cumpleForm.presupuestoRegalo || 0) };
+    setCumpleanos(prev => item.id && prev.find(cumple => String(cumple.id) === String(item.id)) ? prev.map(cumple => String(cumple.id) === String(item.id) ? item : cumple) : [...prev, item]);
+    setCumpleForm({ nombre:"", fecha:"", relacion:"", presupuestoRegalo:"", notas:"" });
+  };
+
+  const eliminarCumpleanos = (id) => setCumpleanos?.(prev => prev.filter(cumple => String(cumple.id) !== String(id)));
 
   const guardarBloqueo = () => {
     const item = {
@@ -131,8 +182,8 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         {/* Calendario */}
         <div style={{ ...cardN(isMobile ? { padding:"12px 10px", overflowX:"auto" } : undefined) }}>
           {vista === "mensual"
-            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
-            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
+            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
+            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
           }
         </div>
 
@@ -200,66 +251,159 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
 
       {/* ── PANEL LATERAL ── */}
       <div style={{ display:"grid", gap:10, position:isMobile || isTablet ? "static":"sticky", top:70 }}>
-
-        {/* Saldo del mes */}
-        <div style={{ background:saldo>=0?"linear-gradient(135deg,#0f2d1a,#1a4728)":"linear-gradient(135deg,#2d0f0f,#471a1a)", borderRadius:16, padding:"16px 18px", color:"white" }}>
-          <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:"0.8px" }}>{labelMes(pref)}</div>
-          <div style={{ fontSize:28, fontWeight:700, color:saldo>=0?C.exito:"#f87171", marginTop:4, fontFamily:"'Playfair Display',serif" }}>{fmt(saldo)}</div>
-          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t("Monthly free balance")}</div>
+        <div style={{ background:"#111418", borderRadius:16, padding:"16px 18px", color:"white" }}>
+          <div style={{ fontSize:10, color:"rgba(255,255,255,0.48)", textTransform:"uppercase", letterSpacing:"0.8px" }}>{labelMes(pref)}</div>
+          <div style={{ fontSize:27, fontWeight:700, color:C.exito, marginTop:4, fontFamily:"'Playfair Display',serif" }}>{fmtd(totalGastosMes)}</div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.42)", marginTop:3 }}>{t("Expenses by category and funding")}</div>
         </div>
 
-        {/* Extras + Variable */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-          <div style={{ background:C.exitoBg, border:`1px solid ${C.exito}55`, borderRadius:12, padding:"12px 13px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:C.sageDark, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Extras")}</div>
-            <div style={{ fontSize:19, fontWeight:700, color:C.sageDark, marginTop:4 }}>{fmt(ingresos_extra)}</div>
+        <div style={cardN()}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:8, marginBottom:10 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("By category")}</div>
+            <div style={{ fontSize:11, color:C.txt2 }}>{gastosPorOrigen.length} {t("records")}</div>
           </div>
-          <div style={{ background:C.lavLight, border:`1px solid ${C.lavender}44`, borderRadius:12, padding:"12px 13px" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:C.lavender, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Variable")}</div>
-            <div style={{ fontSize:19, fontWeight:700, color:C.lavender, marginTop:4 }}>{fmt(gastos_var + gastos_viaje)}</div>
+          {gastosPorOrigen.length === 0 && <div style={{ fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>}
+          {gastosPorOrigen.map(row => {
+            const category = CATEGORIAS[row.categoryKey] || CATEGORIAS.otro;
+            return (
+              <div key={`${row.categoryKey}-${row.fundingSource}`} style={{ marginBottom:10 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:8, fontSize:12, marginBottom:4, alignItems:"center" }}>
+                  <span style={{ minWidth:0, color:category.color, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{category.emoji} {t(category.label)}</span>
+                  <span style={{ flexShrink:0, fontWeight:700, color:C.txt }}>{fmtd(row.sum)}</span>
+                </div>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"center", marginBottom:5 }}>
+                  <span style={{ fontSize:10, color:fundingColor(row.fundingSource), background:fundingBg(row.fundingSource), border:`1px solid ${fundingColor(row.fundingSource)}33`, borderRadius:999, padding:"2px 7px", fontWeight:700 }}>{t(fundingLabel(row.fundingSource))}</span>
+                  <span style={{ fontSize:10, color:C.txt2 }}>{row.count} {row.count === 1 ? t("record") : t("records")}</span>
+                </div>
+                <div style={{ height:5, background:C.borde, borderRadius:5, overflow:"hidden" }}>
+                  <div style={{ width:`${Math.min(100, (row.sum / maxGastoOrigen) * 100)}%`, height:"100%", background:category.color, borderRadius:5 }}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={cardN()}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:10, gap:8 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Birthdays")}</div>
+            <div style={{ fontSize:11, color:C.txt2 }}>{cumpleanos.length} {t("saved")}</div>
+          </div>
+          {proximosCumpleanos.length === 0 && <div style={{ fontSize:12, color:C.txt2, marginBottom:10 }}>{t("No birthdays saved")}</div>}
+          {proximosCumpleanos.map(cumple => (
+            <div key={cumple.id || `${cumple.nombre}-${cumple.fecha}`} style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:8, alignItems:"center", borderBottom:`1px solid ${C.borde}`, paddingBottom:8, marginBottom:8 }}>
+              <button onClick={() => setCumpleForm({ ...cumple, presupuestoRegalo:cumple.presupuestoRegalo || "" })} style={{ border:"none", background:"transparent", textAlign:"left", padding:0, cursor:"pointer", fontFamily:"'Lato',sans-serif", minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:C.txt, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>🎂 {cumple.nombre}</div>
+                <div style={{ fontSize:10, color:C.txt2, marginTop:2 }}>{formatBirthday(cumple.proximo)} · {daysUntil(cumple.proximo, hoy)} {t("days")}{Number(cumple.presupuestoRegalo || 0) > 0 ? ` · ${fmtd(Number(cumple.presupuestoRegalo || 0))}` : ""}</div>
+              </button>
+              <button onClick={() => eliminarCumpleanos(cumple.id)} style={{ width:28, height:28, minHeight:28, borderRadius:8, border:`1px solid ${C.error}33`, background:C.errorBg, color:C.error, cursor:"pointer" }}>×</button>
+            </div>
+          ))}
+          <div style={{ display:"grid", gap:7 }}>
+            <input value={cumpleForm.nombre} onChange={e => setCumpleForm(f => ({ ...f, nombre:e.target.value }))} placeholder={t("Name")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 84px", gap:7 }}>
+              <input type="date" value={cumpleForm.fecha || ""} onChange={e => setCumpleForm(f => ({ ...f, fecha:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+              <input type="number" min="0" step="1" value={cumpleForm.presupuestoRegalo || ""} onChange={e => setCumpleForm(f => ({ ...f, presupuestoRegalo:e.target.value }))} placeholder="€" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+            </div>
+            <button onClick={guardarCumpleanos} disabled={!cumpleForm.nombre.trim() || !cumpleForm.fecha} style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!cumpleForm.nombre.trim() || !cumpleForm.fecha ? 0.55 : 1 }}>{cumpleForm.id ? t("Save changes") : t("Add birthday")}</button>
           </div>
         </div>
 
-        {/* Por categoría */}
-        {(porCat.length > 0 || gastos_viaje > 0) && (
-          <div style={cardN()}>
-            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>{t("By category")}</div>
-            {gastos_viaje > 0 && (
-              <div style={{ marginBottom:8 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:4 }}>
-                  <span style={{ color:C.cyanMid, fontWeight:600 }}>✈️ Viajes</span>
-                  <span style={{ fontWeight:700, color:C.txt }}>{fmtd(gastos_viaje)}</span>
-                </div>
-                <div style={{ height:4, background:C.borde, borderRadius:4, overflow:"hidden" }}>
-                  <div style={{ width:`${(gastos_viaje / maxCat) * 100}%`, height:"100%", background:C.cyanMid, borderRadius:4 }}/>
-                </div>
+        <div style={cardN()}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:10, gap:8 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px" }}>{t("Supermarket purchases")}</div>
+            <div style={{ fontSize:11, color:C.txt2 }}>{fmtd(totalSuperMes)}</div>
+          </div>
+          <div style={{ display:"grid", gap:7 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", gap:7 }}>
+              <input type="date" value={compraSuper.fecha || ""} onChange={e => setCompraSuper(f => ({ ...f, fecha:e.target.value, mesPrimerCargo:(f.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.MONTH_INCOME ? "" : estimateCreditCardFirstChargeMonth({ ...f, fecha:e.target.value }) }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+              <input type="number" min="0" step="0.01" value={compraSuper.importe || ""} onChange={e => setCompraSuper(f => ({ ...f, importe:e.target.value }))} placeholder="Total" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+            </div>
+            <input value={compraSuper.comercio || ""} onChange={e => setCompraSuper(f => ({ ...f, comercio:e.target.value }))} placeholder={t("Store")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:5 }}>
+              {[FUNDING_SOURCES.MONTH_INCOME, FUNDING_SOURCES.CREDIT_NEXT_MONTH, FUNDING_SOURCES.CREDIT_INSTALLMENTS].map(source => (
+                <button key={source} onClick={() => setOrigenCompraSuper(source)} style={{ minHeight:34, borderRadius:9, border:`1px solid ${(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingColor(source) : C.borde}`, background:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingBg(source) : C.fondo, color:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingColor(source) : C.txt2, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1 }}>{t(fundingLabel(source))}</button>
+              ))}
+            </div>
+            {compraSuper.origenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
+              <div style={{ display:"grid", gridTemplateColumns:compraSuper.origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "1fr 72px" : "1fr", gap:7 }}>
+                <input type="month" value={compraSuperMesCargo} onChange={e => setCompraSuper(f => ({ ...f, mesPrimerCargo:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+                {compraSuper.origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && (
+                  <input type="number" min="2" value={compraSuper.cuotasTarjeta || 2} onChange={e => setCompraSuper(f => ({ ...f, cuotasTarjeta:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+                )}
               </div>
             )}
-            {porCat.map(c => (
-              <div key={c.key} style={{ marginBottom:8 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:4 }}>
-                  <span style={{ color:c.color, fontWeight:600 }}>{c.emoji} {t(c.label)}</span>
-                  <span style={{ fontWeight:700, color:C.txt }}>{fmtd(c.sum)}</span>
-                </div>
-                <div style={{ height:4, background:C.borde, borderRadius:4, overflow:"hidden" }}>
-                  <div style={{ width:`${(c.sum / maxCat) * 100}%`, height:"100%", background:c.color, borderRadius:4 }}/>
-                </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 48px 64px", gap:5 }}>
+              <input value={lineaSuper.producto} onChange={e => setLineaSuper(f => ({ ...f, producto:e.target.value }))} placeholder={t("Product")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+              <input type="number" min="0" step="0.1" value={lineaSuper.cantidad} onChange={e => setLineaSuper(f => ({ ...f, cantidad:e.target.value }))} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+              <input type="number" min="0" step="0.01" value={lineaSuper.importe} onChange={e => setLineaSuper(f => ({ ...f, importe:e.target.value }))} placeholder="€" style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
+            </div>
+            <button onClick={agregarLineaSuper} style={{ background:C.fondo, color:C.cyan, border:`1px solid ${C.cyan}44`, borderRadius:10, padding:"7px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>{t("Add product")}</button>
+            {(compraSuper.lineas || []).length > 0 && (
+              <div style={{ display:"grid", gap:5, maxHeight:120, overflowY:"auto" }}>
+                {compraSuper.lineas.map((linea, index) => (
+                  <div key={`${linea.producto}-${index}`} style={{ display:"flex", justifyContent:"space-between", gap:8, fontSize:11, color:C.txt2, background:C.fondo, borderRadius:8, padding:"5px 7px" }}>
+                    <span style={{ minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{linea.producto} · {linea.cantidad}</span>
+                    <span style={{ flexShrink:0, fontWeight:700, color:C.txt }}>{fmtd(Number(linea.importe || 0))}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <button onClick={guardarCompraSuper} disabled={!compraSuper.fecha || compraSuperTotal <= 0} style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"9px 10px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!compraSuper.fecha || compraSuperTotal <= 0 ? 0.55 : 1 }}>{t("Save supermarket purchase")} · {fmtd(compraSuperTotal)}</button>
           </div>
-        )}
-
-        {/* ROI Coche */}
-        <div style={cardN()}>
-          <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:8 }}>{t("Car ROI")} 🚗</div>
-          <div style={{ height:6, background:C.borde, borderRadius:6, overflow:"hidden", marginBottom:6 }}>
-            <div style={{ width:`${Math.min(100, (totalCocheAcum / BASE.coste_coche) * 100)}%`, height:"100%", background:`linear-gradient(90deg,${C.cyan},${C.cyanMid})`, borderRadius:6 }}/>
-          </div>
-          <div style={{ fontSize:11, color:C.txt2 }}>
-            {fmt(totalCocheAcum)} <span style={{ color:C.txt2 }}>{t("of")}</span> {fmt(BASE.coste_coche)} · <strong style={{ color:C.cyan }}>{((totalCocheAcum / BASE.coste_coche) * 100).toFixed(1)}%</strong>
-          </div>
+          {comprasSuperMes.length > 0 && (
+            <div style={{ marginTop:12, borderTop:`1px solid ${C.borde}`, paddingTop:9 }}>
+              <div style={{ fontSize:10, color:C.txt2, marginBottom:6 }}>{productosSuperMes} {t("products tracked")}</div>
+              {comprasSuperMes.slice(0, 3).map(compra => (
+                <div key={compra.id} style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:8, alignItems:"center", fontSize:11, marginTop:6 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ color:C.txt, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{compra.comercio || t("Supermarket")} · {fmtd(Number(compra.importe || 0))}</div>
+                    <div style={{ color:C.txt2 }}>{compra.fecha} · {t(fundingLabel(compra.origenFondos || FUNDING_SOURCES.MONTH_INCOME))}</div>
+                  </div>
+                  <button onClick={() => onDeleteSuperPurchase?.(compra.id)} style={{ width:28, height:28, minHeight:28, borderRadius:8, border:`1px solid ${C.error}33`, background:C.errorBg, color:C.error, cursor:"pointer" }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+const fundingLabel = (source) => {
+  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return "Credit card next month";
+  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return "Credit card installments";
+  return "Monthly income";
+};
+
+const fundingColor = (source) => {
+  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return C.warn;
+  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return C.lavender;
+  return C.sageDark;
+};
+
+const fundingBg = (source) => {
+  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return C.warnBg;
+  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return C.lavLight;
+  return C.exitoBg;
+};
+
+const nextBirthdayDate = (fecha, now = new Date()) => {
+  if (!fecha || fecha.length < 10) return null;
+  const month = Number(fecha.slice(5, 7));
+  const day = Number(fecha.slice(8, 10));
+  if (!month || !day) return null;
+  const next = new Date(now.getFullYear(), month - 1, day);
+  next.setHours(0, 0, 0, 0);
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  if (next < today) next.setFullYear(next.getFullYear() + 1);
+  return next;
+};
+
+const daysUntil = (target, now = new Date()) => {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const date = new Date(target); date.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((date.getTime() - today.getTime()) / 86400000));
+};
+
+const formatBirthday = (date) => `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;

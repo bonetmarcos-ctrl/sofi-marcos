@@ -6,7 +6,7 @@ import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia, onEvento, onViaje, onBloqueo }) {
+export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpleanos = [], onDia, onEvento, onViaje, onBloqueo }) {
   const { t, weekdayName } = useI18n();
   const { isMobile } = useBreakpoint();
   const primer  = new Date(año, mes, 1);
@@ -63,6 +63,7 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
           const evsImporte  = evs.filter(eventoMuestraImporteEnCalendario);
           const vh          = vxf[iso] || [];
           const bh          = bxf[iso] || [];
+          const cumpleDia   = cumpleanos.filter(cumple => birthdayMatchesDate(cumple.fecha, iso));
           const isToday     = iso === todayISO;
           const gt          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
           const it          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
@@ -114,6 +115,12 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
                 </div>
               ))}
               {bh.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{bh.length - 2} {t("more")}</div>}
+              {cumpleDia.slice(0, 1).map(cumple => (
+                <div key={cumple.id || `${cumple.nombre}-${cumple.fecha}`} style={{ fontSize:9, color:"#b45309", fontWeight:700, marginTop:2, background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:6, padding:"2px 5px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  🎂 {cumple.nombre}
+                </div>
+              ))}
+              {cumpleDia.length > 1 && <div style={{ fontSize:9, color:C.txt2 }}>+{cumpleDia.length - 1} {t("more")}</div>}
 
               <div style={{ marginTop:2 }}>
                 {gt > 0 && <div style={{ fontSize:9, fontWeight:700, color:C.lavender }}>−{fmt(gt)}</div>}
@@ -126,3 +133,5 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, onDia
     </div>
   );
 }
+
+const birthdayMatchesDate = (birthday, isoDate) => Boolean(birthday && isoDate && birthday.slice(5, 10) === isoDate.slice(5, 10));

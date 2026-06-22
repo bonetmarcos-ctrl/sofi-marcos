@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectionNames, eventSchema, tripSchema, debtSchema } from "./schemas.js";
+import { birthdaySchema, collectionNames, debtSchema, eventSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
@@ -12,6 +12,8 @@ describe("domain schemas", () => {
       "deudas",
       "suministros",
       "gastosVariables",
+      "comprasSuper",
+      "cumpleanos",
     ]);
   });
 
@@ -54,5 +56,24 @@ describe("domain schemas", () => {
         mes_inicio: "2026-01",
       }),
     ).toThrow();
+  });
+
+  it("normalizes supermarket purchases with product lines", () => {
+    const parsed = supermarketPurchaseSchema.parse({
+      fecha: "2026-06-22",
+      comercio: "Mercadona",
+      importe: "54.30",
+      lineas: [{ producto: "Leche", cantidad: "6", unidad: "u", importe: "7.20" }],
+    });
+
+    expect(parsed.importe).toBe(54.3);
+    expect(parsed.origenFondos).toBe("ingresos_mes");
+    expect(parsed.lineas[0]).toMatchObject({ producto: "Leche", cantidad: 6, importe: 7.2 });
+  });
+
+  it("normalizes birthdays for the calendar", () => {
+    const parsed = birthdaySchema.parse({ nombre: "Sofi", fecha: "1990-06-22", presupuestoRegalo: "40" });
+
+    expect(parsed).toMatchObject({ nombre: "Sofi", fecha: "1990-06-22", presupuestoRegalo: 40, relacion: "" });
   });
 });

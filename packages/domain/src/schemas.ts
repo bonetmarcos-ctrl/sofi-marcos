@@ -122,6 +122,38 @@ export const variableExpenseSchema = z.object({
   notas: optionalText,
 });
 
+const supermarketLineSchema = z.object({
+  producto: z.string().min(1),
+  cantidad: z.coerce.number().finite().nonnegative().default(1),
+  unidad: optionalText,
+  importe: amount,
+  categoria: optionalText,
+});
+
+export const supermarketPurchaseSchema = z.object({
+  id: idSchema.optional(),
+  fecha: z.string().min(1),
+  comercio: optionalText,
+  importe: amount,
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  eventoId: idSchema.optional(),
+  notas: optionalText,
+  lineas: z.array(supermarketLineSchema).default([]),
+});
+
+export const birthdaySchema = z.object({
+  id: idSchema.optional(),
+  nombre: z.string().min(1),
+  fecha: z.string().min(1),
+  relacion: optionalText,
+  presupuestoRegalo: amount,
+  notas: optionalText,
+});
+
 export const collectionSchemas = {
   eventos: eventSchema,
   viajes: tripSchema,
@@ -131,6 +163,8 @@ export const collectionSchemas = {
   deudas: debtSchema,
   suministros: utilitySchema,
   gastosVariables: variableExpenseSchema,
+  comprasSuper: supermarketPurchaseSchema,
+  cumpleanos: birthdaySchema,
 };
 
 export const collectionNames = Object.freeze(Object.keys(collectionSchemas));

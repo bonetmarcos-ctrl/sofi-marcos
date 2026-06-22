@@ -10,6 +10,16 @@ const DEFAULT_OWNER = "default";
 const hasUserStates = (payload: StoredState): payload is { version: 2; users: Record<string, AppState> } =>
   Boolean(payload && typeof payload === "object" && "users" in payload);
 
+const parseStoredState = (raw: string): StoredState => {
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    const sanitized = raw.trimEnd().replace(/(?:\\n)+$/, "");
+    if (sanitized !== raw) return JSON.parse(sanitized);
+    throw error;
+  }
+};
+
 export class JsonStateRepository implements StateRepository {
   private readonly filePath: string;
   private writeQueue: Promise<void>;
@@ -58,7 +68,7 @@ export class JsonStateRepository implements StateRepository {
   private async readStoredState(): Promise<StoredState> {
     try {
       const raw = await readFile(this.filePath, "utf8");
-      return JSON.parse(raw);
+      return parseStoredState(raw);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       const initialState = createInitialState();
