@@ -91,6 +91,25 @@ describe("finance domain", () => {
     expect(calculateExpenseCashImpactForMonth(expense, "2026-07")).toBe(120);
   });
 
+  it("reports next-month card charges as previous card balance in the charge month", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [{ fecha: "2026-06-18", categoria: "ocio", importe: 120, origenFondos: "tarjeta_mes_siguiente" }],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [],
+      utilities: [],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].gasto_tarjeta_mes_anterior).toBe(0);
+    expect(result.datosMes[6].gasto_tarjeta_mes_anterior).toBe(120);
+    expect(result.datosMes[6].gastos_calendario).toBe(120);
+  });
+
   it("spreads credit card installments across following months", () => {
     const expense = { fecha: "2026-06-18", importe: 120, origenFondos: "tarjeta_cuotas", cuotasTarjeta: 3 };
 
@@ -128,6 +147,26 @@ describe("finance domain", () => {
     }));
 
     expect(calculateExpenseCashImpactForMonth({ origenFondos: "tarjeta_cuotas", importe: 600, cuotasTarjeta: 6, mesPrimerCargo: "2026-07", deudaTarjetaId: debt?.id }, "2026-07")).toBe(0);
+  });
+
+  it("adds linked card installment debts on top of monthly debt overrides", () => {
+    const result = calculateMonthlyBudget({
+      base: { ...BASE, monthlyOverrides:{ "2026-07":{ debtExpenses:1150 } } },
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [
+        { cuota:100, interes_mensual:0, cuotas_totales:3, cuota_actual:0, mes_inicio:"2026-07", origenColeccion:"gastosVariables" },
+        { cuota:90, interes_mensual:0, cuotas_totales:3, cuota_actual:0, mes_inicio:"2026-07" },
+      ],
+      utilities: [],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[6].gasto_deudas).toBe(1250);
   });
 
   it("uses utility due dates as the cash-flow month", () => {

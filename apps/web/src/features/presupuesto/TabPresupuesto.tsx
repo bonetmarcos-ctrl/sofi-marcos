@@ -129,10 +129,9 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
     .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
 
   const ingresosFijosResumen = BASE.monthlyOverrides?.[prefVista]?.fixedIncome ?? BASE.ingresos_fijos;
-  const ajusteIngresosMes = ingresosFijosResumen - BASE.detalle_ingresos.reduce((a, d) => a + Number(d.importe || 0), 0);
-  const detalleIngresosMes = Math.abs(ajusteIngresosMes) > 0.005
-    ? [...BASE.detalle_ingresos, { nombre:t("Monthly adjustment"), importe:ajusteIngresosMes }]
-    : BASE.detalle_ingresos;
+  const detalleIngresosMes = useMemo(() => ingresosFijosResumen > 0
+    ? BASE.detalle_ingresos.filter(line => lineaIngresoActivaEnMes(line, prefVista))
+    : [], [ingresosFijosResumen, prefVista]);
   const gastosFijosResumen = (BASE.monthlyOverrides?.[prefVista]?.fixedExpenses ?? BASE.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (BASE.previsiones || 0);
   const presionResumen = resumenMes?.presion || 0;
 
@@ -878,4 +877,22 @@ const calcularCuotaDeudaEnMes = (deuda, pref) => {
   const offset = (añoObjetivo - añoInicio) * 12 + (mesObjetivo - mesInicio);
   const activa = offset >= Number(deuda.cuota_actual || 0) && offset < Number(deuda.cuotas_totales || 0);
   return activa ? Number(deuda.cuota || 0) + Number(deuda.interes_mensual || 0) : 0;
+};
+
+const MESES_INGRESO = { ene:1, feb:2, mar:3, abr:4, may:5, jun:6, jul:7, ago:8, sep:9, oct:10, nov:11, dic:12 };
+
+const mesReferenciaIngreso = (valor) => {
+  if (!valor) return null;
+  const texto = String(valor).trim().toLowerCase();
+  if (/^\d{4}-\d{2}$/.test(texto)) return Number(texto.slice(5, 7));
+  return MESES_INGRESO[texto.slice(0, 3)] || null;
+};
+
+const lineaIngresoActivaEnMes = (linea, pref) => {
+  const mes = Number(pref.slice(5, 7));
+  const desde = mesReferenciaIngreso(linea.desde);
+  const hasta = mesReferenciaIngreso(linea.hasta);
+  if (desde && mes < desde) return false;
+  if (hasta && mes > hasta) return false;
+  return true;
 };

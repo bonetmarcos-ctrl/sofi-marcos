@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, calculateNextMonthCardBalanceForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
@@ -104,15 +104,19 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
   // Gastos calendario del mes
   const evMes       = useMemo(() => eventos.filter(e => categoriaEvento(e)?.tipo === "gasto" && calculateExpenseCashImpactForMonth(e, pref) > 0), [eventos, pref]);
   const lineasMes   = useMemo(() => gastosVariables.filter(g => calculateExpenseCashImpactForMonth(g, pref) > 0), [gastosVariables, pref]);
+  const saldoTarjetaMesAnterior = useMemo(() => calculateNextMonthCardBalanceForMonth([...eventos.filter(e => categoriaEvento(e)?.tipo === "gasto"), ...gastosVariables], pref), [eventos, gastosVariables, pref]);
   const tareasCasaMes = useMemo(() => proyectos.filter(p => p.estado === "completado" && p.fin?.startsWith(pref)), [proyectos, pref]);
   const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
 
-  const catsCal = Object.entries(CATEGORIAS)
+  const catsCalBase = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k).reduce((a, e) => a+calculateExpenseCashImpactForMonth(e, pref), 0) + lineasMes.filter(g => g.categoria===k).reduce((a, g) => a+calculateExpenseCashImpactForMonth(g, pref), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k && (e.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, e) => a+calculateExpenseCashImpactForMonth(e, pref), 0) + lineasMes.filter(g => g.categoria===k && (g.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, g) => a+calculateExpenseCashImpactForMonth(g, pref), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
+  const catsCal = saldoTarjetaMesAnterior > 0
+    ? [{ key:"saldo_tarjeta_anterior", label:"Previous card balance", emoji:"💳", color:C.warn, bg:C.warnBg, sum:saldoTarjetaMesAnterior }, ...catsCalBase]
+    : catsCalBase;
   const totalCalendario = catsCal.reduce((a, c) => a + c.sum, 0);
   const totalMes        = totalSuministros + totalCalendario + gastoViajeMes;
   const sectionColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";

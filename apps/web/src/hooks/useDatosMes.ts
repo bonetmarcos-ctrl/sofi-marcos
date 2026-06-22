@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { calculateDebtInstallmentForMonth, calculateMonthlyBudget } from "@sofi-marqui/domain";
+import { calculateDebtInstallmentForMonth, calculateMonthlyBudget, isLinkedCardInstallmentDebt } from "@sofi-marqui/domain";
 import { CATEGORIAS } from "../constants/categorias.ts";
 import { BASE } from "../data/demo.ts";
 
@@ -9,7 +9,7 @@ import { BASE } from "../data/demo.ts";
  */
 export const calcCuotaDeudaMes = (deudas, pref) => {
   if (BASE.monthlyOverrides?.[pref]?.debtExpenses !== undefined) {
-    return BASE.monthlyOverrides[pref].debtExpenses;
+    return BASE.monthlyOverrides[pref].debtExpenses + calculateDebtInstallmentForMonth(deudas.filter(isLinkedCardInstallmentDebt), pref);
   }
 
   return calculateDebtInstallmentForMonth(deudas, pref);

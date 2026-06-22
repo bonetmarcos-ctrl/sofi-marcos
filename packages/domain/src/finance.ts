@@ -171,6 +171,34 @@ export const calculateDebtInstallmentForMonth = (debts, yearMonth) => {
   }, 0);
 };
 
+const isNextMonthCardExpense = (expense) =>
+  (expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.CREDIT_NEXT_MONTH;
+
+export const isLinkedCardInstallmentDebt = (debt) =>
+  debt.origen === FUNDING_SOURCES.CREDIT_INSTALLMENTS ||
+  debt.tipo === FUNDING_SOURCES.CREDIT_INSTALLMENTS ||
+  Boolean(debt.origenColeccion);
+
+export const calculateNextMonthCardBalanceForMonth = (expenses, yearMonth) =>
+  expenses
+    .filter(isNextMonthCardExpense)
+    .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, yearMonth), 0);
+
+type MonthlyBudgetInput = {
+  base: any;
+  categories: Record<string, any>;
+  events: any[];
+  blocks?: any[];
+  trips: any[];
+  levers: any[];
+  debts: any[];
+  utilities: any[];
+  variableExpenses?: any[];
+  projects?: any[];
+  year: number;
+  currentMonth: number;
+};
+
 export const calculateMonthlyBudget = ({
   base,
   categories,
@@ -184,7 +212,7 @@ export const calculateMonthlyBudget = ({
   projects = [],
   year,
   currentMonth,
-}) => {
+}: MonthlyBudgetInput) => {
   const months = Array.from({ length: 12 }, (_, index) => {
     const prefix = `${year}-${String(index + 1).padStart(2, "0")}`;
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
@@ -235,6 +263,13 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, event) => sum + calculateExpenseCashImpactForMonth(event, prefix), 0);
     const monthlyVariableExpenses = variableExpenses
       .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, prefix), 0);
+    const nextMonthCardBalance = calculateNextMonthCardBalanceForMonth(
+      [
+        ...events.filter((event) => categories[event.categoria]?.tipo === "gasto"),
+        ...variableExpenses,
+      ],
+      prefix,
+    );
     const tripExpenses = trips
       .filter((trip) => trip.inicio?.startsWith(prefix) || trip.fin?.startsWith(prefix))
       .reduce(
@@ -242,7 +277,10 @@ export const calculateMonthlyBudget = ({
           sum + Object.values(trip.gastos || {}).reduce<number>((tripSum, amount) => tripSum + Number(amount || 0), 0),
         0,
       );
-    const debtExpenses = monthlyOverride.debtExpenses ?? calculateDebtInstallmentForMonth(debts, prefix);
+    const linkedCardInstallmentExpenses = monthlyOverride.debtExpenses !== undefined
+      ? calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), prefix)
+      : 0;
+    const debtExpenses = (monthlyOverride.debtExpenses ?? calculateDebtInstallmentForMonth(debts, prefix)) + linkedCardInstallmentExpenses;
     const utilityExpenses = utilities
       .filter((utility) => utilityCashMonth(utility) === prefix)
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
@@ -270,6 +308,7 @@ export const calculateMonthlyBudget = ({
       gastos_variables_lineas: monthlyVariableExpenses,
       gastos_casa_tareas: monthCompletedHomeExpenses,
       gastos_viaje: tripExpenses,
+      gasto_tarjeta_mes_anterior: nextMonthCardBalance,
       gasto_deudas: debtExpenses,
       gasto_suministros: utilityExpenses,
       gasto_estructural: structuralExpenses,
