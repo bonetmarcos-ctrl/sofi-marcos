@@ -9,6 +9,7 @@ import { useDatosMes, calcCuotaDeudaMes } from "../../hooks/useDatosMes.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import { BASE } from "../../data/demo.ts";
+import AnalizadorPresionFinanciera from "./AnalizadorPresionFinanciera.tsx";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
@@ -314,6 +315,9 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
           </div>
         </div>
       </div>
+
+      {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
+      <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
 
       {/* ── PANEL DEUDAS ── */}
       <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
