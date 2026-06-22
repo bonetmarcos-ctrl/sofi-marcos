@@ -30,7 +30,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
   const [expenseTimingMode, setExpenseTimingMode] = useState("cash");
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
-  const [showDeudas,  setShowDeudas]  = useState(false);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -303,7 +302,7 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
               <div style={{ width:`${Math.min(100, presionResumen)}%`,height:"100%",borderRadius:4,background:presionResumen>85?C.error:presionResumen>70?C.warn:C.exito,transition:"width 0.5s" }}/>
             </div>
           </div>
-          <div style={{ ...cardN(), background:"linear-gradient(135deg,#1e1a2e,#2d1f3d)", border:"none", cursor:"pointer" }} onClick={()=>setShowDeudas(true)}>
+          <div style={{ ...cardN(), background:"linear-gradient(135deg,#1e1a2e,#2d1f3d)", border:"none" }}>
             <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.45)",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
             <div style={{ fontSize:26,fontWeight:700,color:C.warn,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
             <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudas.length} {t("debts")}</div>
@@ -315,6 +314,9 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
           </div>
         </div>
       </div>
+
+      {/* ── PANEL DEUDAS ── */}
+      <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
@@ -770,11 +772,6 @@ export default function TabPresupuesto({ eventos, bloqueos, viajes, proyectos = 
           </div>
         </div>
       </div>
-
-      {/* ── PANEL DEUDAS ── */}
-      {showDeudas && (
-        <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={()=>setShowDeudas(false)}/>
-      )}
 
       {/* ── PROYECCIÓN SIN DEUDAS ── */}
       {(() => {

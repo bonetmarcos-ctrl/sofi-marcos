@@ -8,7 +8,7 @@ import { useI18n } from "../../i18n.tsx";
 
 const DEUDA_COLORS = [C.lavender, C.cyan, C.warn, C.sage, C.error, C.cyanMid];
 
-export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar }) {
+export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar = null }) {
   const { t } = useI18n();
   const [expandida, setExpandida] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
@@ -54,7 +54,7 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={onNueva} style={{ background:C.lavender, color:"white", border:"none", borderRadius:9, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
-          <button onClick={onCerrar} style={{ background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:9, padding:"8px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>{t("Close")}</button>
+          {onCerrar && <button onClick={onCerrar} style={{ background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:9, padding:"8px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>{t("Close")}</button>}
         </div>
       </div>
 
