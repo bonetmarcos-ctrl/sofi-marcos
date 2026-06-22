@@ -10,6 +10,7 @@ const authConfig = {
   passwordHash: "",
   jwtSecret: "test-secret",
   cookieName: "test_session",
+  cookieSecure: false,
   sessionTtlSeconds: 3600,
 };
 

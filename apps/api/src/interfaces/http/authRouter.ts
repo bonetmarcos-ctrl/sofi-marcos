@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { isProduction } from "../../config/env.js";
 
 const asyncRoute = (handler) => (request, response, next) => {
   Promise.resolve(handler(request, response, next)).catch(next);
@@ -10,7 +9,7 @@ const createCookieOptions = (authService) => ({
   maxAge: authService.sessionTtlSeconds * 1000,
   path: "/",
   sameSite: "lax",
-  secure: isProduction,
+  secure: authService.cookieSecure,
 });
 
 export const createAuthRouter = (authService) => {

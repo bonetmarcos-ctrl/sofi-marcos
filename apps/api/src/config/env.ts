@@ -2,6 +2,7 @@ import "dotenv/config";
 
 const nodeEnv = process.env.NODE_ENV || "development";
 export const isProduction = nodeEnv === "production";
+const booleanEnv = (value: string | undefined, fallback: boolean) => value === undefined ? fallback : value === "true";
 
 export const env = {
   nodeEnv,
@@ -16,6 +17,7 @@ export const env = {
     passwordHash: process.env.AUTH_PASSWORD_HASH || "",
     jwtSecret: process.env.AUTH_JWT_SECRET || (isProduction ? "" : "dev-secret-change-me"),
     cookieName: process.env.AUTH_COOKIE_NAME || "sofi_marqui_session",
+    cookieSecure: booleanEnv(process.env.AUTH_COOKIE_SECURE, isProduction),
     sessionTtlSeconds: Number(process.env.AUTH_SESSION_TTL_SECONDS || 60 * 60 * 24 * 7),
   },
 };

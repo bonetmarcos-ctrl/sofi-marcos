@@ -19,11 +19,12 @@
     "build": "npm run build -w @sofi-marqui/domain && npm run build -w @sofi-marqui/web && npm run build -w @sofi-marqui/api",
     "test": "npm run build -w @sofi-marqui/domain && npm run test --workspaces --if-present",
     "test:coverage": "npm run build -w @sofi-marqui/domain && npm run test:coverage --workspaces --if-present",
-    "e2e": "npm run build -w @sofi-marqui/domain && start-server-and-test \"npm run dev:e2e\" \"http://localhost:5173|http://localhost:4000/api/health\" \"cypress run\"",
+    "e2e": "npm run build && npm run e2e:run",
+    "e2e:run": "node scripts/run-e2e.mjs",
     "e2e:open": "npm run build -w @sofi-marqui/domain && start-server-and-test \"npm run dev:e2e\" \"http://localhost:5173|http://localhost:4000/api/health\" \"cypress open\"",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check": "npm run lint && npm run test && npm run build && npm run e2e",
+    "check": "npm run lint && npm run test && npm run build && npm run e2e:run",
     "start": "npm run start -w @sofi-marqui/api"
   },
   "devDependencies": {

@@ -8,5 +8,6 @@ export default defineConfig({
     video: false,
     screenshotOnRunFailure: true,
     defaultCommandTimeout: 8000,
+    allowCypressEnv: false,
   },
 });

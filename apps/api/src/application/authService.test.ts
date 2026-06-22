@@ -9,6 +9,7 @@ const baseConfig: AuthConfig = {
   passwordHash: "",
   jwtSecret: "unit-secret",
   cookieName: "unit_session",
+  cookieSecure: false,
   sessionTtlSeconds: 60,
 };
 

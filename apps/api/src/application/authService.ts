@@ -9,6 +9,7 @@ export type AuthConfig = {
   passwordHash: string;
   jwtSecret: string;
   cookieName: string;
+  cookieSecure: boolean;
   sessionTtlSeconds: number;
 };
 
@@ -45,6 +46,10 @@ export class AuthService {
 
   get cookieName() {
     return this.config.cookieName;
+  }
+
+  get cookieSecure() {
+    return this.config.cookieSecure;
   }
 
   get sessionTtlSeconds() {

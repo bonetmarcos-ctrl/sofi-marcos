@@ -11,7 +11,7 @@ import CalSemanal from "./CalSemanal.tsx";
 
 export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, setModal, comprasSuper = [], onSaveSuperPurchase, onDeleteSuperPurchase, cumpleanos = [], setCumpleanos }) {
   const { t, monthName } = useI18n();
-  const hoy = new Date();
+  const [hoy] = useState(() => new Date());
   const { isMobile, isTablet } = useBreakpoint();
   const [vista,   setVista]   = useState("mensual");
   const [año,     setAño]     = useState(hoy.getFullYear());
@@ -77,7 +77,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
     .map(cumple => ({ ...cumple, proximo:nextBirthdayDate(cumple.fecha, hoy) }))
     .filter(cumple => cumple.proximo)
     .sort((a, b) => a.proximo.getTime() - b.proximo.getTime())
-    .slice(0, 5), [cumpleanos]);
+    .slice(0, 5), [cumpleanos, hoy]);
   const layoutColumns = isMobile || isTablet ? "1fr" : "minmax(0,1fr) 290px";
 
   const setOrigenCompraSuper = (value) => setCompraSuper(form => ({
