@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
@@ -150,6 +150,9 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
     setModalGasto(null);
   };
 
+  const columnStyle: CSSProperties = { minWidth:0 };
+  const columnBodyStyle: CSSProperties = { display:"grid", gap:5, minWidth:0 };
+
   const modalOrigenFondos = modalGasto?.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
   const modalMesCargo = modalGasto?.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...modalGasto, mes:pref }) || addMeses(pref, 1);
   const modalCuotasTarjeta = Math.max(1, Number(modalGasto?.cuotasTarjeta || 1));
@@ -168,23 +171,23 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
 
   // Helpers de layout
   const colHeader = (color, bg, border, dot, label) => (
-    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"8px 12px", background:bg, borderRadius:10, border:`1px solid ${border}` }}>
+    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"8px 12px", background:bg, borderRadius:10, border:`1px solid ${border}`, minWidth:0 }}>
       <div style={{ width:10, height:10, borderRadius:"50%", background:dot, flexShrink:0 }}/>
-      <span style={{ fontSize:12, fontWeight:700, color, textTransform:"uppercase", letterSpacing:"0.6px" }}>{label}</span>
+      <span style={{ fontSize:12, fontWeight:700, color, textTransform:"uppercase", letterSpacing:"0.6px", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</span>
     </div>
   );
 
   const rowItem = (left, right, bg=C.fondo, color=C.txt, colorR=C.txt) => (
-    <div key={typeof left === "string" ? left : undefined} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, padding:"8px 12px", background:bg, borderRadius:9, border:`1px solid ${C.borde}` }}>
-      <span style={{ color }}>{left}</span>
-      <span style={{ fontWeight:700, color:colorR }}>{right}</span>
+    <div key={typeof left === "string" ? left : undefined} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, fontSize:13, padding:"8px 12px", background:bg, borderRadius:9, border:`1px solid ${C.borde}` }}>
+      <span style={{ color, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{left}</span>
+      <span style={{ fontWeight:700, color:colorR, flexShrink:0 }}>{right}</span>
     </div>
   );
 
   const rowTotal = (label, value, bg, color) => (
-    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, padding:"9px 12px", background:bg, borderRadius:9, color, marginTop:2 }}>
-      <span style={{ fontWeight:700 }}>{label}</span>
-      <span style={{ fontWeight:700 }}>{fmt(value)}</span>
+    <div style={{ display:"flex", justifyContent:"space-between", gap:10, minWidth:0, fontSize:13, padding:"9px 12px", background:bg, borderRadius:9, color, marginTop:2 }}>
+      <span style={{ fontWeight:700, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</span>
+      <span style={{ fontWeight:700, flexShrink:0 }}>{fmt(value)}</span>
     </div>
   );
 
@@ -214,12 +217,12 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
       </div>
 
       {/* 4 columnas */}
-      <div style={{ display:"grid", gridTemplateColumns:sectionColumns, gap:isMobile?12:16, marginTop:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:sectionColumns, gap:isMobile?12:16, marginTop:16, alignItems:"start", minWidth:0 }}>
 
         {/* COL 0: Gastos fijos */}
-        <div>
+        <div style={columnStyle}>
           {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
-          <div style={{ display:"grid", gap:5 }}>
+          <div style={columnBodyStyle}>
             {(BASE.detalle_fijos || [])
               .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche","Seguro auto"].includes(d.nombre))
               .map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))
@@ -235,19 +238,19 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         </div>
 
         {/* COL 1: Suministros */}
-        <div>
+        <div style={columnStyle}>
           {colHeader("#d97706","#fef3c7","#d9770633","#d97706",`💡 ${t("Utilities")}`)}
-          <div style={{ display:"grid", gap:5 }}>
+          <div style={columnBodyStyle}>
             {suministrosMes.map((s, i) => {
               const ant    = suministrosAnt[i];
               const diff   = ant.importe !== null && s.importe > 0 ? s.importe - ant.importe : null;
               const resumen = resumenSuministro(s);
               return (
                 <div key={s.key}
-                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, fontSize:13, padding:"8px 12px", background:s.importe>0?"#fef3c7":C.fondo, borderRadius:9, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, transition:"all 0.15s" }}>
-                  <div style={{ minWidth:0 }}>
+                  style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, width:"100%", boxSizing:"border-box", overflow:"hidden", fontSize:13, padding:"8px 12px", background:s.importe>0?"#fef3c7":C.fondo, borderRadius:9, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, transition:"all 0.15s" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:4 }}>
-                      <span style={{ color:s.importe>0?"#d97706":C.txt2 }}>{s.emoji} {t(s.label)}</span>
+                      <span style={{ color:s.importe>0?"#d97706":C.txt2, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.emoji} {t(s.label)}</span>
                       {diff !== null && (
                         <span style={{ fontSize:9, marginLeft:2, fontWeight:700, color:diff>0?C.error:C.sageDark }}>
                           {diff > 0 ? `▲+${fmt(diff)}` : diff < 0 ? `▼${fmt(diff)}` : ""}
@@ -256,7 +259,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
                     </div>
                     {resumen && <div style={{ fontSize:10, color:C.txt2, marginTop:3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{resumen}</div>}
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                     <span style={{ fontWeight:700, color:s.importe>0?"#d97706":C.txt2 }}>{s.importe>0?fmt(s.importe):"—"}</span>
                     <button onClick={() => abrirSuministro(s)} aria-label={`${t("Edit utility bill")} ${t(s.label)}`}
                       style={{ width:24, height:24, borderRadius:7, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, background:"white", color:"#d97706", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, flexShrink:0 }}>
@@ -271,15 +274,15 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         </div>
 
         {/* COL 2: Discrecional */}
-        <div>
+        <div style={columnStyle}>
           {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Discretionary")}`)}
-          <div style={{ display:"grid", gap:5 }}>
+          <div style={columnBodyStyle}>
             {catsCal.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>
               : catsCal.map(c => (
-                <div key={c.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:13, padding:"8px 12px", background:c.bg, borderRadius:9, border:`1px solid ${c.color}33` }}>
-                  <span style={{ color:c.color }}>{c.emoji} {t(c.label)}</span>
-                  <span style={{ fontWeight:700, color:c.color }}>{fmt(c.sum)}</span>
+                <div key={c.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, fontSize:13, padding:"8px 12px", background:c.bg, borderRadius:9, border:`1px solid ${c.color}33` }}>
+                  <span style={{ color:c.color, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.emoji} {t(c.label)}</span>
+                  <span style={{ fontWeight:700, color:c.color, flexShrink:0 }}>{fmt(c.sum)}</span>
                 </div>
               ))
             }
@@ -288,9 +291,9 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         </div>
 
         {/* COL 3: Viajes */}
-        <div>
+        <div style={columnStyle}>
           {colHeader(COLOR_VIAJE, BG_VIAJE, `${COLOR_VIAJE}33`, COLOR_VIAJE, `✈️ ${t("Trips")}`)}
-          <div style={{ display:"grid", gap:5 }}>
+          <div style={columnBodyStyle}>
             {viajesMes.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No trips this month")}</div>
               : viajesMes.map(v => {
