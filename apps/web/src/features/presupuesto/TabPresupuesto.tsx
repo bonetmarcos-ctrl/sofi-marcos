@@ -12,6 +12,7 @@ import { BASE } from "../../data/demo.ts";
 import AnalizadorPresionFinanciera from "./AnalizadorPresionFinanciera.tsx";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
+import { actualizarIngresosFijosDesdeMes, editarLineaIngresoDesdeMes, eliminarLineaIngresoDesdeMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
@@ -141,34 +142,13 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
     setBase((currentBase) => {
       const source = currentBase || base;
-      const currentMonthTotal = source.monthlyOverrides?.[prefVista]?.fixedIncome ?? source.ingresos_fijos;
-      const currentLineTotal = (source.detalle_ingresos || [])
-        .filter((line) => lineaIngresoActivaEnMes(line, prefVista))
-        .reduce((sum, line) => sum + Number(line.importe || 0), 0);
-      const currentAdjustment = Number(currentMonthTotal || 0) - currentLineTotal;
       const nextLines = updater([...(source.detalle_ingresos || [])]);
-      const nextLineTotal = nextLines
-        .filter((line) => lineaIngresoActivaEnMes(line, prefVista))
-        .reduce((sum, line) => sum + Number(line.importe || 0), 0);
-      const nextMonthTotal = nextLineTotal + currentAdjustment;
-
-      return {
-        ...source,
-        ingresos_fijos: nextMonthTotal,
-        detalle_ingresos: nextLines,
-        monthlyOverrides: {
-          ...(source.monthlyOverrides || {}),
-          [prefVista]: {
-            ...(source.monthlyOverrides?.[prefVista] || {}),
-            fixedIncome: nextMonthTotal,
-          },
-        },
-      };
+      return actualizarIngresosFijosDesdeMes(source, prefVista, nextLines);
     });
   }, [base, prefVista, setBase]);
-  const setIncomeLine = (index, patch) => updateIncomeLines((lines) => lines.map((line, lineIndex) => lineIndex === index ? { ...line, ...patch } : line));
+  const setIncomeLine = (index, patch) => updateIncomeLines((lines) => editarLineaIngresoDesdeMes(lines, index, prefVista, patch, Date.now() + Math.random()));
   const addIncomeLine = () => updateIncomeLines((lines) => [...lines, { id:Date.now() + Math.random(), nombre:t("Income"), importe:0, recurrente:true, desde:prefVista, notas:"" }]);
-  const removeIncomeLine = (index) => updateIncomeLines((lines) => lines.filter((_, lineIndex) => lineIndex !== index));
+  const removeIncomeLine = (index) => updateIncomeLines((lines) => eliminarLineaIngresoDesdeMes(lines, index, prefVista));
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -923,22 +903,4 @@ const calcularCuotaDeudaEnMes = (deuda, pref) => {
   const offset = (añoObjetivo - añoInicio) * 12 + (mesObjetivo - mesInicio);
   const activa = offset >= Number(deuda.cuota_actual || 0) && offset < Number(deuda.cuotas_totales || 0);
   return activa ? Number(deuda.cuota || 0) + Number(deuda.interes_mensual || 0) : 0;
-};
-
-const MESES_INGRESO = { ene:1, feb:2, mar:3, abr:4, may:5, jun:6, jul:7, ago:8, sep:9, oct:10, nov:11, dic:12 };
-
-const mesReferenciaIngreso = (valor) => {
-  if (!valor) return null;
-  const texto = String(valor).trim().toLowerCase();
-  if (/^\d{4}-\d{2}$/.test(texto)) return Number(texto.slice(5, 7));
-  return MESES_INGRESO[texto.slice(0, 3)] || null;
-};
-
-const lineaIngresoActivaEnMes = (linea, pref) => {
-  const mes = Number(pref.slice(5, 7));
-  const desde = mesReferenciaIngreso(linea.desde);
-  const hasta = mesReferenciaIngreso(linea.hasta);
-  if (desde && mes < desde) return false;
-  if (hasta && mes > hasta) return false;
-  return true;
 };
