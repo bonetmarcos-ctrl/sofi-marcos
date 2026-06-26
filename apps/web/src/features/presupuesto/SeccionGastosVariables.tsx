@@ -218,7 +218,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
         <div>
           <div style={{ fontSize:16, fontWeight:700, color:C.txt }}>{t("Monthly variable expenses")}</div>
           <div style={{ fontSize:12, color:C.txt2, marginTop:2 }}>
-            {t("Utilities · Discretionary · Trips")}
+            {`${t("Utilities")} · ${t("Variable expenses")} · ${t("Trips")}`}
             {totalMes > 0 && <strong style={{ color:C.txt, marginLeft:8 }}>→ {fmt(totalMes)} {t("this month")}</strong>}
           </div>
         </div>
@@ -307,7 +307,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
 
         {/* COL 2: Discrecional */}
         <div style={columnStyle}>
-          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Discretionary")}`)}
+          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Variable expenses")}`)}
           <div style={columnBodyStyle}>
             {catsCal.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>

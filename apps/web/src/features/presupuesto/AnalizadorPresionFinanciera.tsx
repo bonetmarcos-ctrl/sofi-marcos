@@ -30,7 +30,7 @@ export default function AnalizadorPresionFinanciera({ resumenMes, ingresosFijosR
   const layers = [
     { key:"structural", label:t("Structural"), amount:structural, color:"#64748b", bg:"#eef2f7" },
     { key:"utilities", label:t("Utilities"), amount:utilities, color:"#d97706", bg:"#fef3c7" },
-    { key:"lifestyle", label:t("Discretionary"), amount:lifestyle, color:C.lavender, bg:C.lavLight },
+    { key:"lifestyle", label:t("Variable expenses"), amount:lifestyle, color:C.lavender, bg:C.lavLight },
     { key:"trips", label:t("Trips"), amount:trips, color:"#ec5ac9", bg:"#fce7f6" },
   ];
 

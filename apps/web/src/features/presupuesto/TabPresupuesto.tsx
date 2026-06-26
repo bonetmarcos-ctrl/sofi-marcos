@@ -165,7 +165,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const expenseLayers = [
     { key:"estructural", color:"#64748b", bg:"#f8fafc", label:`1 ${t("Structural")}` },
     { key:"suministros", color:"#d97706", bg:"#fef3c7", label:`2 ${t("Utilities")}` },
-    { key:"discrecional", color:C.lavender, bg:C.lavLight, label:`3 ${t("Discretionary")}` },
+    { key:"discrecional", color:C.lavender, bg:C.lavLight, label:`3 ${t("Variable expenses")}` },
     { key:"viajes", color:COLOR_VIAJE, bg:BG_VIAJE, label:`4 ${t("Trips")}` },
   ];
   const selectedLayer = expenseLayers.find(layer => layer.key === explorerLayer) || expenseLayers[1];
@@ -500,7 +500,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                     {[
                       {l:`1 ${t("Structural")}`,  v:fmt(m.gasto_estructural),  c:"#94a3b8"},
                       {l:`2 ${t("Utilities")}`,  v:fmt(m.gasto_suministros),  c:"#fbbf24"},
-                      {l:`3 ${t("Discretionary")}`, v:fmt(gastoDiscrecionalReal), c:C.lavender},
+                      {l:`3 ${t("Variable expenses")}`, v:fmt(gastoDiscrecionalReal), c:C.lavender},
                       {l:`4 ${t("Trips")}`, v:fmt(gastoViajes), c:COLOR_VIAJE},
                       {l:t("Total income"),v:fmt(m.total_ingresos),    c:C.exito},
                     ].map(x=>(
@@ -545,7 +545,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               {[
                 {key:"estructural", l:`1 ${t("Structural")}`,  v:fmt(detalle.gasto_estructural),  c:"#64748b", bg:"#f8fafc", sub:`${t("Fixed expenses")} ${fmt(base.monthlyOverrides?.[detalle.pref]?.fixedExpenses ?? base.gastos_fijos)} + ${t("Debt")} ${fmt(detalle.gasto_deudas)}`},
                 {key:"suministros", l:`2 ${t("Utilities")}`,  v:fmt(detalle.gasto_suministros),  c:"#d97706", bg:"#fef3c7", sub:"Power, gas, water, internet..."},
-                {key:"discrecional", l:`3 ${t("Discretionary")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
+                {key:"discrecional", l:`3 ${t("Variable expenses")}`, v:fmt(Math.max(0, detalle.gasto_discrecional - (detalle.gastos_viaje || 0))), c:C.lavender,bg:C.lavLight,sub:`${t("Calendar")} ${fmt(detalle.gastos_var)}`},
                 {key:"viajes", l:`4 ${t("Trips")}`, v:fmt(detalle.gastos_viaje), c:COLOR_VIAJE,bg:BG_VIAJE,sub:t("Expense breakdown")},
               ].map(x=>(
                 <button key={x.l} onClick={() => selectExplorer(x.key)}
