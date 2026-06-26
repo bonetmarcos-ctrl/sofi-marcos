@@ -87,6 +87,41 @@ export const buildCreditCardDebtFromExpense = (expense, collection = "gastosVari
   };
 };
 
+export const projectExpenseItem = (project) => ({
+  id: project.id,
+  titulo: project.titulo || project.nombre || "Proyecto",
+  nombre: project.titulo || project.nombre || "Proyecto",
+  importe: Number(project.gasto || 0),
+  mes: project.fin?.slice(0, 7) || project.inicio?.slice(0, 7) || "",
+  origenFondos: project.origenFondos || FUNDING_SOURCES.MONTH_INCOME,
+  cuotasTarjeta: project.cuotasTarjeta || 1,
+  mesPrimerCargo: project.mesPrimerCargo || "",
+  tarjetaNombre: project.tarjetaNombre || "",
+  tarjetaDiaCierre: project.tarjetaDiaCierre,
+  deudaTarjetaId: project.deudaTarjetaId || "",
+});
+
+export const tripExpenseItems = (trip) => Object.entries(trip.gastos || {})
+  .filter(([, amount]) => Number(amount || 0) > 0)
+  .map(([key, amount]) => {
+    const payment = trip.gastosPago?.[key] || {};
+    return {
+      id: `${trip.id || trip.nombre || "viaje"}:${key}`,
+      tripId: trip.id,
+      conceptKey: key,
+      titulo: `${trip.nombre || "Viaje"} · ${key}`,
+      nombre: `${trip.nombre || "Viaje"} · ${key}`,
+      importe: Number(amount || 0),
+      mes: trip.inicio?.slice(0, 7) || trip.fin?.slice(0, 7) || "",
+      origenFondos: payment.origenFondos || FUNDING_SOURCES.MONTH_INCOME,
+      cuotasTarjeta: payment.cuotasTarjeta || 1,
+      mesPrimerCargo: payment.mesPrimerCargo || "",
+      tarjetaNombre: payment.tarjetaNombre || "",
+      tarjetaDiaCierre: payment.tarjetaDiaCierre,
+      deudaTarjetaId: payment.deudaTarjetaId || "",
+    };
+  });
+
 export const calculateExpenseCashImpactForMonth = (expense, yearMonth) => {
   const amount = Number(expense.importe || 0);
   if (!amount || !yearMonth) return 0;
@@ -184,6 +219,19 @@ export const calculateNextMonthCardBalanceForMonth = (expenses, yearMonth) =>
     .filter(isNextMonthCardExpense)
     .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, yearMonth), 0);
 
+export const calculatePaymentMethodBreakdownForMonth = (expenses, debts, yearMonth) => ({
+  cash: expenses
+    .filter((expense) => (expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.MONTH_INCOME)
+    .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, yearMonth), 0),
+  card: expenses
+    .filter((expense) => (expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.CREDIT_NEXT_MONTH)
+    .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, yearMonth), 0),
+  cardInstallments: expenses
+    .filter((expense) => (expense.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.CREDIT_INSTALLMENTS)
+    .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, yearMonth), 0)
+    + calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), yearMonth),
+});
+
 type MonthlyBudgetInput = {
   base: any;
   categories: Record<string, any>;
@@ -218,9 +266,9 @@ export const calculateMonthlyBudget = ({
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
-    const monthCompletedHomeExpenses = projects
-      .filter((project) => project.estado === "completado" && project.fin?.startsWith(prefix))
-      .reduce((sum, project) => sum + Number(project.gasto || 0), 0);
+    const completedProjectExpenseItems = projects
+      .filter((project) => project.estado === "completado")
+      .map(projectExpenseItem);
     const isFuture = index > currentMonth;
     const fixedIncome = monthlyOverride.fixedIncome ?? Number(base.ingresos_fijos || 0);
     const fixedExpenses = monthlyOverride.fixedExpenses ?? Number(base.gastos_fijos || 0);
@@ -270,13 +318,11 @@ export const calculateMonthlyBudget = ({
       ],
       prefix,
     );
+    const monthCompletedHomeExpenses = completedProjectExpenseItems
+      .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, prefix), 0);
     const tripExpenses = trips
-      .filter((trip) => trip.inicio?.startsWith(prefix) || trip.fin?.startsWith(prefix))
-      .reduce(
-        (sum, trip) =>
-          sum + Object.values(trip.gastos || {}).reduce<number>((tripSum, amount) => tripSum + Number(amount || 0), 0),
-        0,
-      );
+      .flatMap(tripExpenseItems)
+      .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, prefix), 0);
     const linkedCardInstallmentExpenses = monthlyOverride.debtExpenses !== undefined
       ? calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), prefix)
       : 0;

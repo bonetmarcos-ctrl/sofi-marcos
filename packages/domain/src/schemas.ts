@@ -4,6 +4,15 @@ const idSchema = z.union([z.string(), z.number()]);
 const optionalText = z.string().optional().default("");
 const amount = z.coerce.number().finite().default(0);
 
+const paymentFieldsSchema = z.object({
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  deudaTarjetaId: optionalText,
+});
+
 export const eventSchema = z.object({
   id: idSchema.optional(),
   fecha: z.string().min(1),
@@ -35,6 +44,7 @@ export const tripSchema = z.object({
   emoji: z.string().optional(),
   notas: optionalText,
   gastos: z.record(amount).default({}),
+  gastosPago: z.record(paymentFieldsSchema).default({}),
 });
 
 export const blockSchema = z.object({
@@ -59,6 +69,12 @@ export const projectSchema = z.object({
   fin: z.string().min(1),
   presupuesto: amount,
   gasto: amount,
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  deudaTarjetaId: optionalText,
   notas: optionalText,
 });
 

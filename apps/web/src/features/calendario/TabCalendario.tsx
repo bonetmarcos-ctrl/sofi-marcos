@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth, tripExpenseItems } from "@sofi-marqui/domain";
 import { CATEGORIAS, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { fmtd, labelMes } from "../../utils/format.ts";
 import { todayISO, daysBetween } from "../../utils/dates.ts";
+import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import CalMensual from "./CalMensual.tsx";
@@ -58,10 +59,9 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
       .filter(evento => evento.fecha?.startsWith(pref) && categoriaEvento(evento)?.tipo === "gasto")
       .forEach(evento => addRow(categoriaEventoKey(evento), evento.origenFondos || FUNDING_SOURCES.MONTH_INCOME, Number(evento.importe || 0)));
 
-    viajes_mes.forEach(viaje => {
-      const totalViaje = Object.values(viaje.gastos || {}).reduce<number>((sum, amount) => sum + Number(amount || 0), 0);
-      addRow("viaje", FUNDING_SOURCES.MONTH_INCOME, totalViaje);
-    });
+    viajes_mes.forEach(viaje => tripExpenseItems(viaje)
+      .filter(item => item.mes === pref)
+      .forEach(item => addRow("viaje", item.origenFondos || FUNDING_SOURCES.MONTH_INCOME, Number(item.importe || 0))));
 
     return Array.from(mapa.values()).sort((a, b) => b.sum - a.sum);
   }, [eventos, pref, viajes_mes]);
@@ -272,7 +272,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
                   <span style={{ flexShrink:0, fontWeight:700, color:C.txt }}>{fmtd(row.sum)}</span>
                 </div>
                 <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"center", marginBottom:5 }}>
-                  <span style={{ fontSize:10, color:fundingColor(row.fundingSource), background:fundingBg(row.fundingSource), border:`1px solid ${fundingColor(row.fundingSource)}33`, borderRadius:999, padding:"2px 7px", fontWeight:700 }}>{t(fundingLabel(row.fundingSource))}</span>
+                  <span style={{ fontSize:10, color:fundingColor(row.fundingSource), background:fundingBg(row.fundingSource), border:`1px solid ${fundingColor(row.fundingSource)}33`, borderRadius:999, padding:"2px 7px", fontWeight:700 }}>{t(paymentMethodLabelKey(row.fundingSource))}</span>
                   <span style={{ fontSize:10, color:C.txt2 }}>{row.count} {row.count === 1 ? t("record") : t("records")}</span>
                 </div>
                 <div style={{ height:5, background:C.borde, borderRadius:5, overflow:"hidden" }}>
@@ -320,8 +320,8 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             </div>
             <input value={compraSuper.comercio || ""} onChange={e => setCompraSuper(f => ({ ...f, comercio:e.target.value }))} placeholder={t("Store")} style={{ ...inputS, background:C.fondo, border:`1px solid ${C.borde}`, minHeight:34 }}/>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:5 }}>
-              {[FUNDING_SOURCES.MONTH_INCOME, FUNDING_SOURCES.CREDIT_NEXT_MONTH, FUNDING_SOURCES.CREDIT_INSTALLMENTS].map(source => (
-                <button key={source} onClick={() => setOrigenCompraSuper(source)} style={{ minHeight:34, borderRadius:9, border:`1px solid ${(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingColor(source) : C.borde}`, background:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingBg(source) : C.fondo, color:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === source ? fundingColor(source) : C.txt2, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1 }}>{t(fundingLabel(source))}</button>
+              {PAYMENT_METHOD_OPTIONS.map(option => (
+                <button key={option.key} onClick={() => setOrigenCompraSuper(option.key)} style={{ minHeight:34, borderRadius:9, border:`1px solid ${(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === option.key ? fundingColor(option.key) : C.borde}`, background:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === option.key ? fundingBg(option.key) : C.fondo, color:(compraSuper.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === option.key ? fundingColor(option.key) : C.txt2, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1 }}>{option.icon} {t(option.labelKey)}</button>
               ))}
             </div>
             {compraSuper.origenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
@@ -357,7 +357,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
                 <div key={compra.id} style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:8, alignItems:"center", fontSize:11, marginTop:6 }}>
                   <div style={{ minWidth:0 }}>
                     <div style={{ color:C.txt, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{compra.comercio || t("Supermarket")} · {fmtd(Number(compra.importe || 0))}</div>
-                    <div style={{ color:C.txt2 }}>{compra.fecha} · {t(fundingLabel(compra.origenFondos || FUNDING_SOURCES.MONTH_INCOME))}</div>
+                    <div style={{ color:C.txt2 }}>{compra.fecha} · {t(paymentMethodLabelKey(compra.origenFondos || FUNDING_SOURCES.MONTH_INCOME))}</div>
                   </div>
                   <button onClick={() => onDeleteSuperPurchase?.(compra.id)} style={{ width:28, height:28, minHeight:28, borderRadius:8, border:`1px solid ${C.error}33`, background:C.errorBg, color:C.error, cursor:"pointer" }}>×</button>
                 </div>
@@ -369,12 +369,6 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
     </div>
   );
 }
-
-const fundingLabel = (source) => {
-  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return "Credit card next month";
-  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return "Credit card installments";
-  return "Monthly income";
-};
 
 const fundingColor = (source) => {
   if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return C.warn;

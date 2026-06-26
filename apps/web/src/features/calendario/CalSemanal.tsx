@@ -4,6 +4,7 @@ import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
 import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
+import { paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
@@ -99,7 +100,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
                       style={{ padding:"8px 9px", borderRadius:10, cursor:"pointer", background:esIng?C.exitoBg:cat?.bg, border:`1px solid ${esIng?C.exito+"55":cat?.color+"33"}` }}>
                       <div style={{ fontSize:11, fontWeight:700, color:esIng?C.sageDark:cat?.color }}>{cat?.emoji} {ev.titulo}</div>
                       {ev.hora && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {ev.hora}</div>}
-                      {!esIng && origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>💳 {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? `${Number(ev.cuotasTarjeta || 1)} ${t("Installments").toLowerCase()}` : t("Credit card next month")}</div>}
+                      {!esIng && origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>💳 {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? `${Number(ev.cuotasTarjeta || 1)} ${t("Installments").toLowerCase()}` : t(paymentMethodLabelKey(origenFondos))}</div>}
                       {muestraImporte && <div style={{ fontSize:12, fontWeight:700, color:esIng?C.sageDark:C.txt, marginTop:3 }}>{esIng?"+":"−"}{fmtd(ev.importe)}</div>}
                     </div>
                   );

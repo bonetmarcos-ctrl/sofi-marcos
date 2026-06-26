@@ -5,7 +5,7 @@ import { useAuth } from "./hooks/useAuth.ts";
 import { useBreakpoint } from "./hooks/useBreakpoint.ts";
 import { useAppState } from "./hooks/useAppState.ts";
 import { todayISO } from "./utils/dates.ts";
-import { DEFAULT_APP_NAME, buildCreditCardDebtFromExpense } from "@sofi-marqui/domain";
+import { DEFAULT_APP_NAME, buildCreditCardDebtFromExpense, tripExpenseItems } from "@sofi-marqui/domain";
 import TabPresupuesto from "./features/presupuesto/TabPresupuesto.tsx";
 import TabCalendario  from "./features/calendario/TabCalendario.tsx";
 import TabGantt       from "./features/casa/TabGantt.tsx";
@@ -84,8 +84,31 @@ function AuthenticatedApp({ user, onLogout }) {
     setModal(null);
   }, [setEventos, syncLinkedCardDebt]);
   const deleteEvent = useCallback((id)   => { setEventos(prev => prev.filter(e=>e.id!==id)); removeLinkedCardDebt("eventos", id); setModal(null); }, [setEventos, removeLinkedCardDebt]);
-  const saveTrip = useCallback((form) => { setViajes(prev => form.id && prev.find(v=>v.id===form.id) ? prev.map(v=>v.id===form.id?form:v) : [...prev,form]); setModal(null); }, [setViajes]);
-  const deleteTrip = useCallback((id)   => { setViajes(prev => prev.filter(v=>v.id!==id)); setModal(null); }, [setViajes]);
+  const saveTrip = useCallback((form) => {
+    const trip = { ...form, id:form.id || Date.now() };
+    const expenses = tripExpenseItems(trip);
+    const debts = [];
+    const gastosPago = { ...(trip.gastosPago || {}) };
+
+    expenses.forEach(expense => {
+      const debt = buildCreditCardDebtFromExpense(expense, "viajes");
+      gastosPago[expense.conceptKey] = { ...(gastosPago[expense.conceptKey] || {}), deudaTarjetaId:debt?.id || "" };
+      if (debt) debts.push(debt);
+    });
+
+    const item = { ...trip, gastosPago };
+    setDeudas(prev => [
+      ...prev.filter(deuda => !(deuda.origenColeccion === "viajes" && String(deuda.origenId).startsWith(`${item.id}:`))),
+      ...debts,
+    ]);
+    setViajes(prev => item.id && prev.find(v=>v.id===item.id) ? prev.map(v=>v.id===item.id?item:v) : [...prev,item]);
+    setModal(null);
+  }, [setDeudas, setViajes]);
+  const deleteTrip = useCallback((id)   => {
+    setViajes(prev => prev.filter(v=>v.id!==id));
+    setDeudas(prev => prev.filter(deuda => !(deuda.origenColeccion === "viajes" && String(deuda.origenId).startsWith(`${id}:`))));
+    setModal(null);
+  }, [setDeudas, setViajes]);
   const saveSuperPurchase = useCallback((form) => {
     const lineas = (form.lineas || [])
       .filter(linea => String(linea.producto || "").trim() || Number(linea.importe || 0) > 0)
@@ -194,7 +217,7 @@ function AuthenticatedApp({ user, onLogout }) {
           <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal} comprasSuper={comprasSuper} onSaveSuperPurchase={saveSuperPurchase} onDeleteSuperPurchase={deleteSuperPurchase} cumpleanos={cumpleanos} setCumpleanos={setCumpleanos}/>
         )}
         {tab === "casa" && (
-          <TabGantt proyectos={proyectos} setProyectos={setProyectos}/>
+          <TabGantt proyectos={proyectos} setProyectos={setProyectos} setDeudas={setDeudas}/>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCreditCardDebtFromExpense, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, expenseFirstChargeMonth, predictUtilityAvailabilityDate } from "./finance.js";
+import { buildCreditCardDebtFromExpense, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -147,6 +147,47 @@ describe("finance domain", () => {
     }));
 
     expect(calculateExpenseCashImpactForMonth({ origenFondos: "tarjeta_cuotas", importe: 600, cuotasTarjeta: 6, mesPrimerCargo: "2026-07", deudaTarjetaId: debt?.id }, "2026-07")).toBe(0);
+  });
+
+  it("breaks monthly expense impact down by payment method", () => {
+    const breakdown = calculatePaymentMethodBreakdownForMonth(
+      [
+        { fecha: "2026-06-10", importe: 50, origenFondos: "ingresos_mes" },
+        { fecha: "2026-06-10", importe: 120, origenFondos: "tarjeta_mes_siguiente" },
+        { id: "g-1", mes: "2026-06", importe: 300, origenFondos: "tarjeta_cuotas", cuotasTarjeta: 3, mesPrimerCargo: "2026-07", deudaTarjetaId: "d-1" },
+      ],
+      [{ id: "d-1", origen: "tarjeta_cuotas", cuota: 100, interes_mensual: 0, cuotas_totales: 3, cuota_actual: 0, mes_inicio: "2026-07" }],
+      "2026-07",
+    );
+
+    expect(breakdown).toEqual({ cash:0, card:120, cardInstallments:100 });
+  });
+
+  it("uses project and trip payment methods in the monthly budget", () => {
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [{ id:"trip-1", nombre:"Roma", inicio:"2026-06-10", fin:"2026-06-14", presupuesto:500, gastos:{ vuelo:300 }, gastosPago:{ vuelo:{ origenFondos:"tarjeta_mes_siguiente", mesPrimerCargo:"2026-07" } } }],
+      levers: [],
+      debts: [],
+      utilities: [],
+      variableExpenses: [],
+      projects: [{ id:"p-1", estado:"completado", titulo:"Sofa", inicio:"2026-06-01", fin:"2026-06-20", gasto:200, origenFondos:"tarjeta_mes_siguiente", mesPrimerCargo:"2026-07" }],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].gastos_viaje).toBe(0);
+    expect(result.datosMes[5].gastos_casa_tareas).toBe(0);
+    expect(result.datosMes[6].gastos_viaje).toBe(300);
+    expect(result.datosMes[6].gastos_casa_tareas).toBe(200);
+  });
+
+  it("converts projects and trip concepts into expense items", () => {
+    expect(projectExpenseItem({ id:"p-1", titulo:"Sofa", fin:"2026-07-20", gasto:200 })).toMatchObject({ id:"p-1", titulo:"Sofa", importe:200, mes:"2026-07", origenFondos:"ingresos_mes" });
+    expect(tripExpenseItems({ id:"v-1", nombre:"Roma", inicio:"2026-07-01", gastos:{ vuelo:120 }, gastosPago:{ vuelo:{ origenFondos:"tarjeta_cuotas", cuotasTarjeta:3 } } })[0]).toMatchObject({ id:"v-1:vuelo", importe:120, mes:"2026-07", origenFondos:"tarjeta_cuotas", cuotasTarjeta:3 });
   });
 
   it("adds linked card installment debts on top of monthly debt overrides", () => {

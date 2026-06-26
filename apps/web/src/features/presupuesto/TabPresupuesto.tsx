@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
@@ -91,10 +91,13 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         const expenseItems = gastosVariables
           .map(g=>({ ...g, importeExplorer:explorerExpenseAmount(g, prefMes) }))
           .filter(g=>g.categoria===k&&g.importeExplorer>0);
-        const projectItems = k === "hogar" ? proyectos.filter(p=>p.estado==="completado"&&p.fin?.startsWith(prefMes)) : [];
+        const projectItems = k === "hogar" ? proyectos
+          .filter(p=>p.estado==="completado")
+          .map(p=>({ ...projectExpenseItem(p), importeExplorer:explorerExpenseAmount(projectExpenseItem(p), prefMes) }))
+          .filter(p=>p.importeExplorer>0) : [];
         const importe = eventItems.reduce((a,e)=>a+Number(e.importeExplorer||0),0)
           + expenseItems.reduce((a,g)=>a+Number(g.importeExplorer||0),0)
-          + projectItems.reduce((a,p)=>a+Number(p.gasto||0),0);
+          + projectItems.reduce((a,p)=>a+Number(p.importeExplorer||0),0);
         return { mes:index, pref:prefMes, importe, eventItems, expenseItems, projectItems };
       });
       return { ...v, key:k, monthly, sum:monthly.reduce((a,m)=>a+m.importe,0) };
@@ -103,15 +106,18 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
   const tripBreakdown = useMemo(() => viajes
     .map(v=>{
-      const total = Object.values(v.gastos||{}).reduce<number>((a,b)=>a+Number(b || 0),0);
+      const items = tripExpenseItems(v);
+      const total = items.reduce((a,b)=>a+Number(b.importe || 0),0);
       const monthly = MESES.map((_, index) => {
         const prefMes = `${año}-${String(index + 1).padStart(2, "0")}`;
-        const inMonth = v.inicio?.startsWith(prefMes) || v.fin?.startsWith(prefMes);
-        return { mes:index, pref:prefMes, importe:inMonth ? total : 0 };
+        const conceptItems = items
+          .map(item=>({ ...item, importeExplorer:explorerExpenseAmount(item, prefMes) }))
+          .filter(item=>item.importeExplorer>0);
+        return { mes:index, pref:prefMes, importe:conceptItems.reduce((sum, item)=>sum+Number(item.importeExplorer || 0), 0), conceptItems };
       });
       return { ...v, total, monthly };
     })
-    .filter(v=>v.total>0 || v.inicio?.startsWith(`${año}`) || v.fin?.startsWith(`${año}`)), [viajes, año]);
+    .filter(v=>v.total>0 || v.inicio?.startsWith(`${año}`) || v.fin?.startsWith(`${año}`)), [viajes, año, explorerExpenseAmount]);
 
   const ingresosVariablesMes = useMemo(() => {
     const dm = datosMes[mesVista];
@@ -441,7 +447,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables base={base} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} setDeudas={setDeudas}/>
+      <SeccionGastosVariables base={base} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} deudas={deudas} setDeudas={setDeudas}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
@@ -744,7 +750,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               const records = [
                 ...(month?.eventItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importeExplorer ?? explorerExpenseAmount(item, month.pref), detail:formatCardDetail(item, month.pref) })),
                 ...(month?.expenseItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importeExplorer ?? explorerExpenseAmount(item, month.pref), detail:formatCardDetail(item, month.pref) })),
-                ...(month?.projectItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.gasto })),
+                ...(month?.projectItems || []).map(item => ({ id:item.id, label:item.titulo, amount:item.importeExplorer ?? explorerExpenseAmount(item, month.pref), detail:formatCardDetail(item, month.pref) })),
               ];
               return (
                 <div style={{ display:"grid",gap:10 }}>
@@ -766,18 +772,22 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               const totalTrips = tripBreakdown.reduce((sum, trip)=>sum+trip.total,0);
               if (tripBreakdown.length === 0) return <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div>;
               if (selectedTrip) {
+                const month = selectedTrip.monthly[explorerMonth];
                 const pct = selectedTrip.presupuesto > 0 ? Math.min(100, (selectedTrip.total / selectedTrip.presupuesto) * 100) : 0;
-                const entries = Object.entries(selectedTrip.gastos || {}).filter(([, value]) => Number(value || 0) > 0);
+                const entries = month?.conceptItems || [];
                 return (
                   <div style={{ display:"grid",gap:10 }}>
-                    <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{selectedTrip.nombre}</span><strong>{fmt(selectedTrip.total)}</strong></div>
+                    <div style={{ display:"flex",justifyContent:"space-between" }}><span style={{ color:C.txt2,fontSize:12 }}>{selectedTrip.nombre}</span><strong>{fmt(month?.importe || 0)}</strong></div>
                     {selectedTrip.presupuesto > 0 && <div style={{ height:6,background:C.borde,borderRadius:6,overflow:"hidden" }}><div style={{ width:`${pct}%`,height:"100%",background:COLOR_VIAJE,borderRadius:6 }}/></div>}
                     {selectedTrip.inicio && <div style={{ fontSize:11,color:C.txt2 }}>{selectedTrip.inicio.split("-").reverse().join("/")} → {selectedTrip.fin?.split("-").reverse().join("/")} · {daysBetween(selectedTrip.inicio,selectedTrip.fin)}n</div>}
                     <div style={{ height:1,background:C.borde }}/>
-                    {entries.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : entries.map(([key, value]) => (
-                      <div key={key} style={{ display:"flex",justifyContent:"space-between",background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
-                        <span style={{ fontSize:12,color:C.txt }}>{key}</span>
-                        <strong style={{ fontSize:12,color:COLOR_VIAJE }}>{fmt(Number(value || 0))}</strong>
+                    {entries.length === 0 ? <div style={{ fontSize:12,color:C.txt2 }}>{t("No records")}</div> : entries.map(item => (
+                      <div key={item.id} style={{ background:"white",borderRadius:9,padding:"8px 10px",border:`1px solid ${C.borde}` }}>
+                        <div style={{ display:"flex",justifyContent:"space-between",gap:10 }}>
+                          <span style={{ fontSize:12,color:C.txt }}>{item.conceptKey}</span>
+                          <strong style={{ fontSize:12,color:COLOR_VIAJE }}>{fmt(Number(item.importeExplorer || 0))}</strong>
+                        </div>
+                        {formatCardDetail(item, month.pref) && <div style={{ fontSize:10,color:C.txt2,marginTop:3,lineHeight:1.35 }}>{formatCardDetail(item, month.pref)}</div>}
                       </div>
                     ))}
                   </div>

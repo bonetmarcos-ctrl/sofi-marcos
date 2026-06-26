@@ -1,22 +1,42 @@
 import { useMemo, useState } from "react";
+import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, projectExpenseItem } from "@sofi-marqui/domain";
 import { HABITACIONES, PRIORIDADES, ESTADOS } from "../../constants/habitaciones.ts";
 import { C, card } from "../../constants/colores.ts";
 import { fmt } from "../../utils/format.ts";
 import { todayISO, toISO, daysBetween } from "../../utils/dates.ts";
 import { MESES_CORTO } from "../../constants/meses.ts";
+import { paymentMethodIcon, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import ModalProyecto from "./ModalProyecto.tsx";
 
-export default function TabGantt({ proyectos, setProyectos }) {
+export default function TabGantt({ proyectos, setProyectos, setDeudas }) {
   const { t, monthName } = useI18n();
   const [modalP, setModalP]     = useState(null);
   const [filtroHab, setFiltroHab] = useState("todos");
   const [vista, setVista]       = useState("gantt");
   const { isMobile, isTablet } = useBreakpoint();
 
-  const guardar  = (p) => { setProyectos(prev => p.id && prev.find(x => x.id === p.id) ? prev.map(x => x.id === p.id ? p : x) : [...prev, p]); setModalP(null); };
-  const eliminar = (id) => { setProyectos(prev => prev.filter(x => x.id !== id)); setModalP(null); };
+  const guardar  = (p) => {
+    const expense = projectExpenseItem(p);
+    const debt = buildCreditCardDebtFromExpense(expense, "proyectos");
+    const item = debt ? { ...p, deudaTarjetaId:debt.id } : { ...p, deudaTarjetaId:"" };
+
+    setDeudas?.(prev => {
+      const withoutLinked = prev.filter(deuda => {
+        if (p.deudaTarjetaId && String(deuda.id) === String(p.deudaTarjetaId)) return false;
+        return !(deuda.origenColeccion === "proyectos" && String(deuda.origenId) === String(item.id));
+      });
+      return debt ? [...withoutLinked, debt] : withoutLinked;
+    });
+    setProyectos(prev => item.id && prev.find(x => x.id === item.id) ? prev.map(x => x.id === item.id ? item : x) : [...prev, item]);
+    setModalP(null);
+  };
+  const eliminar = (id) => {
+    setProyectos(prev => prev.filter(x => x.id !== id));
+    setDeudas?.(prev => prev.filter(deuda => !(deuda.origenColeccion === "proyectos" && String(deuda.origenId) === String(id))));
+    setModalP(null);
+  };
 
   const lista  = useMemo(() => filtroHab === "todos" ? proyectos : proyectos.filter(p => p.habitacion === filtroHab), [filtroHab, proyectos]);
   const sorted = useMemo(() => [...lista].sort((a, b) => a.inicio?.localeCompare(b.inicio)), [lista]);
@@ -135,6 +155,7 @@ export default function TabGantt({ proyectos, setProyectos }) {
                       <div style={{ display:"flex", gap:4, marginTop:2 }}>
                         <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:est.bg, color:est.color, fontWeight:600 }}>{t(est.label)}</span>
                         <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:pri.bg, color:pri.color, fontWeight:600 }}>{"▲".repeat(p.prioridad==="alta"?3:p.prioridad==="media"?2:1)}</span>
+                        {Number(p.gasto || 0) > 0 && <span style={{ fontSize:9, padding:"1px 5px", borderRadius:8, background:fundingBg(p.origenFondos), color:fundingColor(p.origenFondos), fontWeight:700 }}>{paymentMethodIcon(p.origenFondos)} {t(paymentMethodLabelKey(p.origenFondos || FUNDING_SOURCES.MONTH_INCOME))}</span>}
                       </div>
                     </div>
                   </div>
@@ -191,6 +212,7 @@ export default function TabGantt({ proyectos, setProyectos }) {
                             <div style={{ display:"flex", gap:6, marginTop:5, flexWrap:"wrap" }}>
                               <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:est.color, color:"white", fontWeight:700 }}>{t(est.label)}</span>
                               <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:pri.bg, color:pri.color, fontWeight:700 }}>{"▲".repeat(p.prioridad==="alta"?3:p.prioridad==="media"?2:1)} {t(pri.label)}</span>
+                              {Number(p.gasto || 0) > 0 && <span style={{ fontSize:10, padding:"2px 7px", borderRadius:10, background:fundingBg(p.origenFondos), color:fundingColor(p.origenFondos), fontWeight:700 }}>{paymentMethodIcon(p.origenFondos)} {t(paymentMethodLabelKey(p.origenFondos || FUNDING_SOURCES.MONTH_INCOME))}</span>}
                               {p.inicio && <span style={{ fontSize:10, color:"#94a3b8" }}>📅 {p.inicio.split("-").reverse().join("/")} → {p.fin?.split("-").reverse().join("/")}</span>}
                             </div>
                           </div>
@@ -223,3 +245,15 @@ export default function TabGantt({ proyectos, setProyectos }) {
     </div>
   );
 }
+
+const fundingColor = (source) => {
+  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return C.warn;
+  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return C.lavender;
+  return C.sageDark;
+};
+
+const fundingBg = (source) => {
+  if (source === FUNDING_SOURCES.CREDIT_NEXT_MONTH) return C.warnBg;
+  if (source === FUNDING_SOURCES.CREDIT_INSTALLMENTS) return C.lavLight;
+  return C.exitoBg;
+};

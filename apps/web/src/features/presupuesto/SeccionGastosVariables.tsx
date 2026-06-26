@@ -1,11 +1,12 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, calculateNextMonthCardBalanceForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, buildCreditCardDebtFromExpense, calculateExpenseCashImpactForMonth, calculateNextMonthCardBalanceForMonth, calculatePaymentMethodBreakdownForMonth, estimateCreditCardFirstChargeMonth, predictUtilityAvailabilityDate, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
 import { addMeses } from "../../utils/dates.ts";
+import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -14,7 +15,7 @@ const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
 const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
 
-export default function SeccionGastosVariables({ base = BASE, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, setDeudas }) {
+export default function SeccionGastosVariables({ base = BASE, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, deudas = [], setDeudas }) {
   const { t, monthName } = useI18n();
   const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
   const [modalSuministro, setModalSuministro] = useState(null);
@@ -102,16 +103,35 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
   ].filter(Boolean).join(" · ");
 
   // Gastos calendario del mes
-  const evMes       = useMemo(() => eventos.filter(e => categoriaEvento(e)?.tipo === "gasto" && calculateExpenseCashImpactForMonth(e, pref) > 0), [eventos, pref]);
+  const eventExpenseItems = useMemo(() => eventos.filter(e => categoriaEvento(e)?.tipo === "gasto"), [eventos]);
+  const projectItems = useMemo(() => proyectos.filter(p => p.estado === "completado").map(projectExpenseItem), [proyectos]);
+  const tripItems = useMemo(() => viajes.flatMap(tripExpenseItems), [viajes]);
+  const paymentExpenseItems = useMemo(() => [...eventExpenseItems, ...gastosVariables, ...projectItems, ...tripItems], [eventExpenseItems, gastosVariables, projectItems, tripItems]);
+  const evMes       = useMemo(() => eventExpenseItems.filter(e => calculateExpenseCashImpactForMonth(e, pref) > 0), [eventExpenseItems, pref]);
   const lineasMes   = useMemo(() => gastosVariables.filter(g => calculateExpenseCashImpactForMonth(g, pref) > 0), [gastosVariables, pref]);
-  const saldoTarjetaMesAnterior = useMemo(() => calculateNextMonthCardBalanceForMonth([...eventos.filter(e => categoriaEvento(e)?.tipo === "gasto"), ...gastosVariables], pref), [eventos, gastosVariables, pref]);
-  const tareasCasaMes = useMemo(() => proyectos.filter(p => p.estado === "completado" && p.fin?.startsWith(pref)), [proyectos, pref]);
-  const viajesMes   = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
-  const gastoViajeMes = viajesMes.reduce((a, v) => a + Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0), 0);
+  const saldoTarjetaMesAnterior = useMemo(() => calculateNextMonthCardBalanceForMonth([...eventExpenseItems, ...gastosVariables], pref), [eventExpenseItems, gastosVariables, pref]);
+  const tareasCasaMes = useMemo(() => projectItems.map(item => ({ ...item, cashImpact:calculateExpenseCashImpactForMonth(item, pref) })).filter(item => item.cashImpact > 0), [projectItems, pref]);
+  const viajesMes   = useMemo(() => viajes
+    .map(v => {
+      const conceptos = tripExpenseItems(v).map(item => ({ ...item, cashImpact:calculateExpenseCashImpactForMonth(item, pref) })).filter(item => item.cashImpact > 0);
+      return { ...v, conceptosMes:conceptos, cashImpact:conceptos.reduce((sum, item) => sum + item.cashImpact, 0) };
+    })
+    .filter(v => v.cashImpact > 0), [viajes, pref]);
+  const gastoViajeMes = viajesMes.reduce((a, v) => a + Number(v.cashImpact || 0), 0);
+  const paymentBreakdown = useMemo(() => calculatePaymentMethodBreakdownForMonth(
+    paymentExpenseItems,
+    deudas,
+    pref,
+  ), [deudas, paymentExpenseItems, pref]);
+  const paymentSummary = [
+    { ...PAYMENT_METHOD_OPTIONS[0], value:paymentBreakdown.cash, color:C.sageDark, bg:C.exitoBg },
+    { ...PAYMENT_METHOD_OPTIONS[1], value:paymentBreakdown.card, color:C.warn, bg:C.warnBg },
+    { ...PAYMENT_METHOD_OPTIONS[2], value:paymentBreakdown.cardInstallments, color:C.lavender, bg:C.lavLight },
+  ];
 
   const catsCalBase = Object.entries(CATEGORIAS)
     .filter(([, v]) => v.tipo === "gasto")
-    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k && (e.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, e) => a+calculateExpenseCashImpactForMonth(e, pref), 0) + lineasMes.filter(g => g.categoria===k && (g.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, g) => a+calculateExpenseCashImpactForMonth(g, pref), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.gasto||0), 0) : 0) }))
+    .map(([k, v]) => ({ key:k, ...v, sum:evMes.filter(e => categoriaEventoKey(e)===k && (e.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, e) => a+calculateExpenseCashImpactForMonth(e, pref), 0) + lineasMes.filter(g => g.categoria===k && (g.origenFondos || FUNDING_SOURCES.MONTH_INCOME) !== FUNDING_SOURCES.CREDIT_NEXT_MONTH).reduce((a, g) => a+calculateExpenseCashImpactForMonth(g, pref), 0) + (k === "hogar" ? tareasCasaMes.reduce((a, p) => a+Number(p.cashImpact||0), 0) : 0) }))
     .filter(c => c.sum > 0)
     .sort((a, b) => b.sum - a.sum);
   const catsCal = saldoTarjetaMesAnterior > 0
@@ -161,11 +181,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
   const modalMesCargo = modalGasto?.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...modalGasto, mes:pref }) || addMeses(pref, 1);
   const modalCuotasTarjeta = Math.max(1, Number(modalGasto?.cuotasTarjeta || 1));
   const modalCuotaTarjeta = Number(modalGasto?.importe || 0) / modalCuotasTarjeta;
-  const opcionesFondos = [
-    { key:FUNDING_SOURCES.MONTH_INCOME, label:t("Monthly income") },
-    { key:FUNDING_SOURCES.CREDIT_NEXT_MONTH, label:t("Credit card next month") },
-    { key:FUNDING_SOURCES.CREDIT_INSTALLMENTS, label:t("Credit card installments") },
-  ];
+  const opcionesFondos = PAYMENT_METHOD_OPTIONS.map(option => ({ ...option, label:t(option.labelKey), detail:t(option.detailKey) }));
   const setOrigenGasto = (value) => setModalGasto(g => ({
     ...g,
     origenFondos:value,
@@ -218,6 +234,18 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
           <button onClick={() => setMesIdx(i => Math.min(11, i+1))}
             style={{ background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:8, width:28, height:28, cursor:"pointer", fontSize:14, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>›</button>
         </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))", gap:8, marginTop:12, minWidth:0 }}>
+        {paymentSummary.map(item => (
+          <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, background:item.bg, border:`1px solid ${item.color}33`, borderRadius:10, padding:"8px 10px" }}>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:10, color:item.color, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.icon} {t(item.labelKey)}</div>
+              <div style={{ fontSize:10, color:C.txt2, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t(item.detailKey)}</div>
+            </div>
+            <strong style={{ color:item.color, fontSize:13, flexShrink:0 }}>{fmt(item.value)}</strong>
+          </div>
+        ))}
       </div>
 
       {/* 4 columnas */}
@@ -301,16 +329,16 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
             {viajesMes.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No trips this month")}</div>
               : viajesMes.map(v => {
-                const total = Object.values(v.gastos || {}).reduce<number>((x, y) => x + Number(y || 0), 0);
+                const total = Number(v.cashImpact || 0);
                 return (
                   <div key={v.id} style={{ fontSize:13, padding:"8px 12px", background:BG_VIAJE, borderRadius:9, border:`1px solid ${COLOR_VIAJE}33` }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <span style={{ color:COLOR_VIAJE, fontWeight:600 }}>{v.emoji||"✈️"} {v.nombre}</span>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, minWidth:0 }}>
+                      <span style={{ color:COLOR_VIAJE, fontWeight:600, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{v.emoji||"✈️"} {v.nombre}</span>
                       <span style={{ fontWeight:700, color:COLOR_VIAJE }}>{fmt(total)}</span>
                     </div>
-                    {Object.entries(v.gastos || {}).filter(([, val]) => Number(val || 0) > 0).map(([k, val]) => (
-                      <div key={k} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.txt2, marginTop:3, paddingLeft:8 }}>
-                        <span>{k}</span><span>{fmt(Number(val || 0))}</span>
+                    {(v.conceptosMes || []).map(item => (
+                      <div key={item.conceptKey} style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.txt2, marginTop:3, paddingLeft:8 }}>
+                        <span>{item.conceptKey}</span><span>{fmt(Number(item.cashImpact || 0))}</span>
                       </div>
                     ))}
                   </div>
@@ -425,12 +453,13 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
             </div>
             <div style={{ display:"grid", gap:10 }}>
               <div>
-                <label style={{ ...labelS, color:C.txt2 }}>{t("Funding source")}</label>
+                <label style={{ ...labelS, color:C.txt2 }}>{t("Payment method")}</label>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:6 }}>
                   {opcionesFondos.map(option => (
                     <button key={option.key} onClick={() => setOrigenGasto(option.key)}
-                      style={{ minHeight:38, padding:"6px 8px", borderRadius:10, border:`1px solid ${modalOrigenFondos === option.key ? C.cyan : C.borde}`, background:modalOrigenFondos === option.key ? C.cyanLight : C.fondo, color:modalOrigenFondos === option.key ? C.cyan : C.txt2, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.15 }}>
-                      {option.label}
+                      style={{ minHeight:48, padding:"6px 7px", borderRadius:10, border:`1px solid ${modalOrigenFondos === option.key ? C.cyan : C.borde}`, background:modalOrigenFondos === option.key ? C.cyanLight : C.fondo, color:modalOrigenFondos === option.key ? C.cyan : C.txt2, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.15, display:"grid", gap:2, alignContent:"center", minWidth:0 }}>
+                      <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{option.icon} {option.label}</span>
+                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{option.detail}</span>
                     </button>
                   ))}
                 </div>
@@ -465,7 +494,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
             <div style={{ background:C.lavLight, borderRadius:10, padding:"10px 14px", fontSize:12, color:C.lavender, border:`1px solid ${C.lavender}44` }}>
               {t("Variable expense")} {'->'} {monthName(mesIdx)} {año}
               {Number(modalGasto.importe || 0) > 0 && <strong> · {fmtd(Number(modalGasto.importe || 0))}</strong>}
-              {modalOrigenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ marginTop:4, color:C.txt2 }}>{t(modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "Credit card installments" : "Credit card next month")} · {modalMesCargo}{modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? ` · ${modalCuotasTarjeta} ${t("Installments").toLowerCase()} · ${fmtd(modalCuotaTarjeta)}/${t("month")}` : ""}</div>}
+              <div style={{ marginTop:4, color:C.txt2 }}>{t(paymentMethodLabelKey(modalOrigenFondos))} · {modalOrigenFondos === FUNDING_SOURCES.MONTH_INCOME ? `${monthName(mesIdx)} ${año}` : modalMesCargo}{modalOrigenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? ` · ${modalCuotasTarjeta} ${t("Installments").toLowerCase()} · ${fmtd(modalCuotaTarjeta)}/${t("month")}` : ""}</div>
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={() => guardarGastoVariable(modalGasto)} disabled={!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0}

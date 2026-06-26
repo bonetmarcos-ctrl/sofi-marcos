@@ -6,6 +6,7 @@ import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqu
 import { fmtd } from "../../../utils/format.ts";
 import { labelMes } from "../../../utils/format.ts";
 import { addMeses, todayISO } from "../../../utils/dates.ts";
+import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../../utils/paymentMethods.ts";
 import { useI18n } from "../../../i18n.tsx";
 
 export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSave, onDelete, onClose }) {
@@ -40,11 +41,7 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
   const mesCargo = form.mesPrimerCargo || estimateCreditCardFirstChargeMonth(form) || addMeses(mesCompra, 1);
   const cuotasTarjeta = Math.max(1, Number(form.cuotasTarjeta || 1));
   const cuotaTarjeta = Number(form.importe || 0) / cuotasTarjeta;
-  const opcionesFondos = [
-    { key:FUNDING_SOURCES.MONTH_INCOME, label:t("Monthly income") },
-    { key:FUNDING_SOURCES.CREDIT_NEXT_MONTH, label:t("Credit card next month") },
-    { key:FUNDING_SOURCES.CREDIT_INSTALLMENTS, label:t("Credit card installments") },
-  ];
+  const opcionesFondos = PAYMENT_METHOD_OPTIONS.map(option => ({ ...option, label:t(option.labelKey), detail:t(option.detailKey) }));
 
   const setOrigenFondos = (value) => setForm(f => ({
     ...f,
@@ -127,12 +124,13 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
         {esGasto && (
           <div style={{ display:"grid", gap:10 }}>
             <div>
-              <label style={{ ...labelS, color:C.txt2 }}>{t("Funding source")}</label>
+              <label style={{ ...labelS, color:C.txt2 }}>{t("Payment method")}</label>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:6 }}>
                 {opcionesFondos.map(option => (
                   <button key={option.key} onClick={() => setOrigenFondos(option.key)}
-                    style={{ minHeight:38, padding:"6px 8px", borderRadius:10, border:`1px solid ${origenFondos === option.key ? C.cyan : C.borde}`, background:origenFondos === option.key ? C.cyanLight : C.fondo, color:origenFondos === option.key ? C.cyan : C.txt2, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.15 }}>
-                    {option.label}
+                    style={{ minHeight:48, padding:"6px 7px", borderRadius:10, border:`1px solid ${origenFondos === option.key ? C.cyan : C.borde}`, background:origenFondos === option.key ? C.cyanLight : C.fondo, color:origenFondos === option.key ? C.cyan : C.txt2, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.15, display:"grid", gap:2, alignContent:"center", minWidth:0 }}>
+                    <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{option.icon} {option.label}</span>
+                    <span style={{ fontSize:9, fontWeight:600, opacity:0.75, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{option.detail}</span>
                   </button>
                 ))}
               </div>
@@ -172,7 +170,7 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
         <div style={{ background:esIngreso?C.exitoBg:C.lavLight, borderRadius:10, padding:"10px 14px", fontSize:12, color:esIngreso?C.sageDark:C.lavender, border:`1px solid ${esIngreso?C.exito+"44":C.lavender+"44"}` }}>
           {esIngreso ? `✅ ${t("Extra income")}` : `✅ ${t("Variable expense")}`} {'->'} {labelMes((form.fecha || todayISO).slice(0, 7))}
           {form.importe > 0 && <strong> · {fmtd(+form.importe)}</strong>}
-          {esGasto && origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ marginTop:4, color:C.txt2 }}>{t(origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "Credit card installments" : "Credit card next month")} · {labelMes(mesCargo)}{origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? ` · ${cuotasTarjeta} ${t("Installments").toLowerCase()} · ${fmtd(cuotaTarjeta)}/${t("month")}` : ""}</div>}
+          {esGasto && <div style={{ marginTop:4, color:C.txt2 }}>{t(paymentMethodLabelKey(origenFondos))}{origenFondos === FUNDING_SOURCES.MONTH_INCOME ? ` · ${labelMes(mesCompra)}` : ` · ${labelMes(mesCargo)}`}{origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? ` · ${cuotasTarjeta} ${t("Installments").toLowerCase()} · ${fmtd(cuotaTarjeta)}/${t("month")}` : ""}</div>}
         </div>
 
         {/* Actions */}

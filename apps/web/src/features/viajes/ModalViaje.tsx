@@ -2,27 +2,91 @@ import { useState } from "react";
 import Modal from "../../components/Modal.tsx";
 import { GASTOS_VIAJE, COLORES_VIAJE } from "../../constants/categorias.ts";
 import { C, inputS, labelS } from "../../constants/colores.ts";
-import { fmt, fmtd } from "../../utils/format.ts";
-import { daysBetween } from "../../utils/dates.ts";
+import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqui/domain";
+import { fmt, fmtd, labelMes } from "../../utils/format.ts";
+import { addMeses, daysBetween, todayISO } from "../../utils/dates.ts";
+import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useI18n } from "../../i18n.tsx";
 
 export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
   const { t } = useI18n();
-  const [form, setForm] = useState(viaje ? { ...viaje, gastos:{ ...viaje.gastos } } : {
+  const [form, setForm] = useState(viaje ? { ...viaje, gastos:{ ...viaje.gastos }, gastosPago:{ ...(viaje.gastosPago || {}) } } : {
     nombre: "", inicio: "", fin: "", presupuesto: "",
     color: COLORES_VIAJE[0], emoji: "✈️", notas: "",
     gastos: { vuelo:0, hotel:0, transporte:0, restaurante:0, actividades:0, otro:0 },
+    gastosPago: {},
   });
 
   const set  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setG = (k, v) => setForm(f => ({ ...f, gastos:{ ...f.gastos, [k]: +v || 0 } }));
+
+  const fechaCompra = form.inicio || form.fin || todayISO;
+  const mesCompra = fechaCompra.slice(0, 7);
+  const opcionesFondos = PAYMENT_METHOD_OPTIONS.map(option => ({ ...option, label:t(option.labelKey), detail:t(option.detailKey) }));
+  const pagoConcepto = (key) => form.gastosPago?.[key] || {};
+  const mesCargoConcepto = (key) => {
+    const pago = pagoConcepto(key);
+    return pago.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...pago, fecha:fechaCompra, mes:mesCompra }) || addMeses(mesCompra, 1);
+  };
+  const setPagoConcepto = (key, patch) => setForm(f => ({
+    ...f,
+    gastosPago:{ ...f.gastosPago, [key]:{ ...(f.gastosPago?.[key] || {}), ...patch } },
+  }));
+  const setFechaViaje = (key, value) => setForm(f => {
+    const next = { ...f, [key]:value };
+    const fecha = next.inicio || next.fin || todayISO;
+    const mes = fecha.slice(0, 7);
+    const gastosPago = Object.fromEntries(Object.entries(next.gastosPago || {}).map(([conceptKey, pago]) => {
+      const payment = pago as any;
+      if ((payment.origenFondos || FUNDING_SOURCES.MONTH_INCOME) === FUNDING_SOURCES.MONTH_INCOME) return [conceptKey, payment];
+      return [conceptKey, { ...payment, mesPrimerCargo:estimateCreditCardFirstChargeMonth({ ...payment, fecha, mes }) || payment.mesPrimerCargo }];
+    }));
+    return { ...next, gastosPago };
+  });
+  const setOrigenConcepto = (key, value) => setForm(f => {
+    const previo = f.gastosPago?.[key] || {};
+    const fecha = f.inicio || f.fin || todayISO;
+    const mes = fecha.slice(0, 7);
+    return {
+      ...f,
+      gastosPago:{
+        ...f.gastosPago,
+        [key]:{
+          ...previo,
+          origenFondos:value,
+          cuotasTarjeta:value === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(previo.cuotasTarjeta || 2)) : 1,
+          mesPrimerCargo:value === FUNDING_SOURCES.MONTH_INCOME ? "" : (previo.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...previo, fecha, mes }) || addMeses(mes, 1)),
+        },
+      },
+    };
+  });
+
+  const guardarViaje = () => {
+    const gastos = Object.fromEntries(GASTOS_VIAJE.map(g => [g.key, Number(form.gastos?.[g.key] || 0)]));
+    const gastosPagoEntries: [string, any][] = GASTOS_VIAJE.flatMap(g => {
+        const pago = pagoConcepto(g.key);
+        const origenFondos = pago.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+        const item = {
+          origenFondos,
+          cuotasTarjeta:origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(1, Number(pago.cuotasTarjeta || 1)) : 1,
+          mesPrimerCargo:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (pago.mesPrimerCargo || estimateCreditCardFirstChargeMonth({ ...pago, fecha:fechaCompra, mes:mesCompra }) || addMeses(mesCompra, 1)),
+          tarjetaNombre:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (pago.tarjetaNombre || ""),
+          tarjetaDiaCierre:origenFondos === FUNDING_SOURCES.MONTH_INCOME || !pago.tarjetaDiaCierre ? undefined : Number(pago.tarjetaDiaCierre),
+          deudaTarjetaId:pago.deudaTarjetaId || "",
+        };
+        return Number(gastos[g.key] || 0) > 0 || item.origenFondos !== FUNDING_SOURCES.MONTH_INCOME ? [[g.key, item]] : [];
+      });
+    const gastosPago = Object.fromEntries(gastosPagoEntries);
+
+    onSave({ ...form, id:viaje?.id || Date.now(), presupuesto:+form.presupuesto || 0, gastos, gastosPago });
+  };
 
   const total     = Object.values(form.gastos).reduce<number>((a, b) => a + Number(b || 0), 0);
   const noches    = form.inicio && form.fin ? daysBetween(form.inicio, form.fin) : 0;
   const restante  = (+form.presupuesto || 0) - total;
 
   return (
-    <Modal onClose={onClose} maxW={500}>
+    <Modal onClose={onClose} maxW={560}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
         <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:20, color:"#1a1a2e" }}>
           {viaje ? t("Edit trip") : `✈️ ${t("New trip")}`}
@@ -47,11 +111,11 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
           <div>
             <label style={labelS}>{t("Departure")}</label>
-            <input type="date" value={form.inicio} onChange={e => set("inicio", e.target.value)} style={inputS}/>
+            <input type="date" value={form.inicio} onChange={e => setFechaViaje("inicio", e.target.value)} style={inputS}/>
           </div>
           <div>
             <label style={labelS}>{t("Return")}</label>
-            <input type="date" value={form.fin} onChange={e => set("fin", e.target.value)} style={inputS}/>
+            <input type="date" value={form.fin} onChange={e => setFechaViaje("fin", e.target.value)} style={inputS}/>
           </div>
         </div>
         {noches > 0 && (
@@ -78,13 +142,44 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
         {/* Desglose gastos */}
         <div style={{ background:"#f8f7ff", borderRadius:14, padding:14, border:"1px solid #e2e0ed" }}>
           <div style={{ fontSize:12, fontWeight:700, color:"#4c1d95", marginBottom:12, textTransform:"uppercase", letterSpacing:"0.6px" }}>💸 {t("Expense breakdown")}</div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-            {GASTOS_VIAJE.map(g => (
-              <div key={g.key}>
-                <label style={{ ...labelS, fontSize:10 }}>{g.emoji} {t(g.label)}</label>
-                <input type="number" min="0" step="0.01" value={form.gastos[g.key] || ""} onChange={e => setG(g.key, e.target.value)} placeholder="0" style={inputS}/>
+          <div style={{ display:"grid", gap:10 }}>
+            {GASTOS_VIAJE.map(g => {
+              const pago = pagoConcepto(g.key);
+              const origenFondos = pago.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+              const mesCargo = mesCargoConcepto(g.key);
+              const cuotasTarjeta = Math.max(1, Number(pago.cuotasTarjeta || 1));
+              const cuota = Number(form.gastos[g.key] || 0) / cuotasTarjeta;
+              return (
+              <div key={g.key} style={{ background:"white", borderRadius:10, padding:10, border:"1px solid #e2e0ed", display:"grid", gap:8, minWidth:0 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"minmax(0,1fr) 110px", gap:8, alignItems:"end" }}>
+                  <div style={{ minWidth:0 }}>
+                    <label style={{ ...labelS, fontSize:10 }}>{g.emoji} {t(g.label)}</label>
+                    <div style={{ fontSize:10, color:"#7c6f9e", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t(paymentMethodLabelKey(origenFondos))}{origenFondos !== FUNDING_SOURCES.MONTH_INCOME ? ` · ${labelMes(mesCargo)}` : ""}</div>
+                  </div>
+                  <input type="number" min="0" step="0.01" value={form.gastos[g.key] || ""} onChange={e => setG(g.key, e.target.value)} placeholder="0" style={{ ...inputS, minHeight:34 }}/>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:5 }}>
+                  {opcionesFondos.map(option => (
+                    <button key={option.key} onClick={() => setOrigenConcepto(g.key, option.key)}
+                      style={{ minHeight:36, padding:"5px 6px", borderRadius:9, border:`1px solid ${origenFondos === option.key ? "#8b5cf6" : "#e2e0ed"}`, background:origenFondos === option.key ? "#f5f3ff" : "#f8f7ff", color:origenFondos === option.key ? "#6d28d9" : "#7c6f9e", fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1, minWidth:0 }}>
+                      <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", display:"block" }}>{option.icon} {option.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {origenFondos !== FUNDING_SOURCES.MONTH_INCOME && (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:6 }}>
+                    <input value={pago.tarjetaNombre || ""} onChange={e => setPagoConcepto(g.key, { tarjetaNombre:e.target.value })} placeholder={t("Card name")} style={{ ...inputS, minHeight:32, fontSize:11 }}/>
+                    <input type="number" min="1" max="31" step="1" value={pago.tarjetaDiaCierre || ""} onChange={e => setPagoConcepto(g.key, { tarjetaDiaCierre:e.target.value, mesPrimerCargo:estimateCreditCardFirstChargeMonth({ ...pago, fecha:fechaCompra, mes:mesCompra, tarjetaDiaCierre:e.target.value }) || pago.mesPrimerCargo })} placeholder="25" style={{ ...inputS, minHeight:32, fontSize:11 }}/>
+                    <input type="month" value={mesCargo} onChange={e => setPagoConcepto(g.key, { mesPrimerCargo:e.target.value })} style={{ ...inputS, minHeight:32, fontSize:11 }}/>
+                    {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && (
+                      <input type="number" min="1" step="1" value={cuotasTarjeta} onChange={e => setPagoConcepto(g.key, { cuotasTarjeta:+e.target.value })} style={{ ...inputS, minHeight:32, fontSize:11 }}/>
+                    )}
+                  </div>
+                )}
+                {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && Number(form.gastos[g.key] || 0) > 0 && <div style={{ fontSize:10, color:"#7c6f9e" }}>{cuotasTarjeta} {t("Installments").toLowerCase()} · {fmtd(cuota)}/{t("month")}</div>}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Totales */}
@@ -119,7 +214,7 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
         {/* Acciones */}
         <div style={{ display:"flex", gap:8 }}>
           <button
-            onClick={() => onSave({ ...form, id:viaje?.id || Date.now(), presupuesto:+form.presupuesto || 0 })}
+            onClick={guardarViaje}
             style={{ flex:1, background:C.cyan, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
             {t("Save trip")}
           </button>
