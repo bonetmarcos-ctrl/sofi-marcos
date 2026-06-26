@@ -1,11 +1,12 @@
 export type CollectionName = "eventos" | "viajes" | "bloqueos" | "proyectos" | "palancas" | "deudas" | "suministros" | "gastosVariables" | "comprasSuper" | "cumpleanos";
-export type AppState = Record<CollectionName, unknown[]>;
+export type AppState = Record<CollectionName, unknown[]> & { base?: Record<string, unknown> };
 export type CollectionItem = Record<string, unknown> & { id?: string | number };
 
 export type UserAccount = {
   username: string;
   passwordHash: string;
   createdAt: string;
+  appName?: string;
 };
 
 export interface StateRepository {

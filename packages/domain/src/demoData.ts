@@ -153,6 +153,71 @@ export const BASE = {
   }
 };
 
+const asRecord = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
+
+const toAmount = (value: unknown) => {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+};
+
+const normalizeBudgetLines = (lines: unknown): Record<string, any>[] => Array.isArray(lines)
+  ? lines
+      .map((line) => {
+        const record = asRecord(line);
+        return {
+          ...record,
+          nombre: String(record.nombre || "").trim(),
+          importe: toAmount(record.importe),
+          notas: String(record.notas || ""),
+        };
+      })
+      .filter((line) => line.nombre)
+  : [];
+
+const normalizeIncomeLines = (lines: unknown) => normalizeBudgetLines(lines).map((line) => ({
+  ...line,
+  recurrente: line.recurrente === undefined ? true : Boolean(line.recurrente),
+  desde: String(line.desde || ""),
+  hasta: String(line.hasta || ""),
+}));
+
+const normalizeMonthlyOverrides = (overrides: unknown) => Object.fromEntries(
+  Object.entries(asRecord(overrides))
+    .map(([month, values]) => {
+      const record = asRecord(values);
+      const clean = Object.fromEntries(
+        ["fixedIncome", "fixedExpenses", "debtExpenses"]
+          .filter((key) => record[key] !== "" && record[key] !== null && record[key] !== undefined)
+          .map((key) => [key, toAmount(record[key])]),
+      );
+      return [month, clean];
+    })
+    .filter(([, values]) => Object.keys(values).length > 0),
+);
+
+export const normalizeBudgetBase = (base: unknown = BASE) => {
+  const source: Record<string, any> = { ...structuredClone(BASE), ...asRecord(base) };
+  return {
+    ...source,
+    id: source.id || "base",
+    ingresos_fijos: toAmount(source.ingresos_fijos),
+    gastos_fijos: toAmount(source.gastos_fijos),
+    deudas: toAmount(source.deudas),
+    previsiones: toAmount(source.previsiones),
+    presupuesto_variable: toAmount(source.presupuesto_variable),
+    coste_coche: toAmount(source.coste_coche),
+    detalle_fijos: normalizeBudgetLines(source.detalle_fijos),
+    detalle_ingresos: normalizeIncomeLines(source.detalle_ingresos),
+    detalle_deudas: normalizeBudgetLines(source.detalle_deudas),
+    ingresos_puntuales_mayo: normalizeBudgetLines(source.ingresos_puntuales_mayo),
+    prestamo_coche: {
+      importe: toAmount(asRecord(source.prestamo_coche).importe),
+      vence: String(asRecord(source.prestamo_coche).vence || ""),
+    },
+    monthlyOverrides: normalizeMonthlyOverrides(source.monthlyOverrides),
+  };
+};
+
 export const DEMO_DEUDAS = [
   {
     "id": 1,
@@ -1072,6 +1137,7 @@ export const DEMO_SUMINISTROS = [
 ];
 
 export const createInitialState = () => ({
+  base: normalizeBudgetBase(),
   eventos: structuredClone(DEMO_EVENTOS),
   viajes: structuredClone(DEMO_VIAJES),
   bloqueos: [],
@@ -1079,6 +1145,20 @@ export const createInitialState = () => ({
   palancas: structuredClone(DEMO_PALANCAS),
   deudas: structuredClone(DEMO_DEUDAS),
   suministros: structuredClone(DEMO_SUMINISTROS),
+  gastosVariables: [],
+  comprasSuper: [],
+  cumpleanos: [],
+});
+
+export const createEmptyState = () => ({
+  base: normalizeBudgetBase(),
+  eventos: [],
+  viajes: [],
+  bloqueos: [],
+  proyectos: [],
+  palancas: [],
+  deudas: [],
+  suministros: [],
   gastosVariables: [],
   comprasSuper: [],
   cumpleanos: [],

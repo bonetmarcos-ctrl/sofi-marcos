@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
+import { DEFAULT_APP_NAME, normalizeAppName } from "@sofi-marqui/domain";
 import type { HttpError, UserRepository } from "./types.js";
 
 export type AuthConfig = {
@@ -16,10 +17,12 @@ export type AuthConfig = {
 export type RegisterCredentials = {
   username?: string;
   password?: string;
+  appName?: string;
 };
 
 export type SessionUser = {
   username: string;
+  appName: string;
 };
 
 const createHttpError = (statusCode: number, message: string) => {
@@ -76,16 +79,12 @@ export class AuthService {
     }
 
     const sessionUsername = registeredUser?.username || this.config.username;
+    const appName = normalizeAppName(registeredUser?.appName || DEFAULT_APP_NAME);
 
-    return {
-      token: jwt.sign({ sub: sessionUsername }, this.config.jwtSecret, {
-        expiresIn: this.sessionTtlSeconds,
-      }),
-      user: this.createSessionUser(sessionUsername),
-    };
+    return this.createSession(sessionUsername, appName);
   }
 
-  async register({ username, password }: RegisterCredentials) {
+  async register({ username, password, appName }: RegisterCredentials) {
     if (!this.isConfigured || !this.users) {
       throw createHttpError(503, "Registration is not configured");
     }
@@ -108,14 +107,10 @@ export class AuthService {
       username: normalizedUsername,
       passwordHash: await bcrypt.hash(password, 10),
       createdAt: new Date().toISOString(),
+      appName: normalizeAppName(appName),
     });
 
-    return {
-      token: jwt.sign({ sub: user.username }, this.config.jwtSecret, {
-        expiresIn: this.sessionTtlSeconds,
-      }),
-      user: this.createSessionUser(user.username),
-    };
+    return this.createSession(user.username, user.appName);
   }
 
   async verifyPassword(password = "") {
@@ -132,7 +127,8 @@ export class AuthService {
     try {
       const payload = jwt.verify(token, this.config.jwtSecret);
       if (typeof payload === "string" || typeof payload.sub !== "string") return null;
-      return this.createSessionUser(payload.sub);
+      const appName = typeof payload.appName === "string" ? payload.appName : DEFAULT_APP_NAME;
+      return this.createSessionUser(payload.sub, appName);
     } catch {
       return null;
     }
@@ -142,7 +138,18 @@ export class AuthService {
     return username.trim().toLowerCase();
   }
 
-  createSessionUser(username = this.config.username): SessionUser {
-    return { username };
+  createSessionUser(username = this.config.username, appName = DEFAULT_APP_NAME): SessionUser {
+    return { username, appName: normalizeAppName(appName) };
+  }
+
+  private createSession(username: string, appName = DEFAULT_APP_NAME) {
+    const user = this.createSessionUser(username, appName);
+
+    return {
+      token: jwt.sign({ sub: user.username, appName: user.appName }, this.config.jwtSecret, {
+        expiresIn: this.sessionTtlSeconds,
+      }),
+      user,
+    };
   }
 }

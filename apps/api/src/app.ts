@@ -33,7 +33,7 @@ export const createApp = ({ repository, userRepository, authConfig = env.auth })
     app.use(morgan("dev"));
   }
 
-  app.use("/api/auth", createAuthRouter(authService));
+  app.use("/api/auth", createAuthRouter(authService, stateService));
   app.use("/api", createStateRouter(stateService, createRequireAuth(authService)));
 
   if (isProduction) {

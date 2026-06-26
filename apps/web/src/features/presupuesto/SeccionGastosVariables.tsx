@@ -14,7 +14,7 @@ const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
 const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
 
-export default function SeccionGastosVariables({ eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, setDeudas }) {
+export default function SeccionGastosVariables({ base = BASE, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, setDeudas }) {
   const { t, monthName } = useI18n();
   const [mesIdxLocal, setMesIdxLocal] = useState(mesActual);
   const [modalSuministro, setModalSuministro] = useState(null);
@@ -26,7 +26,7 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
 
   const pref        = `${año}-${String(mesIdx + 1).padStart(2, "0")}`;
   const prefAnterior = mesIdx > 0 ? `${año}-${String(mesIdx).padStart(2, "0")}` : `${año - 1}-12`;
-  const fixedCostForMonth = BASE.monthlyOverrides?.[pref]?.fixedExpenses ?? BASE.gastos_fijos;
+  const fixedCostForMonth = base.monthlyOverrides?.[pref]?.fixedExpenses ?? base.gastos_fijos;
 
   // Suministros del mes
   const suministrosPorClave = useMemo(() => {
@@ -227,13 +227,13 @@ export default function SeccionGastosVariables({ eventos, viajes, proyectos = []
         <div style={columnStyle}>
           {colHeader("#64748b","#f1f5f9","#64748b33","#64748b",`🏠 ${t("Fixed costs")}`)}
           <div style={columnBodyStyle}>
-            {(BASE.detalle_fijos || [])
+            {(base.detalle_fijos || [])
               .filter(d => ["Hipoteca","Seguro de vida","Seguro de hogar","Seguro de coche","Seguro auto"].includes(d.nombre))
               .map(d => rowItem(d.nombre, fmt(d.importe), C.fondo, C.txt2, "#64748b"))
             }
             {(() => {
-              const com = (BASE.detalle_fijos || []).find(d => d.nombre === "Comunidad");
-              const der = (BASE.detalle_fijos || []).find(d => d.nombre === "Derramas");
+              const com = (base.detalle_fijos || []).find(d => d.nombre === "Comunidad");
+              const der = (base.detalle_fijos || []).find(d => d.nombre === "Derramas");
               const sum = (com?.importe||0) + (der?.importe||0);
               return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b") : null;
             })()}

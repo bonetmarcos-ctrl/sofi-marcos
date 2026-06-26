@@ -53,10 +53,11 @@ describe("Login", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Create account" })[0]);
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "  nueva  " } });
+    fireEvent.change(screen.getByLabelText("Application name"), { target: { value: "Sofi y Marcos" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
     fireEvent.click(registerSubmitButton());
 
-    await waitFor(() => expect(onRegister).toHaveBeenCalledWith({ username: "nueva", password: "secret123" }));
+    await waitFor(() => expect(onRegister).toHaveBeenCalledWith({ username: "nueva", password: "secret123", appName: "Sofi y Marcos" }));
     expect(onLogin).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createEmptyState } from "@sofi-marqui/domain";
 import { JsonStateRepository } from "./jsonStateRepository.js";
 
 let tempDir = "";
@@ -44,6 +45,17 @@ describe("JsonStateRepository", () => {
     const repository = new JsonStateRepository(filePath);
 
     await expect(repository.read()).resolves.toMatchObject({ eventos: [{ id: "a" }] });
+  });
+
+  it("creates empty state for new named owners", async () => {
+    const filePath = path.join(tempDir, "state.json");
+    const repository = new JsonStateRepository(filePath);
+
+    await expect(repository.read("nueva")).resolves.toEqual(createEmptyState());
+
+    const stored = JSON.parse(await readFile(filePath, "utf8"));
+    expect(stored.users.nueva).toEqual(createEmptyState());
+    expect(stored.users.default.eventos.length).toBeGreaterThan(0);
   });
 
   it("stores separate state for each user", async () => {

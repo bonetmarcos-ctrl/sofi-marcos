@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { C } from "./constants/colores.ts";
 import { Login } from "./components/Login.tsx";
 import { useAuth } from "./hooks/useAuth.ts";
 import { useBreakpoint } from "./hooks/useBreakpoint.ts";
 import { useAppState } from "./hooks/useAppState.ts";
 import { todayISO } from "./utils/dates.ts";
-import { buildCreditCardDebtFromExpense } from "@sofi-marqui/domain";
+import { DEFAULT_APP_NAME, buildCreditCardDebtFromExpense } from "@sofi-marqui/domain";
 import TabPresupuesto from "./features/presupuesto/TabPresupuesto.tsx";
 import TabCalendario  from "./features/calendario/TabCalendario.tsx";
 import TabGantt       from "./features/casa/TabGantt.tsx";
@@ -38,10 +38,15 @@ function AuthenticatedApp({ user, onLogout }) {
   const { t } = useI18n();
   const [tab,         setTab]         = useState("presupuesto");
   const [modal,       setModal]       = useState(null);
-  const { state, setCollection, loaded, status } = useAppState(user.username);
+  const { state, setCollection, setBase, loaded, status } = useAppState(user.username);
   const { isMobile, isTablet } = useBreakpoint();
+  const appName = user.appName || DEFAULT_APP_NAME;
 
-  const { eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, comprasSuper, cumpleanos } = state;
+  useEffect(() => {
+    document.title = appName;
+  }, [appName]);
+
+  const { base, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, comprasSuper, cumpleanos } = state;
   const setEventos     = useCallback(updater => setCollection("eventos", updater), [setCollection]);
   const setViajes      = useCallback(updater => setCollection("viajes", updater), [setCollection]);
   const setBloqueos    = useCallback(updater => setCollection("bloqueos", updater), [setCollection]);
@@ -137,9 +142,9 @@ function AuthenticatedApp({ user, onLogout }) {
       <div style={{ background:"#111418", position:"sticky", top:0, zIndex:200, boxShadow:"0 1px 0 rgba(255,255,255,0.06),0 4px 16px rgba(0,0,0,0.25)" }}>
         <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"10px 14px":"0 24px", display:"flex", alignItems:isMobile?"stretch":"center", justifyContent:"space-between", minHeight:58, gap:isMobile?10:14, flexDirection:isMobile?"column":"row" }}>
           {/* Logo */}
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
             <div style={{ width:32, height:32, borderRadius:9, background:`linear-gradient(135deg,${C.cyan},${C.lavender})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>🏡</div>
-            <span style={{ fontSize:16, fontWeight:700, color:"white", letterSpacing:"-0.3px" }}>Sofi & Marqui</span>
+            <span style={{ fontSize:16, fontWeight:700, color:"white", letterSpacing:0, maxWidth:isMobile?"100%":220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{appName}</span>
           </div>
 
           {/* Tabs */}
@@ -183,7 +188,7 @@ function AuthenticatedApp({ user, onLogout }) {
       {/* Content */}
       <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"14px 12px 32px":isTablet?"18px 16px 40px":"24px 24px 48px", minWidth:0 }}>
         {tab === "presupuesto" && (
-          <TabPresupuesto eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+          <TabPresupuesto base={base} setBase={setBase} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
         )}
         {tab === "calendario" && (
           <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal} comprasSuper={comprasSuper} onSaveSuperPurchase={saveSuperPurchase} onDeleteSuperPurchase={deleteSuperPurchase} cumpleanos={cumpleanos} setCumpleanos={setCumpleanos}/>

@@ -1,4 +1,4 @@
-import { createInitialState } from "@sofi-marqui/domain";
+import { createEmptyState, createInitialState } from "@sofi-marqui/domain";
 import type { AppState, StateRepository } from "../application/types.js";
 
 export class MemoryStateRepository implements StateRepository {
@@ -9,7 +9,7 @@ export class MemoryStateRepository implements StateRepository {
   }
 
   async read(ownerId = "default"): Promise<AppState> {
-    const state = this.states.get(ownerId) || createInitialState();
+    const state = this.states.get(ownerId) || this.createInitialStateForOwner(ownerId);
     if (!this.states.has(ownerId)) {
       this.states.set(ownerId, structuredClone(state));
     }
@@ -18,5 +18,9 @@ export class MemoryStateRepository implements StateRepository {
 
   async write(state: AppState, ownerId = "default") {
     this.states.set(ownerId, structuredClone(state));
+  }
+
+  private createInitialStateForOwner(ownerId: string): AppState {
+    return (ownerId === "default" ? createInitialState() : createEmptyState()) as AppState;
   }
 }

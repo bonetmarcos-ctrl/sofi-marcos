@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APP_NAME } from "@sofi-marqui/domain";
 import { AuthService, type AuthConfig } from "./authService.js";
 import { MemoryUserRepository } from "../infrastructure/memoryUserRepository.js";
 
@@ -19,8 +20,8 @@ describe("AuthService", () => {
 
     const session = await service.login({ username: "tester", password: "secret" });
 
-    expect(session.user).toEqual({ username: "tester" });
-    expect(service.verifyToken(session.token)).toEqual({ username: "tester" });
+    expect(session.user).toEqual({ username: "tester", appName: DEFAULT_APP_NAME });
+    expect(service.verifyToken(session.token)).toEqual({ username: "tester", appName: DEFAULT_APP_NAME });
   });
 
   it("rejects invalid credentials and invalid tokens", async () => {
@@ -41,10 +42,11 @@ describe("AuthService", () => {
     const users = new MemoryUserRepository();
     const service = new AuthService(baseConfig, users);
 
-    const session = await service.register({ username: "  Nueva  ", password: "secret123" });
+    const session = await service.register({ username: "  Nueva  ", password: "secret123", appName: "Casa Nueva" });
     const storedUser = await users.findByUsername("nueva");
 
-    expect(session.user).toEqual({ username: "nueva" });
+    expect(session.user).toEqual({ username: "nueva", appName: "Casa Nueva" });
+    expect(storedUser?.appName).toBe("Casa Nueva");
     expect(storedUser?.passwordHash).not.toBe("secret123");
     await expect(service.login({ username: "nueva", password: "secret123" })).resolves.toHaveProperty("token");
   });

@@ -1,4 +1,4 @@
-import { createInitialState } from "@sofi-marqui/domain";
+import { createEmptyState, createInitialState } from "@sofi-marqui/domain";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AppState, StateRepository } from "../application/types.js";
@@ -33,11 +33,17 @@ export class JsonStateRepository implements StateRepository {
     const stored = await this.readStoredState();
 
     if (!hasUserStates(stored)) {
+      if (ownerId !== DEFAULT_OWNER) {
+        const initialState = createEmptyState();
+        await this.write(initialState, ownerId);
+        return initialState;
+      }
+
       return stored;
     }
 
     if (!stored.users[ownerId]) {
-      const initialState = createInitialState();
+      const initialState = ownerId === DEFAULT_OWNER ? createInitialState() : createEmptyState();
       await this.write(initialState, ownerId);
       return initialState;
     }

@@ -1,4 +1,4 @@
-import { collectionNames, collectionSchemas, createInitialState } from "@sofi-marqui/domain";
+import { collectionNames, collectionSchemas, createEmptyState, createInitialState, normalizeBudgetBase } from "@sofi-marqui/domain";
 import { nanoid } from "nanoid";
 import type { AppState, CollectionItem, CollectionName, HttpError, StateRepository } from "./types.js";
 
@@ -18,13 +18,20 @@ export class AppStateService {
   }
 
   async resetState(ownerId?: string): Promise<AppState> {
-    const state = createInitialState() as AppState;
+    const state = this.createInitialStateForOwner(ownerId);
     await this.repository.write(state, ownerId);
     return state;
   }
 
-  async replaceState(payload: Partial<Record<CollectionName, unknown[]>>, ownerId?: string): Promise<AppState> {
-    const state = createInitialState() as AppState;
+  async createProfileState(ownerId: string): Promise<AppState> {
+    const state = createEmptyState() as AppState;
+    await this.repository.write(state, ownerId);
+    return state;
+  }
+
+  async replaceState(payload: Partial<AppState>, ownerId?: string): Promise<AppState> {
+    const state = createEmptyState() as AppState;
+    state.base = normalizeBudgetBase(payload.base);
 
     for (const collection of collectionNames as CollectionName[]) {
       state[collection] = Array.isArray(payload[collection])
@@ -109,7 +116,7 @@ export class AppStateService {
   }
 
   private normalizeState(state: AppState): AppState {
-    const initialState = createInitialState() as AppState;
+    const initialState = createEmptyState() as AppState;
     const normalized = { ...initialState, ...state };
 
     for (const collection of collectionNames as CollectionName[]) {
@@ -118,6 +125,12 @@ export class AppStateService {
       }
     }
 
+    normalized.base = normalizeBudgetBase(normalized.base);
+
     return normalized;
+  }
+
+  private createInitialStateForOwner(ownerId?: string): AppState {
+    return (ownerId && ownerId !== "default" ? createEmptyState() : createInitialState()) as AppState;
   }
 }

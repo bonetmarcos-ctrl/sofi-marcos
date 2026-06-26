@@ -1,4 +1,4 @@
-import { createInitialState } from "@sofi-marqui/domain";
+import { createEmptyState, createInitialState } from "@sofi-marqui/domain";
 import pg from "pg";
 import type { AppState, StateRepository } from "../application/types.js";
 
@@ -34,7 +34,7 @@ export class PostgresStateRepository implements StateRepository {
       return result.rows[0].data;
     }
 
-    const initialState = createInitialState();
+    const initialState = ownerId === DEFAULT_OWNER ? createInitialState() : createEmptyState();
     await this.write(initialState, ownerId);
     return initialState;
   }

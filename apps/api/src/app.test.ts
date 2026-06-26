@@ -1,5 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_APP_NAME, createEmptyState } from "@sofi-marqui/domain";
 import { createApp } from "./app.js";
 import { MemoryStateRepository } from "./infrastructure/memoryStateRepository.js";
 import { MemoryUserRepository } from "./infrastructure/memoryUserRepository.js";
@@ -42,7 +43,7 @@ describe("api", () => {
 
     const response = await agent.get("/api/auth/me").expect(200);
 
-    expect(response.body.user.username).toBe("tester");
+    expect(response.body.user).toEqual({ username: "tester", appName: DEFAULT_APP_NAME });
     await agent.get("/api/state").expect(200);
   });
 
@@ -51,11 +52,12 @@ describe("api", () => {
 
     const response = await agent
       .post("/api/auth/register")
-      .send({ username: "Nueva", password: "secret123" })
+      .send({ username: "Nueva", password: "secret123", appName: "Casa Nueva" })
       .expect(201);
 
-    expect(response.body.user).toEqual({ username: "nueva" });
-    await agent.get("/api/state").expect(200);
+    expect(response.body.user).toEqual({ username: "nueva", appName: "Casa Nueva" });
+    const state = await agent.get("/api/state").expect(200);
+    expect(state.body).toEqual(createEmptyState());
   });
 
   it("keeps application state isolated per authenticated user", async () => {
@@ -63,8 +65,8 @@ describe("api", () => {
     const firstUser = request.agent(app);
     const secondUser = request.agent(app);
 
-    await firstUser.post("/api/auth/register").send({ username: "sofi", password: "secret123" }).expect(201);
-    await secondUser.post("/api/auth/register").send({ username: "marqui", password: "secret123" }).expect(201);
+    await firstUser.post("/api/auth/register").send({ username: "sofi", password: "secret123", appName: "Sofi" }).expect(201);
+    await secondUser.post("/api/auth/register").send({ username: "marqui", password: "secret123", appName: "Marqui" }).expect(201);
 
     await firstUser
       .post("/api/palancas")
@@ -76,6 +78,7 @@ describe("api", () => {
 
     expect(firstState.body.palancas.some((palanca: { nombre: string }) => palanca.nombre === "Solo Sofi")).toBe(true);
     expect(secondState.body.palancas.some((palanca: { nombre: string }) => palanca.nombre === "Solo Sofi")).toBe(false);
+    expect(secondState.body.eventos).toEqual([]);
   });
 
   it("rejects invalid login attempts", async () => {

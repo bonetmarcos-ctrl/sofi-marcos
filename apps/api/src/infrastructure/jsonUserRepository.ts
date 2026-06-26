@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { normalizeAppName } from "@sofi-marqui/domain";
 import type { UserAccount, UserRepository } from "../application/types.js";
 
 type StoredUsers = {
@@ -18,21 +19,24 @@ export class JsonUserRepository implements UserRepository {
 
   async findByUsername(username: string) {
     const stored = await this.readStoredUsers();
-    return stored.users.find((user) => user.username === username) || null;
+    const user = stored.users.find((currentUser) => currentUser.username === username);
+    return user ? this.normalizeUser(user) : null;
   }
 
   async create(user: UserAccount) {
+    const normalizedUser = this.normalizeUser(user);
+
     this.writeQueue = this.writeQueue.then(async () => {
       const stored = await this.readStoredUsers();
-      if (stored.users.some((currentUser) => currentUser.username === user.username)) {
+      if (stored.users.some((currentUser) => currentUser.username === normalizedUser.username)) {
         throw new Error("User already exists");
       }
 
-      await this.writeStoredUsers({ ...stored, users: [...stored.users, user] });
+      await this.writeStoredUsers({ ...stored, users: [...stored.users, normalizedUser] });
     });
 
     await this.writeQueue;
-    return user;
+    return normalizedUser;
   }
 
   private async readStoredUsers(): Promise<StoredUsers> {
@@ -48,5 +52,9 @@ export class JsonUserRepository implements UserRepository {
   private async writeStoredUsers(users: StoredUsers) {
     await mkdir(path.dirname(this.filePath), { recursive: true });
     await writeFile(this.filePath, `${JSON.stringify(users, null, 2)}\n`, "utf8");
+  }
+
+  private normalizeUser(user: UserAccount): UserAccount {
+    return { ...user, appName: normalizeAppName(user.appName) };
   }
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DEFAULT_APP_NAME } from "@sofi-marqui/domain";
 import { C } from "../constants/colores.ts";
 import { useI18n } from "../i18n.tsx";
 
@@ -7,9 +8,11 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [appName, setAppName] = useState(DEFAULT_APP_NAME);
   const [submitting, setSubmitting] = useState(false);
 
   const isRegistering = mode === "register";
+  const displayAppName = isRegistering ? appName.trim() || DEFAULT_APP_NAME : DEFAULT_APP_NAME;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -17,7 +20,7 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
 
     try {
       const submit = isRegistering ? onRegister : onLogin;
-      await submit({ username: username.trim(), password });
+      await submit({ username: username.trim(), password, ...(isRegistering ? { appName: appName.trim() } : {}) });
     } catch (loginError) {
       onError(loginError.message || (isRegistering ? t("Could not create the account") : t("Could not log in")));
     } finally {
@@ -48,7 +51,7 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:22 }}>
             <div style={{ width:36, height:36, borderRadius:8, background:`linear-gradient(135deg,${C.cyan},${C.lavender})`, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:800 }}>S</div>
             <div>
-              <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:25, lineHeight:1.05, color:C.txt }}>Sofi & Marqui</h1>
+              <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:25, lineHeight:1.05, color:C.txt, overflowWrap:"anywhere" }}>{displayAppName}</h1>
               <p style={{ color:C.muted, fontSize:13, marginTop:3 }}>{isRegistering ? t("Create account") : t("Private access")}</p>
             </div>
           </div>
@@ -66,6 +69,13 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
             {t("Username")}
             <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" disabled={loading || submitting} required style={{ width:"100%", border:`1px solid ${C.borde}`, borderRadius:8, padding:"11px 12px", font:"inherit", minWidth:0 }} />
           </label>
+
+          {isRegistering && (
+            <label style={{ display:"grid", gap:7, fontSize:13, fontWeight:700, color:C.txt, marginBottom:14 }}>
+              {t("Application name")}
+              <input value={appName} onChange={(event) => setAppName(event.target.value)} autoComplete="organization" maxLength={80} disabled={loading || submitting} required style={{ width:"100%", border:`1px solid ${C.borde}`, borderRadius:8, padding:"11px 12px", font:"inherit", minWidth:0 }} />
+            </label>
+          )}
 
           <label style={{ display:"grid", gap:7, fontSize:13, fontWeight:700, color:C.txt, marginBottom:16 }}>
             {t("Password")}

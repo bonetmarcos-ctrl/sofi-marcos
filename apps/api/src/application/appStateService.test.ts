@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState } from "@sofi-marqui/domain";
+import { createEmptyState, createInitialState } from "@sofi-marqui/domain";
 import { AppStateService } from "./appStateService.js";
 import { MemoryStateRepository } from "../infrastructure/memoryStateRepository.js";
 
@@ -15,6 +15,19 @@ describe("AppStateService", () => {
 
     expect(state.eventos).toEqual(createInitialState().eventos);
     await expect(service.getState()).resolves.toEqual(state);
+  });
+
+  it("resets authenticated profiles to an empty state", async () => {
+    const repository = new MemoryStateRepository({
+      ...createInitialState(),
+      eventos: [{ id: 1, fecha: "2026-06-18", titulo: "Old", hora: "", categoria: "ocio", importe: 0, notas: "" }],
+    });
+    const service = new AppStateService(repository);
+
+    const state = await service.resetState("nueva");
+
+    expect(state).toEqual(createEmptyState());
+    await expect(service.getUserState("nueva")).resolves.toEqual(createEmptyState());
   });
 
   it("lists, creates, updates and removes typed collection items", async () => {
@@ -65,7 +78,7 @@ describe("AppStateService", () => {
     const service = new AppStateService(new MemoryStateRepository(legacyState as never));
 
     const state = await service.getState();
-    expect(state.gastosVariables).toEqual(createInitialState().gastosVariables);
+    expect(state.gastosVariables).toEqual(createEmptyState().gastosVariables);
 
     const created = await service.create("gastosVariables", { mes: "2026-06", titulo: "Compra", categoria: "otro", importe: "12" });
     expect(created).toMatchObject({ importe: 12, origenFondos: "ingresos_mes" });

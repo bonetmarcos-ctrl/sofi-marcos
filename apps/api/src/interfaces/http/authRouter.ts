@@ -12,7 +12,7 @@ const createCookieOptions = (authService) => ({
   secure: authService.cookieSecure,
 });
 
-export const createAuthRouter = (authService) => {
+export const createAuthRouter = (authService, stateService) => {
   const router = Router();
 
   router.get("/me", (request, response) => {
@@ -33,6 +33,7 @@ export const createAuthRouter = (authService) => {
 
   router.post("/register", asyncRoute(async (request, response) => {
     const { token, user } = await authService.register(request.body || {});
+    await stateService.createProfileState(user.username);
     response.cookie(authService.cookieName, token, createCookieOptions(authService));
     response.status(201).json({ user });
   }));

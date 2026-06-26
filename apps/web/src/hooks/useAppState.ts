@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createInitialState } from "@sofi-marqui/domain";
+import { createEmptyState, normalizeBudgetBase } from "@sofi-marqui/domain";
 import { apiClient } from "../services/apiClient.ts";
 
 const STORAGE_KEY = "sofi_marqui_state_v1";
@@ -27,14 +27,16 @@ const resolveUpdater = (updater, currentValue) =>
   typeof updater === "function" ? updater(currentValue) : updater;
 
 const normalizeState = (state) => {
-  const initialState = createInitialState();
+  const initialState = createEmptyState();
   const normalized = { ...initialState, ...(state || {}) };
 
-  Object.keys(initialState).forEach((collection) => {
-    if (!Array.isArray(normalized[collection])) {
-      normalized[collection] = initialState[collection];
+  Object.entries(initialState).forEach(([collection, value]) => {
+    if (Array.isArray(value) && !Array.isArray(normalized[collection])) {
+      normalized[collection] = value;
     }
   });
+
+  normalized.base = normalizeBudgetBase(normalized.base);
 
   return normalized;
 };
@@ -93,8 +95,15 @@ export const useAppState = (ownerId = "default") => {
     }));
   }, []);
 
+  const setBase = useCallback((updater) => {
+    setState((currentState) => ({
+      ...currentState,
+      base: normalizeBudgetBase(resolveUpdater(updater, currentState.base)),
+    }));
+  }, []);
+
   return useMemo(
-    () => ({ state, setCollection, loaded, status }),
-    [state, setCollection, loaded, status],
+    () => ({ state, setCollection, setBase, loaded, status }),
+    [state, setCollection, setBase, loaded, status],
   );
 };
