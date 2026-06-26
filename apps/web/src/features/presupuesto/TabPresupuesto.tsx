@@ -336,12 +336,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         </div>
       </div>
 
-      {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
-      <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
-
-      {/* ── PANEL DEUDAS ── */}
-      <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
-
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10 }}>
@@ -575,6 +569,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         )}
       </div>
+
+      {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
+      <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
+
+      {/* ── PANEL DEUDAS ── */}
+      <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
 
       {/* ── EXPLORADOR DE GASTOS ── */}
       <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
