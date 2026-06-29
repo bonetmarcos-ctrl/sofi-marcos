@@ -32,7 +32,8 @@ describe("App", () => {
   it("renders the main application shell", async () => {
     render(<LanguageProvider><App /></LanguageProvider>);
 
-    expect(await screen.findByRole("button", { name: /budget/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /today/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /resources/i })).toBeInTheDocument();
     expect(screen.getByText("Tester App")).toBeInTheDocument();
   });
 });

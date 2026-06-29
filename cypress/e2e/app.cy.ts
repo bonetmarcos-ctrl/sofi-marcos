@@ -18,7 +18,8 @@ describe("Sofi & Marqui", () => {
     cy.wait("@loginRequest").its("response.statusCode").should("eq", 200);
     cy.wait("@loadState");
 
-    cy.contains("button", /Budget/).should("be.visible");
+    cy.contains("button", /Today/).should("be.visible");
+    cy.contains("button", /Resources/).should("be.visible");
     cy.contains("admin").should("be.visible");
   });
 
@@ -28,14 +29,14 @@ describe("Sofi & Marqui", () => {
     cy.window().then((window) => window.localStorage.setItem("sofi_marqui_language", "en"));
     cy.reload();
 
-    cy.contains("button", /Calendar/).click();
+    cy.contains("button", /Time/).click();
     cy.contains(/Month|Week/).should("be.visible");
 
-    cy.contains("button", /Home/).click();
-    cy.contains(/Total tasks|Budget/).should("be.visible");
+    cy.contains("button", /Projects/).click();
+    cy.contains(/Total tasks|Gantt|List/).should("be.visible");
 
-    cy.contains("button", /Budget/).click();
-    cy.contains(/Balance|Income|Expenses/).should("be.visible");
+    cy.contains("button", /Resources/).click();
+    cy.contains(/Monthly summary|Income|Expenses/).should("be.visible");
   });
 
   it("creates an event and persists it through the API", () => {
