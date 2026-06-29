@@ -9,6 +9,16 @@ const submitButton = () => screen.getAllByRole("button", { name: "Login" }).at(-
 const registerSubmitButton = () => screen.getAllByRole("button", { name: "Create account" }).at(-1)!;
 
 describe("Login", () => {
+  it("presents the Iter identity", () => {
+    renderLogin(<Login loading={false} error="" onLogin={vi.fn()} onRegister={vi.fn()} onError={vi.fn()} />);
+
+    expect(screen.getByText("Iter")).toBeInTheDocument();
+    expect(screen.getByText("navigate your becoming")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Design the life you want to build." })).toBeInTheDocument();
+    expect(screen.getByText("Dreams")).toBeInTheDocument();
+    expect(screen.getByText("Resources")).toBeInTheDocument();
+  });
+
   it("submits trimmed credentials", async () => {
     const onLogin = vi.fn().mockResolvedValue(undefined);
     const onError = vi.fn();

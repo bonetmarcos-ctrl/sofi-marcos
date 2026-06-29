@@ -1,4 +1,4 @@
-export const DEFAULT_APP_NAME = "Sofi & Marqui";
+export const DEFAULT_APP_NAME = "Iter";
 
 export const normalizeAppName = (appName?: string | null) => {
   const normalized = String(appName || "").trim();
