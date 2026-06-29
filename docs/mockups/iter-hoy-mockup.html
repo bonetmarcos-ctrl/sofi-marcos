@@ -11,11 +11,11 @@
         --violet-wash: #f8f5fa;
         --lilac: #a89abb;
         --lilac-light: #f5f1f8;
-        --sage: #829577;
-        --sage-light: #f1f6ee;
-        --sage-dark: #5d7457;
-        --moss: #96a87d;
-        --moss-light: #f5f8f1;
+        --blue-gray: #6f8194;
+        --blue-gray-light: #eef3f6;
+        --blue-gray-dark: #526679;
+        --mist: #91a2b0;
+        --mist-light: #f3f6f8;
         --attention: #9b7a69;
         --attention-light: #f8f2ef;
         --bg: #f8f7f3;
@@ -45,7 +45,7 @@
         min-height: 100vh;
         background:
           radial-gradient(circle at 12% 0%, rgba(168, 154, 187, 0.18), transparent 30%),
-          radial-gradient(circle at 88% 8%, rgba(130, 149, 119, 0.16), transparent 26%),
+          radial-gradient(circle at 88% 8%, rgba(111, 129, 148, 0.16), transparent 26%),
           var(--bg);
       }
 
@@ -136,8 +136,8 @@
         width: 9px;
         height: 9px;
         border-radius: 50%;
-        background: var(--sage);
-        box-shadow: 0 0 8px rgba(130, 149, 119, 0.28);
+        background: var(--blue-gray);
+        box-shadow: 0 0 8px rgba(111, 129, 148, 0.28);
       }
 
       main {
@@ -229,13 +229,13 @@
       }
 
       .metric.good {
-        border-left-color: var(--sage);
-        background: rgba(241, 246, 238, 0.72);
+        border-left-color: var(--blue-gray);
+        background: rgba(238, 243, 246, 0.72);
       }
 
       .metric.warn {
-        border-left-color: var(--moss);
-        background: rgba(245, 248, 241, 0.74);
+        border-left-color: var(--mist);
+        background: rgba(243, 246, 248, 0.74);
       }
 
       .metric.risk {
@@ -270,11 +270,11 @@
       }
 
       .metric.good .metric-value {
-        color: var(--sage-dark);
+        color: var(--blue-gray-dark);
       }
 
       .metric.warn .metric-value {
-        color: var(--moss);
+        color: var(--blue-gray);
       }
 
       .metric.risk .metric-value {
@@ -436,9 +436,9 @@
       }
 
       .pill.resources {
-        color: var(--sage-dark);
-        background: var(--sage-light);
-        border-color: rgba(93, 116, 87, 0.18);
+        color: var(--blue-gray-dark);
+        background: var(--blue-gray-light);
+        border-color: rgba(82, 102, 121, 0.18);
       }
 
       .pill.time {
@@ -481,7 +481,7 @@
         position: relative;
         border-radius: 16px;
         padding: 16px 18px;
-        background: linear-gradient(135deg, rgba(241, 237, 245, 0.96), rgba(241, 246, 238, 0.92));
+        background: linear-gradient(135deg, rgba(241, 237, 245, 0.96), rgba(238, 243, 246, 0.92));
         border: 1px solid rgba(110, 99, 133, 0.16);
         box-shadow: 0 1px 8px rgba(45, 41, 50, 0.035);
       }
@@ -517,7 +517,7 @@
       }
 
       .sentence span {
-        color: var(--sage-dark);
+        color: var(--blue-gray-dark);
       }
 
       .recommendations {
@@ -585,9 +585,9 @@
       .thread-status {
         align-self: center;
         justify-self: end;
-        color: var(--sage-dark);
-        background: var(--sage-light);
-        border: 1px solid rgba(130, 149, 119, 0.28);
+        color: var(--blue-gray-dark);
+        background: var(--blue-gray-light);
+        border: 1px solid rgba(111, 129, 148, 0.28);
         border-radius: 999px;
         padding: 5px 8px;
         font-size: 10px;
