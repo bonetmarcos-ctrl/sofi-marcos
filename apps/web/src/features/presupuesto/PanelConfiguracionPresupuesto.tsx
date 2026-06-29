@@ -26,6 +26,13 @@ const toDayOfMonth = (value) => {
   return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
 };
 
+const toIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : "";
+
+const dayFromIsoDate = (value) => {
+  const date = toIsoDate(value);
+  return date ? Number(date.slice(8, 10)) : null;
+};
+
 const cleanLines = (lines = []) => lines
   .filter((line) => String(line.nombre || "").trim())
   .map((line) => ({
@@ -91,13 +98,17 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
       presupuesto_variable: toNumber(form.presupuesto_variable),
       coste_coche: toNumber(form.coste_coche),
       detalle_fijos: cleanLines(form.detalle_fijos),
-      detalle_ingresos: cleanLines(form.detalle_ingresos).map((line) => ({
-        ...line,
-        recurrente: Boolean(line.recurrente),
-        desde: line.desde || "",
-        hasta: line.hasta || "",
-        diaAcreditacion: toDayOfMonth(line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
-      })),
+      detalle_ingresos: cleanLines(form.detalle_ingresos).map((line) => {
+        const fechaAcreditacion = toIsoDate(line.fechaAcreditacion ?? line.fechaCobro ?? line.fechaPago);
+        return {
+          ...line,
+          recurrente: Boolean(line.recurrente),
+          desde: line.desde || "",
+          hasta: line.hasta || "",
+          fechaAcreditacion,
+          diaAcreditacion: toDayOfMonth(dayFromIsoDate(fechaAcreditacion) ?? line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
+        };
+      }),
       detalle_deudas: cleanLines(form.detalle_deudas),
       ingresos_puntuales_mayo: cleanLines(form.ingresos_puntuales_mayo),
       prestamo_coche: {
@@ -127,7 +138,7 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
                 {t("Recurring")}
               </label>
               <input value={line.desde || ""} onChange={(event) => setLine(collection, index, { desde:event.target.value })} placeholder={t("From")} style={{ ...inputS, background:C.fondo }}/>
-              <input type="number" min="1" max="31" step="1" value={line.diaAcreditacion ?? 1} onChange={(event) => setLine(collection, index, { diaAcreditacion:event.target.value })} placeholder={t("Credit day")} style={{ ...inputS, background:C.fondo }}/>
+              <input type="date" value={line.fechaAcreditacion || ""} onChange={(event) => setLine(collection, index, { fechaAcreditacion:event.target.value })} aria-label={t("Credit date")} style={{ ...inputS, background:C.fondo }}/>
             </div>
           )}
         </div>

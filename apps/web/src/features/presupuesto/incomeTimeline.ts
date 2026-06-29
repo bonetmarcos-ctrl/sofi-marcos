@@ -6,12 +6,32 @@ const toAmount = (value) => {
 };
 
 const isYearMonth = (value) => /^\d{4}-\d{2}$/.test(String(value || ""));
+const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+
+const explicitCreditDate = (linea) => {
+  const fecha = String(linea?.fechaAcreditacion || linea?.fechaCobro || linea?.fechaPago || "").trim();
+  return isIsoDate(fecha) ? fecha : "";
+};
+
+const explicitCreditDay = (linea) => {
+  const fecha = explicitCreditDate(linea);
+  return fecha ? Number(fecha.slice(8, 10)) : null;
+};
 
 const monthNumber = (pref) => Number(String(pref || "").slice(5, 7));
 
 const clampDay = (value) => {
   const day = Math.trunc(Number(value || 1));
   return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
+};
+
+const recurringIncomeRule = (linea: Record<string, any> = {}) => {
+  const rest: Record<string, any> = { ...linea };
+  delete rest.fechaAcreditacion;
+  delete rest.fechaCobro;
+  delete rest.fechaPago;
+  const day = explicitCreditDay(linea) ?? linea?.diaAcreditacion ?? linea?.diaCobro ?? linea?.diaPago;
+  return day === undefined || day === null ? rest : { ...rest, diaAcreditacion:clampDay(day) };
 };
 
 const previousYearMonth = (pref) => {
@@ -63,9 +83,12 @@ const totalLineasIngresoEnMes = (lineas = [], pref) => lineas
   .filter((linea) => lineaIngresoActivaEnMes(linea, pref))
   .reduce((sum, linea) => sum + toAmount(linea.importe), 0);
 
-export const diaAcreditacionIngreso = (linea) => clampDay(linea?.diaAcreditacion ?? linea?.diaCobro ?? linea?.diaPago ?? 1);
+export const diaAcreditacionIngreso = (linea) => clampDay(explicitCreditDay(linea) ?? linea?.diaAcreditacion ?? linea?.diaCobro ?? linea?.diaPago ?? 1);
 
 export const fechaAcreditacionIngresoEnMes = (linea, pref) => {
+  const fechaExplicita = explicitCreditDate(linea);
+  if (fechaExplicita && String(linea?.desde || "").trim() === pref && String(linea?.hasta || "").trim() === pref) return fechaExplicita;
+
   const [year, month] = String(pref || "").split("-").map(Number);
   if (!year || !month) return "";
 
@@ -87,10 +110,11 @@ export const editarLineaIngresoDesdeMes = (lineas = [], index, pref, patch, nuev
 
   return lineas.flatMap((actual, lineIndex) => {
     if (lineIndex !== index) return [actual];
+    const reglaRecurrente = recurringIncomeRule(actual);
 
     return [
-      { ...actual, hasta:prefAnterior },
-      { ...actual, ...patch, id:nuevoId || actual.id, desde:pref },
+      { ...reglaRecurrente, hasta:prefAnterior },
+      { ...reglaRecurrente, ...patch, id:nuevoId || actual.id, desde:pref },
     ];
   });
 };
@@ -127,11 +151,12 @@ export const editarLineaIngresoEnMes = (lineas = [], index, pref, patch, ids: In
 
   return lineas.flatMap((actual, lineIndex) => {
     if (lineIndex !== index) return [actual];
+    const reglaRecurrente = recurringIncomeRule(actual);
 
     const parts = [];
-    if (estabaActivaAntes) parts.push({ ...actual, hasta:prefAnterior });
-    parts.push({ ...actual, ...patch, id:ids.current || actual.id, desde:pref, hasta:pref });
-    if (sigueActivaDespues) parts.push({ ...actual, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
+    if (estabaActivaAntes) parts.push({ ...reglaRecurrente, hasta:prefAnterior });
+    parts.push({ ...reglaRecurrente, ...patch, id:ids.current || actual.id, desde:pref, hasta:pref });
+    if (sigueActivaDespues) parts.push({ ...reglaRecurrente, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
     return parts;
   });
 };
@@ -151,10 +176,11 @@ export const eliminarLineaIngresoEnMes = (lineas = [], index, pref, ids: IncomeS
 
   return lineas.flatMap((actual, lineIndex) => {
     if (lineIndex !== index) return [actual];
+    const reglaRecurrente = recurringIncomeRule(actual);
 
     const parts = [];
-    if (estabaActivaAntes) parts.push({ ...actual, hasta:prefAnterior });
-    if (sigueActivaDespues) parts.push({ ...actual, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
+    if (estabaActivaAntes) parts.push({ ...reglaRecurrente, hasta:prefAnterior });
+    if (sigueActivaDespues) parts.push({ ...reglaRecurrente, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
     return parts;
   });
 };

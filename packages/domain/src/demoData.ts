@@ -168,6 +168,13 @@ const normalizeDayOfMonth = (value: unknown) => {
   return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
 };
 
+const normalizeIsoDate = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? String(value) : "";
+
+const dayFromIsoDate = (value: unknown) => {
+  const date = normalizeIsoDate(value);
+  return date ? Number(date.slice(8, 10)) : null;
+};
+
 const normalizeBudgetLines = (lines: unknown): Record<string, any>[] => Array.isArray(lines)
   ? lines
       .map((line) => {
@@ -187,7 +194,8 @@ const normalizeIncomeLines = (lines: unknown) => normalizeBudgetLines(lines).map
   recurrente: line.recurrente === undefined ? true : Boolean(line.recurrente),
   desde: String(line.desde || ""),
   hasta: String(line.hasta || ""),
-  diaAcreditacion: normalizeDayOfMonth(line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
+  fechaAcreditacion: normalizeIsoDate(line.fechaAcreditacion ?? line.fechaCobro ?? line.fechaPago),
+  diaAcreditacion: normalizeDayOfMonth(dayFromIsoDate(line.fechaAcreditacion ?? line.fechaCobro ?? line.fechaPago) ?? line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
 }));
 
 const normalizeMonthlyOverrides = (overrides: unknown) => Object.fromEntries(
