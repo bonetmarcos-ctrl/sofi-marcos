@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iter - Mockup Hoy</title>
+    <style>
+      :root {
+        --violet: #6e6385;
+        --violet-soft: #f1edf5;
+        --violet-wash: #f8f5fa;
+        --lilac: #a89abb;
+        --lilac-light: #f5f1f8;
+        --sage: #829577;
+        --sage-light: #f1f6ee;
+        --sage-dark: #5d7457;
+        --moss: #96a87d;
+        --moss-light: #f5f8f1;
+        --attention: #9b7a69;
+        --attention-light: #f8f2ef;
+        --bg: #f8f7f3;
+        --surface: #ffffff;
+        --surface-soft: #fbfaf7;
+        --border: #e4dedf;
+        --text: #2d2932;
+        --muted: #756f7c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .shell {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(168, 154, 187, 0.18), transparent 30%),
+          radial-gradient(circle at 88% 8%, rgba(130, 149, 119, 0.16), transparent 26%),
+          var(--bg);
+      }
+
+      .topbar {
+        background: rgba(251, 250, 247, 0.78);
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(18px);
+        padding: 14px 24px;
+      }
+
+      .topbar-inner {
+        max-width: 1240px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: minmax(160px, 0.7fr) minmax(0, 1.6fr) minmax(120px, 0.4fr);
+        gap: 18px;
+        align-items: center;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--violet-soft);
+        color: var(--violet);
+        font-weight: 900;
+      }
+
+      .brand-title {
+        font-weight: 850;
+        font-size: 15px;
+      }
+
+      .brand-tagline {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+        overflow-x: auto;
+      }
+
+      .nav button {
+        border: 0;
+        border-radius: 9px;
+        padding: 8px 14px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: default;
+        white-space: nowrap;
+      }
+
+      .nav .active {
+        background: var(--violet-soft);
+        color: var(--violet);
+      }
+
+      .user {
+        justify-self: end;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .sync-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--sage);
+        box-shadow: 0 0 8px rgba(130, 149, 119, 0.28);
+      }
+
+      main {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 34px 24px 54px;
+        display: grid;
+        gap: 22px;
+      }
+
+      .page-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: end;
+        padding: 4px 0 8px;
+      }
+
+      .eyebrow {
+        margin: 0 0 5px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(36px, 4.8vw, 62px);
+        line-height: 1.02;
+        letter-spacing: 0;
+      }
+
+      .head-copy {
+        margin: 8px 0 0;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      .month-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-soft);
+      }
+
+      .month-control button,
+      .month-control span {
+        min-width: 32px;
+        min-height: 30px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--violet-wash);
+        color: var(--muted);
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+      }
+
+      .month-control span {
+        min-width: 116px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .situation-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        min-width: 0;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 15px 16px;
+        display: grid;
+        gap: 6px;
+        border-left: 4px solid var(--violet);
+        box-shadow: 0 1px 8px rgba(45, 41, 50, 0.035);
+      }
+
+      .metric.good {
+        border-left-color: var(--sage);
+        background: rgba(241, 246, 238, 0.72);
+      }
+
+      .metric.warn {
+        border-left-color: var(--moss);
+        background: rgba(245, 248, 241, 0.74);
+      }
+
+      .metric.risk {
+        border-left-color: var(--lilac);
+        background: rgba(245, 241, 248, 0.76);
+      }
+
+      .metric.travel {
+        border-left-color: var(--violet);
+        background: rgba(248, 245, 250, 0.76);
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .metric-value {
+        color: var(--text);
+        font-size: 26px;
+        line-height: 1;
+        font-weight: 900;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .metric.good .metric-value {
+        color: var(--sage-dark);
+      }
+
+      .metric.warn .metric-value {
+        color: var(--moss);
+      }
+
+      .metric.risk .metric-value {
+        color: var(--lilac);
+      }
+
+      .metric.travel .metric-value {
+        color: var(--violet);
+      }
+
+      .metric-sub {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.62fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .column {
+        display: grid;
+        gap: 20px;
+        min-width: 0;
+      }
+
+      .panel {
+        min-width: 0;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px 22px;
+        box-shadow: 0 1px 8px rgba(45, 41, 50, 0.035);
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .panel-title {
+        margin: 0;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 850;
+      }
+
+      .panel-copy {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .tag {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: var(--violet-soft);
+        color: var(--violet);
+        border: 1px solid rgba(110, 99, 133, 0.18);
+        font-size: 11px;
+        font-weight: 850;
+      }
+
+      .progress-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .progress-card {
+        min-width: 0;
+        border: 0;
+        border-radius: 12px;
+        background: var(--violet-wash);
+        padding: 13px 14px;
+      }
+
+      .progress-card strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text);
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .progress-card span {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
+      .week-list {
+        display: grid;
+        gap: 2px;
+        border-top: 1px solid var(--border);
+      }
+
+      .week-item {
+        display: grid;
+        grid-template-columns: 82px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 2px;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        border-radius: 0;
+        background: transparent;
+      }
+
+      .week-day {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .week-main {
+        min-width: 0;
+      }
+
+      .week-main strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .week-main span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .pill {
+        justify-self: end;
+        border-radius: 999px;
+        padding: 4px 8px;
+        color: var(--violet);
+        background: var(--violet-soft);
+        border: 1px solid rgba(110, 99, 133, 0.18);
+        font-size: 10px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .pill.resources {
+        color: var(--sage-dark);
+        background: var(--sage-light);
+        border-color: rgba(93, 116, 87, 0.18);
+      }
+
+      .pill.time {
+        color: var(--lilac);
+        background: var(--lilac-light);
+        border-color: rgba(168, 154, 187, 0.2);
+      }
+
+      .pill.warning {
+        color: var(--attention);
+        background: var(--attention-light);
+        border-color: rgba(155, 122, 105, 0.18);
+      }
+
+      .reading {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      .iter-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: var(--violet-soft);
+        color: var(--violet);
+        border: 1px solid rgba(110, 99, 133, 0.18);
+        font-weight: 900;
+        box-shadow: 0 8px 18px rgba(45, 41, 50, 0.06);
+      }
+
+      .speech {
+        position: relative;
+        border-radius: 16px;
+        padding: 16px 18px;
+        background: linear-gradient(135deg, rgba(241, 237, 245, 0.96), rgba(241, 246, 238, 0.92));
+        border: 1px solid rgba(110, 99, 133, 0.16);
+        box-shadow: 0 1px 8px rgba(45, 41, 50, 0.035);
+      }
+
+      .speech::before {
+        content: "";
+        position: absolute;
+        left: -7px;
+        top: 18px;
+        width: 14px;
+        height: 14px;
+        background: rgba(241, 237, 245, 0.96);
+        border-left: 1px solid rgba(110, 99, 133, 0.16);
+        border-bottom: 1px solid rgba(110, 99, 133, 0.16);
+        transform: rotate(45deg);
+      }
+
+      .speech-label {
+        margin: 0 0 8px;
+        color: var(--violet);
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .sentence {
+        margin: 0;
+        color: var(--text);
+        font-size: 21px;
+        line-height: 1.35;
+        font-weight: 850;
+      }
+
+      .sentence span {
+        color: var(--sage-dark);
+      }
+
+      .recommendations {
+        display: grid;
+        gap: 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .recommendation {
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        border-radius: 0;
+        padding: 13px 0;
+        background: transparent;
+      }
+
+      .recommendation strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .recommendation p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .dream-thread {
+        display: grid;
+        gap: 8px;
+      }
+
+      .thread-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 82px;
+        gap: 10px;
+        padding: 11px 12px;
+        border-radius: 12px;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+      }
+
+      .thread-row strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .thread-row span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .thread-status {
+        align-self: center;
+        justify-self: end;
+        color: var(--sage-dark);
+        background: var(--sage-light);
+        border: 1px solid rgba(130, 149, 119, 0.28);
+        border-radius: 999px;
+        padding: 5px 8px;
+        font-size: 10px;
+        font-weight: 850;
+      }
+
+      .mock-note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        text-align: center;
+      }
+
+      @media (max-width: 980px) {
+        .page-head,
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .situation-strip,
+        .progress-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .topbar-inner {
+          grid-template-columns: 1fr;
+        }
+
+        .user {
+          justify-self: start;
+        }
+
+        .nav {
+          justify-content: flex-start;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .topbar,
+        main {
+          padding-left: 14px;
+          padding-right: 14px;
+        }
+
+        .situation-strip,
+        .progress-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .week-item {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+
+        .pill {
+          justify-self: start;
+        }
+
+        .reading {
+          grid-template-columns: 1fr;
+        }
+
+        .speech::before {
+          left: 16px;
+          top: -7px;
+          border-left: 1px solid rgba(110, 99, 133, 0.16);
+          border-top: 1px solid rgba(110, 99, 133, 0.16);
+          border-bottom: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <div class="mark">I</div>
+            <div>
+              <div class="brand-title">Iter</div>
+              <div class="brand-tagline">navigate your becoming</div>
+            </div>
+          </div>
+          <nav class="nav" aria-label="Navegacion principal">
+            <button class="active">Hoy</button>
+            <button>Sueños</button>
+            <button>Proyectos</button>
+            <button>Tiempo</button>
+            <button>Recursos</button>
+          </nav>
+          <div class="user"><span class="sync-dot"></span> Sincronizado</div>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-head" aria-labelledby="today-title">
+          <div>
+            <p class="eyebrow">Estado de situacion</p>
+            <h1 id="today-title">Hoy</h1>
+            <p class="head-copy">Una lectura breve de donde estas parado, que avanzo este año y que necesita atencion esta semana.</p>
+          </div>
+          <div class="month-control" aria-label="Mes actual">
+            <button aria-label="Mes anterior">‹</button>
+            <span>Junio 2026</span>
+            <button aria-label="Mes siguiente">›</button>
+          </div>
+        </section>
+
+        <section class="situation-strip" aria-label="Estado financiero y operativo">
+          <article class="metric warn">
+            <div class="metric-label">Presion financiera</div>
+            <div class="metric-value">64%</div>
+            <div class="metric-sub">Dentro de margen, mirar viajes de julio.</div>
+          </article>
+          <article class="metric good">
+            <div class="metric-label">Ahorro acumulado</div>
+            <div class="metric-value">8.400 €</div>
+            <div class="metric-sub">+620 € previstos al cierre del mes.</div>
+          </article>
+          <article class="metric travel">
+            <div class="metric-label">Progreso 2026</div>
+            <div class="metric-value">7 hitos</div>
+            <div class="metric-sub">3 metas, 2 proyectos, 2 meses clave.</div>
+          </article>
+          <article class="metric risk">
+            <div class="metric-label">Pendiente semana</div>
+            <div class="metric-value">5 acciones</div>
+            <div class="metric-sub">2 recursos, 2 tiempo, 1 proyecto.</div>
+          </article>
+        </section>
+
+        <section class="layout">
+          <div class="column">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Progreso del año</h2>
+                  <p class="panel-copy">No solo lo pendiente: tambien evidencia de avance.</p>
+                </div>
+                <span class="tag">2026</span>
+              </div>
+              <div class="progress-grid">
+                <div class="progress-card"><strong>3</strong><span>metas cumplidas</span></div>
+                <div class="progress-card"><strong>2</strong><span>proyectos cerrados</span></div>
+                <div class="progress-card"><strong>4</strong><span>meses en positivo</span></div>
+                <div class="progress-card"><strong>1</strong><span>viaje realizado</span></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Esta semana</h2>
+                  <p class="panel-copy">Lo que conviene atender sin convertir la semana en una lista infinita.</p>
+                </div>
+                <span class="tag">5 acciones</span>
+              </div>
+              <div class="week-list">
+                <div class="week-item">
+                  <div class="week-day">Lunes</div>
+                  <div class="week-main"><strong>Revisar suministro de luz</strong><span>Factura esperada antes del cierre mensual.</span></div>
+                  <div class="pill resources">Recursos</div>
+                </div>
+                <div class="week-item">
+                  <div class="week-day">Martes</div>
+                  <div class="week-main"><strong>Preparar cumpleaños de Ana</strong><span>Momento importante, regalo pendiente.</span></div>
+                  <div class="pill time">Tiempo</div>
+                </div>
+                <div class="week-item">
+                  <div class="week-day">Jueves</div>
+                  <div class="week-main"><strong>Decidir fecha para cocina</strong><span>Proyecto bloqueado por ventana de disponibilidad.</span></div>
+                  <div class="pill">Proyectos</div>
+                </div>
+                <div class="week-item">
+                  <div class="week-day">Viernes</div>
+                  <div class="week-main"><strong>Mirar presupuesto viaje a Roma</strong><span>Julio concentra pagos y noches de hotel.</span></div>
+                  <div class="pill time">Tiempo</div>
+                </div>
+                <div class="week-item">
+                  <div class="week-day">Semana</div>
+                  <div class="week-main"><strong>Activar palanca habitacion julio</strong><span>Puede sumar 280 € al margen del mes siguiente.</span></div>
+                  <div class="pill resources">Recursos</div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <aside class="column">
+            <article class="reading" aria-label="Mensaje de Iter">
+              <div class="iter-avatar" aria-hidden="true">I</div>
+              <div class="speech">
+                <p class="speech-label">Iter te diría</p>
+                <p class="sentence">Estas con margen positivo, <span>pero julio concentra viajes y suministros</span>. Mira Recursos antes de activar nuevos gastos.</p>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Atencion recomendada</h2>
+                  <p class="panel-copy">Una o dos señales, no diez alarmas.</p>
+                </div>
+              </div>
+              <div class="recommendations">
+                <div class="recommendation">
+                  <strong>Revisar presion de julio</strong>
+                  <p>El viaje y suministros pueden subir la presion financiera por encima del 75%.</p>
+                </div>
+                <div class="recommendation">
+                  <strong>Cerrar una decision pequeña</strong>
+                  <p>Elegir fecha tentativa para cocina desbloquea el proyecto y mejora la lectura de tiempo.</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Sueños en movimiento</h2>
+                  <p class="panel-copy">Lo aspiracional conectado a hechos concretos.</p>
+                </div>
+              </div>
+              <div class="dream-thread">
+                <div class="thread-row">
+                  <div><strong>Vivir con mas calma</strong><span>4 meses en positivo sostienen margen.</span></div>
+                  <div class="thread-status">Avanza</div>
+                </div>
+                <div class="thread-row">
+                  <div><strong>Viajar mas</strong><span>Roma necesita revisar calendario y recursos.</span></div>
+                  <div class="thread-status">Atender</div>
+                </div>
+                <div class="thread-row">
+                  <div><strong>Disfrutar la casa</strong><span>Proyecto cocina pendiente de fecha.</span></div>
+                  <div class="thread-status">Bloqueado</div>
+                </div>
+              </div>
+            </article>
+          </aside>
+        </section>
+
+        <p class="mock-note">Mockup exploratorio: no esta conectado a datos reales ni a la app productiva.</p>
+      </main>
+    </div>
+  </body>
+</html>
