@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../../i18n.tsx";
+import { COLOR_VIAJE } from "../../constants/categorias.ts";
 import ModalViaje from "./ModalViaje.tsx";
 
 const renderWithI18n = (ui: React.ReactElement) => render(<LanguageProvider>{ui}</LanguageProvider>);
@@ -19,6 +20,7 @@ describe("ModalViaje", () => {
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       nombre: "Roma",
+      color: COLOR_VIAJE,
       presupuesto: 900,
       gastos: expect.objectContaining({ vuelo: 120 }),
     }));

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Modal from "../../components/Modal.tsx";
-import { GASTOS_VIAJE, COLORES_VIAJE } from "../../constants/categorias.ts";
+import { GASTOS_VIAJE, COLORES_VIAJE, COLOR_VIAJE, BG_VIAJE } from "../../constants/categorias.ts";
 import { C, inputS, labelS } from "../../constants/colores.ts";
 import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth } from "@sofi-marqui/domain";
 import { fmt, fmtd, labelMes } from "../../utils/format.ts";
@@ -91,7 +91,7 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
         <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:20, color:"#1a1a2e" }}>
           {viaje ? t("Edit trip") : `✈️ ${t("New trip")}`}
         </h3>
-        <button onClick={onClose} style={{ border:"none", background:"#f1f0f7", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:"#7c6f9e" }}>✕</button>
+        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
       </div>
 
       <div style={{ display:"grid", gap:14 }}>
@@ -119,7 +119,7 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
           </div>
         </div>
         {noches > 0 && (
-          <div style={{ fontSize:12, color:"#7c6f9e", marginTop:-8 }}>📅 {noches} {t(noches !== 1 ? "nights" : "night")}</div>
+          <div style={{ fontSize:12, color:COLOR_VIAJE, marginTop:-8 }}>📅 {noches} {t(noches !== 1 ? "nights" : "night")}</div>
         )}
 
         {/* Presupuesto */}
@@ -134,14 +134,14 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
           <div style={{ display:"flex", gap:8 }}>
             {COLORES_VIAJE.map(c => (
               <div key={c} onClick={() => set("color", c)}
-                style={{ width:28, height:28, borderRadius:"50%", background:c, cursor:"pointer", border:form.color===c?"3px solid #1a1a2e":"3px solid transparent", transition:"border 0.15s" }}/>
+                style={{ width:28, height:28, borderRadius:"50%", background:c, cursor:"pointer", border:form.color===c?`3px solid ${COLOR_VIAJE}`:"3px solid transparent", transition:"border 0.15s" }}/>
             ))}
           </div>
         </div>
 
         {/* Desglose gastos */}
-        <div style={{ background:"#f8f7ff", borderRadius:14, padding:14, border:"1px solid #e2e0ed" }}>
-          <div style={{ fontSize:12, fontWeight:700, color:"#4c1d95", marginBottom:12, textTransform:"uppercase", letterSpacing:"0.6px" }}>💸 {t("Expense breakdown")}</div>
+        <div style={{ background:BG_VIAJE, borderRadius:14, padding:14, border:`1px solid ${COLOR_VIAJE}33` }}>
+          <div style={{ fontSize:12, fontWeight:700, color:COLOR_VIAJE, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.6px" }}>💸 {t("Expense breakdown")}</div>
           <div style={{ display:"grid", gap:10 }}>
             {GASTOS_VIAJE.map(g => {
               const pago = pagoConcepto(g.key);
@@ -150,18 +150,18 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
               const cuotasTarjeta = Math.max(1, Number(pago.cuotasTarjeta || 1));
               const cuota = Number(form.gastos[g.key] || 0) / cuotasTarjeta;
               return (
-              <div key={g.key} style={{ background:"white", borderRadius:10, padding:10, border:"1px solid #e2e0ed", display:"grid", gap:8, minWidth:0 }}>
+              <div key={g.key} style={{ background:"white", borderRadius:10, padding:10, border:`1px solid ${COLOR_VIAJE}22`, display:"grid", gap:8, minWidth:0 }}>
                 <div style={{ display:"grid", gridTemplateColumns:"minmax(0,1fr) 110px", gap:8, alignItems:"end" }}>
                   <div style={{ minWidth:0 }}>
                     <label style={{ ...labelS, fontSize:10 }}>{g.emoji} {t(g.label)}</label>
-                    <div style={{ fontSize:10, color:"#7c6f9e", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t(paymentMethodLabelKey(origenFondos))}{origenFondos !== FUNDING_SOURCES.MONTH_INCOME ? ` · ${labelMes(mesCargo)}` : ""}</div>
+                    <div style={{ fontSize:10, color:C.txt2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t(paymentMethodLabelKey(origenFondos))}{origenFondos !== FUNDING_SOURCES.MONTH_INCOME ? ` · ${labelMes(mesCargo)}` : ""}</div>
                   </div>
                   <input type="number" min="0" step="0.01" value={form.gastos[g.key] || ""} onChange={e => setG(g.key, e.target.value)} placeholder="0" style={{ ...inputS, minHeight:34 }}/>
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:5 }}>
                   {opcionesFondos.map(option => (
                     <button key={option.key} onClick={() => setOrigenConcepto(g.key, option.key)}
-                      style={{ minHeight:36, padding:"5px 6px", borderRadius:9, border:`1px solid ${origenFondos === option.key ? "#8b5cf6" : "#e2e0ed"}`, background:origenFondos === option.key ? "#f5f3ff" : "#f8f7ff", color:origenFondos === option.key ? "#6d28d9" : "#7c6f9e", fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1, minWidth:0 }}>
+                      style={{ minHeight:36, padding:"5px 6px", borderRadius:9, border:`1px solid ${origenFondos === option.key ? COLOR_VIAJE : C.borde}`, background:origenFondos === option.key ? BG_VIAJE : C.fondo, color:origenFondos === option.key ? COLOR_VIAJE : C.txt2, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", lineHeight:1.1, minWidth:0 }}>
                       <span style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", display:"block" }}>{option.icon} {option.label}</span>
                     </button>
                   ))}
@@ -176,7 +176,7 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
                     )}
                   </div>
                 )}
-                {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && Number(form.gastos[g.key] || 0) > 0 && <div style={{ fontSize:10, color:"#7c6f9e" }}>{cuotasTarjeta} {t("Installments").toLowerCase()} · {fmtd(cuota)}/{t("month")}</div>}
+                {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && Number(form.gastos[g.key] || 0) > 0 && <div style={{ fontSize:10, color:COLOR_VIAJE }}>{cuotasTarjeta} {t("Installments").toLowerCase()} · {fmtd(cuota)}/{t("month")}</div>}
               </div>
               );
             })}
@@ -185,8 +185,8 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
           {/* Totales */}
           <div style={{ marginTop:12, display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
             <div style={{ background:"white", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>
-              <div style={{ fontSize:10, color:"#7c6f9e", textTransform:"uppercase" }}>{t("Total")}</div>
-              <div style={{ fontSize:18, fontWeight:700, color:"#8b5cf6", fontFamily:"'Playfair Display',serif" }}>{fmt(total)}</div>
+              <div style={{ fontSize:10, color:COLOR_VIAJE, textTransform:"uppercase" }}>{t("Total")}</div>
+              <div style={{ fontSize:18, fontWeight:700, color:COLOR_VIAJE, fontFamily:"'Playfair Display',serif" }}>{fmt(total)}</div>
             </div>
             <div style={{ background:restante>=0?"#f0fdf4":"#fff1f2", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>
               <div style={{ fontSize:10, color:restante>=0?"#059669":"#be123c", textTransform:"uppercase" }}>{restante>=0?t("Remaining"):t("Exceeded")}</div>
@@ -197,8 +197,8 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
           {/* Barra progreso */}
           {form.presupuesto > 0 && (
             <div style={{ marginTop:10 }}>
-              <div style={{ height:6, background:"#e2e0ed", borderRadius:6, overflow:"hidden" }}>
-                <div style={{ width:`${Math.min(100, (total / (+form.presupuesto)) * 100)}%`, height:"100%", background:restante>=0?"#8b5cf6":"#be123c", borderRadius:6, transition:"width 0.4s" }}/>
+              <div style={{ height:6, background:C.borde, borderRadius:6, overflow:"hidden" }}>
+                <div style={{ width:`${Math.min(100, (total / (+form.presupuesto)) * 100)}%`, height:"100%", background:restante>=0?COLOR_VIAJE:"#be123c", borderRadius:6, transition:"width 0.4s" }}/>
               </div>
               <div style={{ fontSize:10, color:"#94a3b8", marginTop:4 }}>{((total / (+form.presupuesto || 1)) * 100).toFixed(0)}% {t("of budget")}</div>
             </div>
@@ -215,7 +215,7 @@ export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
         <div style={{ display:"flex", gap:8 }}>
           <button
             onClick={guardarViaje}
-            style={{ flex:1, background:C.cyan, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+            style={{ flex:1, background:COLOR_VIAJE, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
             {t("Save trip")}
           </button>
           {viaje && (

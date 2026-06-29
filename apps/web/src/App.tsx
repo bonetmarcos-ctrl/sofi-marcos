@@ -13,6 +13,7 @@ import ModalEvento    from "./features/calendario/modals/ModalEvento.tsx";
 import ModalViaje     from "./features/viajes/ModalViaje.tsx";
 import { LanguageMenu } from "./components/LanguageMenu.tsx";
 import { useI18n } from "./i18n.tsx";
+import { COLOR_VIAJE } from "./constants/categorias.ts";
 
 const TABS = [
   { id:"presupuesto", labelKey:"Budget", emoji:"💶" },
@@ -197,7 +198,7 @@ function AuthenticatedApp({ user, onLogout }) {
               {t("Add event")}
             </button>
             <button onClick={() => setModal({ type:"viaje" })}
-              style={{ background:"transparent", color:"white", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+              style={{ background:COLOR_VIAJE, color:"white", border:`1px solid ${COLOR_VIAJE}`, borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
               ✈️ {t("Add trip")}
             </button>
             <button onClick={onLogout}

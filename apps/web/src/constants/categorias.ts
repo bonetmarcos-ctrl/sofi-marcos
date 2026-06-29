@@ -1,3 +1,7 @@
+export const COLOR_VIAJE = "#2F80A8";
+export const BG_VIAJE    = "#EAF6FB";
+export const COLOR_VIAJE_MID = "#78B8D6";
+
 // ─── EVENT CATEGORIES ─────────────────────────────────────────────────────────
 export const CATEGORIAS = {
   ocio:        { label:"Leisure",    emoji:"🎬", color:"#FF6B6B", bg:"#FFF0F0", tipo:"gasto" },
@@ -8,7 +12,7 @@ export const CATEGORIAS = {
   ropa:        { label:"Clothes",    emoji:"👗", color:"#FF86C8", bg:"#FFF0FA", tipo:"gasto" },
   habitacion:  { label:"Room",       emoji:"🛏️", color:"#6F9F61", bg:"#EEF7EB", tipo:"ingreso" },
   coche:       { label:"Car",        emoji:"🔑", color:"#2F6F5E", bg:"#EAF3EE", tipo:"ingreso" },
-  viaje:       { label:"Trip",       emoji:"✈️", color:"#FF69EB", bg:"#FFF0FD", tipo:"gasto" },
+  viaje:       { label:"Trip",       emoji:"✈️", color:COLOR_VIAJE, bg:BG_VIAJE, tipo:"gasto" },
   otro:        { label:"Supermarket", emoji:"🛒", color:"#22333B", bg:"#EAE0D5", tipo:"gasto" },
 };
 
@@ -42,7 +46,7 @@ export const GRUPOS_GASTO = {
   ocio:     { label:"Leisure",  emoji:"🎬", cats:["ocio","restaurante"], color:"#FE6D73", bg:"#FEF9EF" },
   personal: { label:"Personal", emoji:"👤", cats:["salud","ropa"],       color:"#BE95C4", bg:"#F3EAF7" },
   hogar:    { label:"Housing",  emoji:"🏠", cats:["hogar","transporte"], color:"#C6AC8F", bg:"#F5EFE6" },
-  viajes:   { label:"Trips",    emoji:"✈️", cats:["viaje"],              color:"#FF69EB", bg:"#FFF0FD" },
+  viajes:   { label:"Trips",    emoji:"✈️", cats:["viaje"],              color:COLOR_VIAJE, bg:BG_VIAJE },
   otro:     { label:"Supermarket", emoji:"🛒", cats:["otro"],             color:"#22333B", bg:"#EAE0D5" },
 };
 
@@ -53,10 +57,6 @@ export const PERSONAS = {
   marqui: { label:"Marqui", color:"#0891b2", bg:"#ecfeff" },
 };
 
-// ─── TRIPS ────────────────────────────────────────────────────────────────────
-export const COLOR_VIAJE = "#FF69EB";
-export const BG_VIAJE    = "#FFF0FD";
-
 export const GASTOS_VIAJE = [
   { key:"vuelo",       label:"Flight",      emoji:"✈️" },
   { key:"hotel",       label:"Hotel",       emoji:"🏨" },
@@ -66,7 +66,7 @@ export const GASTOS_VIAJE = [
   { key:"otro",        label:"Other",       emoji:"📌" },
 ];
 
-export const COLORES_VIAJE = ["#38bdf8"];
+export const COLORES_VIAJE = [COLOR_VIAJE];
 
 // ─── LEVERS ───────────────────────────────────────────────────────────────────
 export const SUBCAT_VAR = {

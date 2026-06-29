@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth, tripExpenseItems } from "@sofi-marqui/domain";
-import { CATEGORIAS, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
+import { CATEGORIAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { fmtd, labelMes } from "../../utils/format.ts";
 import { todayISO, daysBetween } from "../../utils/dates.ts";
@@ -174,7 +174,7 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
           <div style={{ marginLeft:isMobile?0:"auto", display:"flex", gap:10, fontSize:11, color:C.txt2, flexWrap:"wrap" }}>
             <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:C.lavender, display:"inline-block" }}/> Sofi</span>
             <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:C.cyan, display:"inline-block" }}/> Marqui</span>
-            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:C.cyanMid, display:"inline-block", borderRadius:2 }}/> {t("Trip")}</span>
+            <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:COLOR_VIAJE, display:"inline-block", borderRadius:2 }}/> {t("Trip")}</span>
             <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, background:"repeating-linear-gradient(45deg,#ecfdf5,#ecfdf5 3px,#d1fae5 3px,#d1fae5 6px)", display:"inline-block", border:`1px solid ${C.sage}`, borderRadius:2 }}/> {t("Occupied")}</span>
           </div>
         </div>

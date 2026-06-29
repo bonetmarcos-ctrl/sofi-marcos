@@ -1,5 +1,5 @@
 import { FUNDING_SOURCES } from "@sofi-marqui/domain";
-import { CATEGORIAS, PERSONAS, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt, fmtd } from "../../utils/format.ts";
@@ -50,7 +50,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
               return (
                 <div key={i} style={{
                   height:24,
-                  background: en ? C.cyanMid : "transparent",
+                  background: en ? COLOR_VIAJE : "transparent",
                   borderRadius: i===fi ? "12px 0 0 12px" : i===li ? "0 12px 12px 0" : "0",
                   display:"flex", alignItems:"center", justifyContent:"center",
                   fontSize:10, color:"white", fontWeight:700,

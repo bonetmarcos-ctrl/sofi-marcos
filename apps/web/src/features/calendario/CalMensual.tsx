@@ -1,4 +1,4 @@
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, BG_VIAJE, COLOR_VIAJE_MID, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
 import { fmt } from "../../utils/format.ts";
@@ -74,10 +74,10 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpl
           const bgPattern = habOcupada
             ? "repeating-linear-gradient(45deg,#ecfdf5,#ecfdf5 4px,#d1fae5 4px,#d1fae5 8px)"
             : esViaje
-            ? `repeating-linear-gradient(45deg,${C.cyanLight},${C.cyanLight} 5px,#cce9ed 5px,#cce9ed 10px)`
+            ? `repeating-linear-gradient(45deg,${BG_VIAJE},${BG_VIAJE} 5px,${COLOR_VIAJE_MID}55 5px,${COLOR_VIAJE_MID}55 10px)`
             : isToday ? C.cyan : C.superficie;
 
-          const borderColor = isToday ? C.cyan : habOcupada ? C.sage : esViaje ? C.cyanMid : C.borde;
+          const borderColor = isToday ? C.cyan : habOcupada ? C.sage : esViaje ? COLOR_VIAJE : C.borde;
 
           return (
             <div key={i}

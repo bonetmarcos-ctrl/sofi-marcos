@@ -1,4 +1,5 @@
 import { C, cardN } from "../../constants/colores.ts";
+import { COLOR_VIAJE, BG_VIAJE } from "../../constants/categorias.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import { fmt } from "../../utils/format.ts";
@@ -31,7 +32,7 @@ export default function AnalizadorPresionFinanciera({ resumenMes, ingresosFijosR
     { key:"structural", label:t("Structural"), amount:structural, color:"#64748b", bg:"#eef2f7" },
     { key:"utilities", label:t("Utilities"), amount:utilities, color:"#d97706", bg:"#fef3c7" },
     { key:"lifestyle", label:t("Variable expenses"), amount:lifestyle, color:C.lavender, bg:C.lavLight },
-    { key:"trips", label:t("Trips"), amount:trips, color:"#ec5ac9", bg:"#fce7f6" },
+    { key:"trips", label:t("Trips"), amount:trips, color:COLOR_VIAJE, bg:BG_VIAJE },
   ];
 
   const scenarios = [
