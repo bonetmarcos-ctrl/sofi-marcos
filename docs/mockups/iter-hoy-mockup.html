@@ -291,11 +291,24 @@
         line-height: 1.35;
       }
 
-      .layout {
+      .today-flow {
         display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.62fr);
+        gap: 20px;
+      }
+
+      .focus-row,
+      .reflection-row {
+        display: grid;
         gap: 20px;
         align-items: start;
+      }
+
+      .focus-row {
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.62fr);
+      }
+
+      .reflection-row {
+        grid-template-columns: minmax(0, 0.88fr) minmax(320px, 0.88fr);
       }
 
       .column {
@@ -350,6 +363,10 @@
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 10px;
+      }
+
+      .reflection-row .progress-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .progress-card {
@@ -603,7 +620,8 @@
 
       @media (max-width: 980px) {
         .page-head,
-        .layout {
+        .focus-row,
+        .reflection-row {
           grid-template-columns: 1fr;
         }
 
@@ -721,24 +739,8 @@
           </article>
         </section>
 
-        <section class="layout">
-          <div class="column">
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2 class="panel-title">Progreso del año</h2>
-                  <p class="panel-copy">No solo lo pendiente: tambien evidencia de avance.</p>
-                </div>
-                <span class="tag">2026</span>
-              </div>
-              <div class="progress-grid">
-                <div class="progress-card"><strong>3</strong><span>metas cumplidas</span></div>
-                <div class="progress-card"><strong>2</strong><span>proyectos cerrados</span></div>
-                <div class="progress-card"><strong>4</strong><span>meses en positivo</span></div>
-                <div class="progress-card"><strong>1</strong><span>viaje realizado</span></div>
-              </div>
-            </article>
-
+        <section class="today-flow">
+          <div class="focus-row" aria-label="Acciones y atencion de la semana">
             <article class="panel">
               <div class="panel-head">
                 <div>
@@ -775,33 +777,51 @@
                 </div>
               </div>
             </article>
+
+            <div class="column">
+              <article class="reading" aria-label="Mensaje de Iter">
+                <div class="iter-avatar" aria-hidden="true">I</div>
+                <div class="speech">
+                  <p class="speech-label">Iter te diría</p>
+                  <p class="sentence">Estas con margen positivo, <span>pero julio concentra viajes y suministros</span>. Mira Recursos antes de activar nuevos gastos.</p>
+                </div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2 class="panel-title">Atencion recomendada</h2>
+                    <p class="panel-copy">Una o dos señales, no diez alarmas.</p>
+                  </div>
+                </div>
+                <div class="recommendations">
+                  <div class="recommendation">
+                    <strong>Revisar presion de julio</strong>
+                    <p>El viaje y suministros pueden subir la presion financiera por encima del 75%.</p>
+                  </div>
+                  <div class="recommendation">
+                    <strong>Cerrar una decision pequeña</strong>
+                    <p>Elegir fecha tentativa para cocina desbloquea el proyecto y mejora la lectura de tiempo.</p>
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
 
-          <aside class="column">
-            <article class="reading" aria-label="Mensaje de Iter">
-              <div class="iter-avatar" aria-hidden="true">I</div>
-              <div class="speech">
-                <p class="speech-label">Iter te diría</p>
-                <p class="sentence">Estas con margen positivo, <span>pero julio concentra viajes y suministros</span>. Mira Recursos antes de activar nuevos gastos.</p>
-              </div>
-            </article>
-
+          <div class="reflection-row" aria-label="Progreso y sueños">
             <article class="panel">
               <div class="panel-head">
                 <div>
-                  <h2 class="panel-title">Atencion recomendada</h2>
-                  <p class="panel-copy">Una o dos señales, no diez alarmas.</p>
+                  <h2 class="panel-title">Progreso del año</h2>
+                  <p class="panel-copy">No solo lo pendiente: tambien evidencia de avance.</p>
                 </div>
+                <span class="tag">2026</span>
               </div>
-              <div class="recommendations">
-                <div class="recommendation">
-                  <strong>Revisar presion de julio</strong>
-                  <p>El viaje y suministros pueden subir la presion financiera por encima del 75%.</p>
-                </div>
-                <div class="recommendation">
-                  <strong>Cerrar una decision pequeña</strong>
-                  <p>Elegir fecha tentativa para cocina desbloquea el proyecto y mejora la lectura de tiempo.</p>
-                </div>
+              <div class="progress-grid">
+                <div class="progress-card"><strong>3</strong><span>metas cumplidas</span></div>
+                <div class="progress-card"><strong>2</strong><span>proyectos cerrados</span></div>
+                <div class="progress-card"><strong>4</strong><span>meses en positivo</span></div>
+                <div class="progress-card"><strong>1</strong><span>viaje realizado</span></div>
               </div>
             </article>
 
@@ -827,7 +847,7 @@
                 </div>
               </div>
             </article>
-          </aside>
+          </div>
         </section>
 
         <p class="mock-note">Mockup exploratorio: no esta conectado a datos reales ni a la app productiva.</p>
