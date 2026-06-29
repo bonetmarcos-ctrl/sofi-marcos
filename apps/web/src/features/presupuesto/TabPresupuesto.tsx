@@ -301,8 +301,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
             <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(ingresosFijosResumen)}</div>
             <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("guaranteed monthly")}</div>
           </div>
-          <div style={{ ...cardN(), borderTop:`3px solid ${C.lavender}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📈 {t("Variable income")}</div>
+          <div style={{ ...cardN(), borderTop:`3px solid ${C.incomeVariable}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.incomeVariable,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📈 {t("Variable income")}</div>
             <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(resumenMes?.ingresos_var_total || 0)}</div>
             <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{monthName(mesVista)} {año}</div>
           </div>
@@ -386,9 +386,9 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
           {/* Variables */}
           <div>
-            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 12px",background:C.lavLight,borderRadius:10,border:`1px solid ${C.lavender}33` }}>
-              <div style={{ width:10,height:10,borderRadius:"50%",background:C.lavender,flexShrink:0 }}/>
-              <span style={{ fontSize:12,fontWeight:700,color:C.lavender,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Variable income")}</span>
+            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"8px 12px",background:C.incomeVariableLight,borderRadius:10,border:`1px solid ${C.incomeVariable}33` }}>
+              <div style={{ width:10,height:10,borderRadius:"50%",background:C.incomeVariable,flexShrink:0 }}/>
+              <span style={{ fontSize:12,fontWeight:700,color:C.incomeVariable,textTransform:"uppercase",letterSpacing:"0.6px" }}>{t("Variable income")}</span>
             </div>
             <div style={{ display:"grid", gap:5 }}>
               {ingresosVariablesMes.map(v => (
@@ -397,7 +397,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                   <span style={{ fontWeight:700,color:v.color }}>{fmt(v.val)}</span>
                 </div>
               ))}
-              <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.lavender,borderRadius:9,color:"white",marginTop:2 }}>
+              <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.incomeVariable,borderRadius:9,color:"white",marginTop:2 }}>
                 <span style={{ fontWeight:700 }}>{t("This month total")}</span><span style={{ fontWeight:700 }}>{fmt(datosMes[mesVista]?.ingresos_var_total||0)}</span>
               </div>
             </div>

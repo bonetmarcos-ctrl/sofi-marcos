@@ -5,6 +5,8 @@ export const C = {
   cyan:       "#2F6F5E",
   cyanLight:  "#EAF3EE",
   cyanMid:    "#72A494",
+  incomeVariable: "#4F8F63",
+  incomeVariableLight: "#EEF6EF",
   lavender:   "#E87C5D",
   lavLight:   "#FCEDE8",
   sage:       "#9BBE8F",
