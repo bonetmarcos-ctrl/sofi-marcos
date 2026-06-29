@@ -47,18 +47,21 @@ export const BASE = {
     {
       "nombre": "Sueldo Sofi",
       "importe": 2005,
-      "recurrente": true
+      "recurrente": true,
+      "diaAcreditacion": 1
     },
     {
       "nombre": "Sueldo Marqui",
       "importe": 2048,
-      "recurrente": true
+      "recurrente": true,
+      "diaAcreditacion": 1
     },
     {
       "nombre": "Sueldo Marqui 2",
       "importe": 2600,
       "recurrente": true,
-      "desde": "abr"
+      "desde": "abr",
+      "diaAcreditacion": 1
     }
   ],
   "detalle_deudas": [
@@ -160,6 +163,11 @@ const toAmount = (value: unknown) => {
   return Number.isFinite(numberValue) ? numberValue : 0;
 };
 
+const normalizeDayOfMonth = (value: unknown) => {
+  const day = Math.trunc(Number(value || 1));
+  return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
+};
+
 const normalizeBudgetLines = (lines: unknown): Record<string, any>[] => Array.isArray(lines)
   ? lines
       .map((line) => {
@@ -179,6 +187,7 @@ const normalizeIncomeLines = (lines: unknown) => normalizeBudgetLines(lines).map
   recurrente: line.recurrente === undefined ? true : Boolean(line.recurrente),
   desde: String(line.desde || ""),
   hasta: String(line.hasta || ""),
+  diaAcreditacion: normalizeDayOfMonth(line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
 }));
 
 const normalizeMonthlyOverrides = (overrides: unknown) => Object.fromEntries(

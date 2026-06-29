@@ -21,6 +21,11 @@ const OVERRIDE_FIELDS = [
 
 const toNumber = (value) => Number(value || 0);
 
+const toDayOfMonth = (value) => {
+  const day = Math.trunc(Number(value || 1));
+  return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
+};
+
 const cleanLines = (lines = []) => lines
   .filter((line) => String(line.nombre || "").trim())
   .map((line) => ({
@@ -90,6 +95,8 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
         ...line,
         recurrente: Boolean(line.recurrente),
         desde: line.desde || "",
+        hasta: line.hasta || "",
+        diaAcreditacion: toDayOfMonth(line.diaAcreditacion ?? line.diaCobro ?? line.diaPago),
       })),
       detalle_deudas: cleanLines(form.detalle_deudas),
       ingresos_puntuales_mayo: cleanLines(form.ingresos_puntuales_mayo),
@@ -114,12 +121,13 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
           <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setLine(collection, index, { importe:event.target.value })} placeholder="0.00" style={{ ...inputS, background:C.fondo }}/>
           <button onClick={() => removeLine(collection, index)} aria-label={t("Delete")} style={{ width:34, height:34, borderRadius:9, border:`1px solid ${C.error}44`, background:C.errorBg, color:C.error, cursor:"pointer" }}>x</button>
           {options.income && (
-            <div style={{ gridColumn:"1 / -1", display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+            <div style={{ gridColumn:"1 / -1", display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
               <label style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:C.txt2 }}>
                 <input type="checkbox" checked={Boolean(line.recurrente)} onChange={(event) => setLine(collection, index, { recurrente:event.target.checked })}/>
                 {t("Recurring")}
               </label>
               <input value={line.desde || ""} onChange={(event) => setLine(collection, index, { desde:event.target.value })} placeholder={t("From")} style={{ ...inputS, background:C.fondo }}/>
+              <input type="number" min="1" max="31" step="1" value={line.diaAcreditacion ?? 1} onChange={(event) => setLine(collection, index, { diaAcreditacion:event.target.value })} placeholder={t("Credit day")} style={{ ...inputS, background:C.fondo }}/>
             </div>
           )}
         </div>

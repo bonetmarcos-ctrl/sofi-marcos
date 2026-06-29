@@ -12,7 +12,7 @@ import { BASE } from "../../data/demo.ts";
 import AnalizadorPresionFinanciera from "./AnalizadorPresionFinanciera.tsx";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
-import { actualizarIngresosFijosDesdeMes, editarLineaIngresoDesdeMes, eliminarLineaIngresoDesdeMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
+import { actualizarIngresosFijosDesdeMes, editarLineaIngresoEnMes, eliminarLineaIngresoEnMes, fechaAcreditacionIngresoEnMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
@@ -152,9 +152,10 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       return actualizarIngresosFijosDesdeMes(source, prefVista, nextLines);
     });
   }, [base, prefVista, setBase]);
-  const setIncomeLine = (index, patch) => updateIncomeLines((lines) => editarLineaIngresoDesdeMes(lines, index, prefVista, patch, Date.now() + Math.random()));
-  const addIncomeLine = () => updateIncomeLines((lines) => [...lines, { id:Date.now() + Math.random(), nombre:t("Income"), importe:0, recurrente:true, desde:prefVista, notas:"" }]);
-  const removeIncomeLine = (index) => updateIncomeLines((lines) => eliminarLineaIngresoDesdeMes(lines, index, prefVista));
+  const incomeLineIds = () => ({ current:Date.now() + Math.random(), future:Date.now() + Math.random() });
+  const setIncomeLine = (index, patch) => updateIncomeLines((lines) => editarLineaIngresoEnMes(lines, index, prefVista, patch, incomeLineIds()));
+  const addIncomeLine = () => updateIncomeLines((lines) => [...lines, { id:Date.now() + Math.random(), nombre:t("Income"), importe:0, recurrente:true, desde:prefVista, hasta:prefVista, diaAcreditacion:1, notas:"" }]);
+  const removeIncomeLine = (index) => updateIncomeLines((lines) => eliminarLineaIngresoEnMes(lines, index, prefVista, incomeLineIds()));
 
   const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
@@ -366,10 +367,15 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
             <div style={{ display:"grid", gap:5 }}>
               {detalleIngresosMes.length === 0 && <div style={{ fontSize:12,color:C.txt2,background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:9,padding:"10px 12px" }}>{t("No records")}</div>}
               {detalleIngresosMes.map(({ line, index }) => (
-                <div key={String((line as Record<string, unknown>).id || `${line.nombre}-${index}`)} style={{ display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(88px,0.42fr) 30px",gap:6,alignItems:"center",fontSize:13,padding:6,background:C.fondo,borderRadius:9,border:`1px solid ${C.borde}`,minWidth:0 }}>
+                <div key={String((line as Record<string, unknown>).id || `${line.nombre}-${index}`)} style={{ display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr) minmax(82px,0.38fr) 30px":"minmax(0,1fr) minmax(88px,0.34fr) minmax(74px,0.26fr) 30px",gap:6,alignItems:"center",fontSize:13,padding:6,background:C.fondo,borderRadius:9,border:`1px solid ${C.borde}`,minWidth:0 }}>
                   <input value={line.nombre || ""} onChange={(event) => setIncomeLine(index, { nombre:event.target.value })} placeholder={t("Name")} style={{ ...inputS,background:"white",padding:"7px 9px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0 }}/>
                   <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setIncomeLine(index, { importe:event.target.value })} placeholder="0" style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"right",color:Number(line.importe || 0)<0?C.error:C.txt }}/>
+                  {!isMobile && <input type="number" min="1" max="31" step="1" aria-label={t("Credit day")} value={String((line as Record<string, unknown>).diaAcreditacion ?? 1)} onChange={(event) => setIncomeLine(index, { diaAcreditacion:event.target.value })} placeholder={t("Day")} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"center" }}/>
+                  }
                   <button onClick={() => removeIncomeLine(index)} aria-label={t("Delete")} style={{ width:30,height:30,minHeight:30,borderRadius:7,border:`1px solid ${C.error}44`,background:C.errorBg,color:C.error,cursor:"pointer",fontWeight:800,fontFamily:"'Lato',sans-serif" }}>x</button>
+                  {isMobile && <input type="number" min="1" max="31" step="1" aria-label={t("Credit day")} value={String((line as Record<string, unknown>).diaAcreditacion ?? 1)} onChange={(event) => setIncomeLine(index, { diaAcreditacion:event.target.value })} placeholder={t("Day")} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"center",gridColumn:"1 / -1" }}/>
+                  }
+                  <span style={{ gridColumn:"1 / -1",fontSize:10,color:C.txt2,padding:"0 2px" }}>{t("Credited")} {fechaAcreditacionIngresoEnMes(line, prefVista)}</span>
                 </div>
               ))}
               {Math.abs(ajusteIngresosFijos) > 0.005 && (

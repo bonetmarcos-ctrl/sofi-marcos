@@ -9,11 +9,24 @@ const isYearMonth = (value) => /^\d{4}-\d{2}$/.test(String(value || ""));
 
 const monthNumber = (pref) => Number(String(pref || "").slice(5, 7));
 
+const clampDay = (value) => {
+  const day = Math.trunc(Number(value || 1));
+  return Number.isFinite(day) && day > 0 ? Math.min(31, day) : 1;
+};
+
 const previousYearMonth = (pref) => {
   const [year, month] = String(pref || "").split("-").map(Number);
   if (!year || !month) return "";
 
   const date = new Date(year, month - 2, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const nextYearMonth = (pref) => {
+  const [year, month] = String(pref || "").split("-").map(Number);
+  if (!year || !month) return "";
+
+  const date = new Date(year, month, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 };
 
@@ -50,6 +63,17 @@ const totalLineasIngresoEnMes = (lineas = [], pref) => lineas
   .filter((linea) => lineaIngresoActivaEnMes(linea, pref))
   .reduce((sum, linea) => sum + toAmount(linea.importe), 0);
 
+export const diaAcreditacionIngreso = (linea) => clampDay(linea?.diaAcreditacion ?? linea?.diaCobro ?? linea?.diaPago ?? 1);
+
+export const fechaAcreditacionIngresoEnMes = (linea, pref) => {
+  const [year, month] = String(pref || "").split("-").map(Number);
+  if (!year || !month) return "";
+
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(diaAcreditacionIngreso(linea), lastDay);
+  return `${pref}-${String(day).padStart(2, "0")}`;
+};
+
 export const editarLineaIngresoDesdeMes = (lineas = [], index, pref, patch, nuevoId) => {
   const linea = lineas[index];
   if (!linea) return lineas;
@@ -83,6 +107,56 @@ export const eliminarLineaIngresoDesdeMes = (lineas = [], index, pref) => {
   }
 
   return lineas.map((actual, lineIndex) => lineIndex === index ? { ...actual, hasta:prefAnterior } : actual);
+};
+
+type IncomeSplitIds = { current?: string | number; future?: string | number };
+
+export const editarLineaIngresoEnMes = (lineas = [], index, pref, patch, ids: IncomeSplitIds = {}) => {
+  const linea = lineas[index];
+  if (!linea) return lineas;
+
+  const prefAnterior = previousYearMonth(pref);
+  const prefSiguiente = nextYearMonth(pref);
+  const estabaActivaAntes = prefAnterior && lineaIngresoActivaEnMes(linea, prefAnterior);
+  const sigueActivaDespues = prefSiguiente && lineaIngresoActivaEnMes(linea, prefSiguiente);
+  const soloMesActual = linea.desde === pref && linea.hasta === pref;
+
+  if (soloMesActual || (!estabaActivaAntes && !sigueActivaDespues)) {
+    return lineas.map((actual, lineIndex) => lineIndex === index ? { ...actual, ...patch } : actual);
+  }
+
+  return lineas.flatMap((actual, lineIndex) => {
+    if (lineIndex !== index) return [actual];
+
+    const parts = [];
+    if (estabaActivaAntes) parts.push({ ...actual, hasta:prefAnterior });
+    parts.push({ ...actual, ...patch, id:ids.current || actual.id, desde:pref, hasta:pref });
+    if (sigueActivaDespues) parts.push({ ...actual, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
+    return parts;
+  });
+};
+
+export const eliminarLineaIngresoEnMes = (lineas = [], index, pref, ids: IncomeSplitIds = {}) => {
+  const linea = lineas[index];
+  if (!linea) return lineas;
+
+  const prefAnterior = previousYearMonth(pref);
+  const prefSiguiente = nextYearMonth(pref);
+  const estabaActivaAntes = prefAnterior && lineaIngresoActivaEnMes(linea, prefAnterior);
+  const sigueActivaDespues = prefSiguiente && lineaIngresoActivaEnMes(linea, prefSiguiente);
+
+  if (!estabaActivaAntes && !sigueActivaDespues) {
+    return lineas.filter((_, lineIndex) => lineIndex !== index);
+  }
+
+  return lineas.flatMap((actual, lineIndex) => {
+    if (lineIndex !== index) return [actual];
+
+    const parts = [];
+    if (estabaActivaAntes) parts.push({ ...actual, hasta:prefAnterior });
+    if (sigueActivaDespues) parts.push({ ...actual, id:ids.future || `${actual.id || "income"}-${pref}-next`, desde:prefSiguiente });
+    return parts;
+  });
 };
 
 export const actualizarIngresosFijosDesdeMes = (base, pref, detalleIngresos) => {
