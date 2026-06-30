@@ -156,8 +156,30 @@ describe("finance domain", () => {
     const lever = { subcategoria:"habitacion", calendarioVinculado:true, fechaInicio:"2026-08-01", fechaFin:"2026-08-04", precioUnidad:70, importe:0, mes:"2026-08" };
     const fit = calculateLeverCalendarFit(lever, { events:[], blocks:[], trips:[] });
 
-    expect(fit).toMatchObject({ disponible:true, unidades:3, unidad:"noche", importeEstimado:210, conflictos:[] });
+    expect(fit).toMatchObject({ disponible:true, unidades:3, unidad:"dia", importeEstimado:210, conflictos:[] });
     expect(calculateLeverBudgetAmount(lever, { events:[], blocks:[], trips:[] })).toBe(210);
+  });
+
+  it("distributes calendar-linked room lever income by day across months", () => {
+    const lever = { subcategoria:"habitacion", calendarioVinculado:true, fechaInicio:"2026-08-30", fechaFin:"2026-09-02", precioUnidad:70, importe:0, mes:"2026-08", activa:true };
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [lever],
+      debts: [],
+      utilities: [],
+      year: 2026,
+      currentMonth: 7,
+    });
+
+    expect(calculateLeverBudgetAmount(lever, { events:[], blocks:[], trips:[] }, "2026-08")).toBe(140);
+    expect(calculateLeverBudgetAmount(lever, { events:[], blocks:[], trips:[] }, "2026-09")).toBe(70);
+    expect(result.datosMes[7].ing_habitacion).toBe(140);
+    expect(result.datosMes[8].ing_habitacion).toBe(70);
+    expect(result.totales.varAnual).toBe(210);
   });
 
   it("keeps conflicted calendar-linked levers out of potential capacity", () => {

@@ -325,7 +325,19 @@ export const isCalendarLinkedLever = (lever) =>
 
 export const leverBudgetMonth = (lever) => lever.mes || normalizeIsoDate(lever.fechaInicio).slice(0, 7) || "";
 
-export const leverCalendarUnit = (lever) => lever.unidadCalendario || (lever.subcategoria === "coche" ? "dia" : "noche");
+export const leverCalendarUnit = (_lever = null) => "dia";
+
+export const leverCalendarMonths = (lever) => {
+  if (!isCalendarLinkedLever(lever)) return [];
+
+  const start = normalizeIsoDate(lever.fechaInicio);
+  const end = normalizeIsoDate(lever.fechaFin || lever.fechaInicio);
+  if (!isIsoDate(start) || !isIsoDate(end) || start > end) return [];
+
+  const startMonth = start.slice(0, 7);
+  const endMonth = end.slice(0, 7);
+  return Array.from({ length:monthDiff(startMonth, endMonth) + 1 }, (_, index) => addMonths(startMonth, index));
+};
 
 export const leverAvailabilityUnits = (lever) => {
   if (!isCalendarLinkedLever(lever)) return 0;
@@ -337,10 +349,44 @@ export const leverAvailabilityUnits = (lever) => {
   return daysBetween(start, end);
 };
 
+export const leverAvailabilityUnitsForMonth = (lever, yearMonth) => {
+  if (!isCalendarLinkedLever(lever) || !isYearMonth(yearMonth)) return 0;
+
+  const start = normalizeIsoDate(lever.fechaInicio);
+  const end = normalizeIsoDate(lever.fechaFin || lever.fechaInicio);
+  if (!isIsoDate(start) || !isIsoDate(end) || start > end) return 0;
+
+  const monthStart = `${yearMonth}-01`;
+  const nextMonthStart = `${addMonths(yearMonth, 1)}-01`;
+  const overlapStart = start > monthStart ? start : monthStart;
+  const overlapEnd = end < nextMonthStart ? end : nextMonthStart;
+  return overlapStart < overlapEnd ? daysBetween(overlapStart, overlapEnd) : 0;
+};
+
 export const estimateLeverCalendarAmount = (lever) => {
   const units = leverAvailabilityUnits(lever);
   const unitPrice = asAmount(lever.precioUnidad);
   return units > 0 && unitPrice > 0 ? units * unitPrice : 0;
+};
+
+export const estimateLeverCalendarAmountForMonth = (lever, yearMonth) => {
+  const units = leverAvailabilityUnitsForMonth(lever, yearMonth);
+  const unitPrice = asAmount(lever.precioUnidad);
+  return units > 0 && unitPrice > 0 ? units * unitPrice : 0;
+};
+
+export const leverAmountForMonth = (lever, yearMonth) => {
+  if (!isCalendarLinkedLever(lever)) return leverBudgetMonth(lever) === yearMonth ? asAmount(lever.importe) : 0;
+
+  const units = leverAvailabilityUnitsForMonth(lever, yearMonth);
+  if (units <= 0) return 0;
+
+  const unitPrice = asAmount(lever.precioUnidad);
+  if (unitPrice > 0) return units * unitPrice;
+
+  const totalUnits = leverAvailabilityUnits(lever);
+  const totalAmount = asAmount(lever.importe);
+  return totalUnits > 0 && totalAmount > 0 ? (totalAmount * units) / totalUnits : 0;
 };
 
 export const leverAmount = (lever) => estimateLeverCalendarAmount(lever) || asAmount(lever.importe);
@@ -381,11 +427,14 @@ export const calculateLeverCalendarFit = (lever, { events = [], blocks = [], tri
   };
 };
 
-export const calculateLeverBudgetAmount = (lever, calendarContext: CalendarContext = {}) => {
+export const calculateLeverBudgetAmount = (lever, calendarContext: CalendarContext = {}, yearMonth = "") => {
   if (!isCalendarLinkedLever(lever)) return asAmount(lever.importe);
 
   const fit = calculateLeverCalendarFit(lever, calendarContext);
-  return fit.disponible ? leverAmount(lever) : 0;
+  if (!fit.disponible) return 0;
+
+  if (yearMonth) return leverAmountForMonth(lever, yearMonth);
+  return leverAmount(lever);
 };
 
 export const annualCommitmentDueDateForYear = (commitment, year) => dateForYear(commitment.fechaVencimiento, year);
@@ -556,15 +605,15 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
 
     const activeLevers = levers.filter((lever) => lever.activa && matchesBudgetMonth(lever, prefix));
-    const leverRoom = sumLevers(activeLevers, "habitacion", calendarContext);
-    const leverCar = sumLevers(activeLevers, "coche", calendarContext);
-    const leverSales = sumLevers(activeLevers, "ventas", calendarContext);
-    const leverOther = sumLevers(activeLevers, "otros", calendarContext);
+    const leverRoom = sumLevers(activeLevers, "habitacion", calendarContext, prefix);
+    const leverCar = sumLevers(activeLevers, "coche", calendarContext, prefix);
+    const leverSales = sumLevers(activeLevers, "ventas", calendarContext, prefix);
+    const leverOther = sumLevers(activeLevers, "otros", calendarContext, prefix);
     const leverTotal = leverRoom + leverCar + leverSales + leverOther;
 
     const potentialLevers = levers
       .filter((lever) => !lever.activa && matchesBudgetMonth(lever, prefix))
-      .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext), 0);
+      .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext, prefix), 0);
 
     const variableIncomeTotal = roomIncome + carIncome + otherIncome + leverTotal;
     const calendarVariableExpenses = events
@@ -665,12 +714,13 @@ export const calculateMonthlyBudget = ({
   };
 };
 
-const sumLevers = (levers, subcategory, calendarContext = {}) =>
+const sumLevers = (levers, subcategory, calendarContext = {}, yearMonth = "") =>
   levers
     .filter((lever) => lever.subcategoria === subcategory)
-    .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext), 0);
+    .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext, yearMonth), 0);
 
 const matchesBudgetMonth = (lever, yearMonth) => {
+  if (isCalendarLinkedLever(lever)) return leverCalendarMonths(lever).includes(yearMonth);
   if (!leverBudgetMonth(lever) || !yearMonth) return false;
   return leverBudgetMonth(lever) === yearMonth;
 };

@@ -22,7 +22,7 @@ export default function ModalPalanca({ palanca, defaults = {}, eventos = [], blo
     ...f,
     subcategoria:key,
     calendarioVinculado:CALENDAR_LEVER_TYPES.has(key) ? f.calendarioVinculado : false,
-    unidadCalendario:CALENDAR_LEVER_TYPES.has(key) ? (key === "coche" ? "dia" : "noche") : "",
+    unidadCalendario:CALENDAR_LEVER_TYPES.has(key) ? "dia" : "",
   }));
   const sub = SUBCAT_VAR[form.subcategoria];
   const calendarCapable = CALENDAR_LEVER_TYPES.has(form.subcategoria);
@@ -35,7 +35,7 @@ export default function ModalPalanca({ palanca, defaults = {}, eventos = [], blo
   };
   const calendarFit = calculateLeverCalendarFit(calendarDraft, { events:eventos, blocks:bloqueos, trips:viajes });
   const shownAmount = calendarLinked && calendarFit.importeEstimado > 0 ? calendarFit.importeEstimado : (+form.importe || 0);
-  const unitLabel = form.subcategoria === "coche" ? "dia" : "noche";
+  const unitLabel = "día";
   const saveLever = () => {
     const linked = Boolean(form.calendarioVinculado && CALENDAR_LEVER_TYPES.has(form.subcategoria));
     const fit = calculateLeverCalendarFit({ ...form, calendarioVinculado:linked, fechaFin:form.fechaFin || form.fechaInicio }, { events:eventos, blocks:bloqueos, trips:viajes });
@@ -126,7 +126,7 @@ export default function ModalPalanca({ palanca, defaults = {}, eventos = [], blo
                     <input type="number" min="0" value={form.precioUnidad || ""} onChange={e => set("precioUnidad", +e.target.value)} placeholder="0" style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}` }}/>
                   </div>
                   <div>
-                    <label style={{ ...labelS, color:C.txt2 }}>{form.subcategoria === "coche" ? t("Days") : t("Nights")}</label>
+                    <label style={{ ...labelS, color:C.txt2 }}>{t("Days")}</label>
                     <input value={calendarFit.unidades || ""} disabled style={{ ...inputS, background:C.superficie, border:`1px solid ${C.borde}`, opacity:0.82 }}/>
                   </div>
                 </div>

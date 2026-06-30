@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, leverCalendarMonths, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
@@ -209,10 +209,11 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       .filter(item => Number(item.val || 0) > 0);
   }, [datosMes, mesVista]);
 
+  const palancaEnMes = useCallback((palanca) => palanca.calendarioVinculado ? leverCalendarMonths(palanca).includes(prefVista) : palanca.mes === prefVista, [prefVista]);
   const palancasMesVista = useMemo(() => palancas
-    .filter(p => p.mes === prefVista), [palancas, prefVista]);
+    .filter(palancaEnMes), [palancas, palancaEnMes]);
   const palancasPotResumen = useMemo(() => palancas
-    .filter(p => !p.activa && p.mes === prefVista), [palancas, prefVista]);
+    .filter(p => !p.activa && palancaEnMes(p)), [palancas, palancaEnMes]);
 
   const ingresosFijosResumen = base.monthlyOverrides?.[prefVista]?.fixedIncome ?? base.ingresos_fijos;
   const detalleIngresosMes = useMemo(() => (base.detalle_ingresos || [])
@@ -522,8 +523,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               {palancasMesVista.map(p => {
                 const sub = SUBCAT_VAR[p.subcategoria];
                 const calendarFit = calculateLeverCalendarFit(p, { events:eventos, blocks:bloqueos, trips:viajes });
-                const viableAmount = calculateLeverBudgetAmount(p, { events:eventos, blocks:bloqueos, trips:viajes });
-                const displayAmount = calendarFit.calendarioVinculado ? calendarFit.importeEstimado || p.importe : p.importe;
+                const viableAmount = calculateLeverBudgetAmount(p, { events:eventos, blocks:bloqueos, trips:viajes }, prefVista);
+                const displayAmount = calendarFit.calendarioVinculado ? viableAmount || p.importe : p.importe;
                 return (
                   <div key={p.id} style={{ padding:"9px 12px",background:p.activa?C.sageLight:C.fondo,borderRadius:10,border:`1px solid ${p.activa?C.sage+"66":C.borde}`,transition:"all 0.2s" }}>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5 }}>
