@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iter - Mockup Gastos Recursos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+    <style>
+      :root {
+        --primary: #6e6385;
+        --primary-fixed: #eee8f4;
+        --primary-dim: #d8cde5;
+        --secondary: #3a949e;
+        --secondary-strong: #2f7f87;
+        --secondary-fixed: #e6f2f4;
+        --secondary-dim: #c8e3e7;
+        --attention: #8f736a;
+        --attention-fixed: #f3e8e3;
+        --bg: #f8f7f3;
+        --surface: #ffffff;
+        --surface-soft: #fbfaf7;
+        --border: #e5dedb;
+        --text: #2d2932;
+        --muted: #756f7c;
+        --fixed: #64748b;
+        --fixed-bg: #f3f6f8;
+        --utility: #d97706;
+        --utility-bg: #fff4d6;
+        --variable: #d96f5c;
+        --variable-bg: #fbe9e4;
+        --trip: #2f86ad;
+        --trip-bg: #e7f4f8;
+        --success: #2f7d57;
+        --success-bg: #e9f6ee;
+        --warning: #b7791f;
+        --warning-bg: #fff7e6;
+        --danger: #c0564a;
+        --danger-bg: #faebe8;
+        --shadow: 0 18px 44px rgba(68, 54, 77, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 28px 22px 42px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 18px;
+      }
+
+      .title-block {
+        min-width: 0;
+      }
+
+      .section-title {
+        margin: 0;
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1.1;
+        font-weight: 850;
+        letter-spacing: 0;
+      }
+
+      .section-meta {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 14px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .month-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .primary-action {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 16px;
+        background: var(--secondary-strong);
+        color: white;
+        font-size: 14px;
+        font-weight: 850;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .month-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .icon-button {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+      }
+
+      .month-label {
+        min-width: 132px;
+        text-align: center;
+        color: var(--text);
+        font-size: 18px;
+        font-weight: 850;
+      }
+
+      .payment-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .payment-item {
+        min-width: 0;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .payment-item.cash {
+        border-color: #c9e6d2;
+        background: var(--success-bg);
+      }
+
+      .payment-item.card {
+        border-color: #ead9b8;
+        background: var(--warning-bg);
+      }
+
+      .payment-item.installments {
+        border-color: #ead1cc;
+        background: var(--danger-bg);
+      }
+
+      .payment-title {
+        min-width: 0;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .payment-title i {
+        margin-right: 6px;
+      }
+
+      .payment-sub {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .payment-value {
+        font-size: 18px;
+        font-weight: 850;
+        color: var(--text);
+        white-space: nowrap;
+      }
+
+      .cash .payment-value,
+      .cash .payment-title {
+        color: var(--success);
+      }
+
+      .card .payment-value,
+      .card .payment-title {
+        color: var(--warning);
+      }
+
+      .installments .payment-value,
+      .installments .payment-title {
+        color: var(--danger);
+      }
+
+      .groups {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        align-items: start;
+      }
+
+      .group {
+        min-width: 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .group-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 13px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .group-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .group-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+      }
+
+      .group-title {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .group-sub {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .group-total-head {
+        text-align: right;
+        font-size: 16px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .fixed .group-icon {
+        background: var(--fixed-bg);
+        color: var(--fixed);
+      }
+
+      .fixed .group-total-head,
+      .fixed .group-title {
+        color: var(--fixed);
+      }
+
+      .utility .group-icon {
+        background: var(--utility-bg);
+        color: var(--utility);
+      }
+
+      .utility .group-total-head,
+      .utility .group-title {
+        color: var(--utility);
+      }
+
+      .variable .group-icon {
+        background: var(--variable-bg);
+        color: var(--variable);
+      }
+
+      .variable .group-total-head,
+      .variable .group-title {
+        color: var(--variable);
+      }
+
+      .trip .group-icon {
+        background: var(--trip-bg);
+        color: var(--trip);
+      }
+
+      .trip .group-total-head,
+      .trip .group-title {
+        color: var(--trip);
+      }
+
+      .rows {
+        display: grid;
+        gap: 1px;
+        background: #eee8e6;
+      }
+
+      .row {
+        min-width: 0;
+        min-height: 58px;
+        background: var(--surface);
+        padding: 11px 14px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .row.alert {
+        background: #fff9ea;
+      }
+
+      .row.pending {
+        background: var(--surface-soft);
+      }
+
+      .row-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .row-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--surface-soft);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .fixed .row-icon {
+        color: var(--fixed);
+      }
+
+      .utility .row-icon {
+        color: var(--utility);
+      }
+
+      .variable .row-icon {
+        color: var(--variable);
+      }
+
+      .trip .row-icon {
+        color: var(--trip);
+      }
+
+      .row-text {
+        min-width: 0;
+      }
+
+      .row-title {
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .row-meta {
+        margin-top: 3px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .status {
+        border-radius: 999px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .status.ok {
+        background: var(--success-bg);
+        color: var(--success);
+      }
+
+      .status.warn {
+        background: var(--warning-bg);
+        color: var(--warning);
+      }
+
+      .status.muted {
+        background: #f1eeea;
+        color: var(--muted);
+      }
+
+      .row-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .amount {
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .ghost-action {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        color: var(--muted);
+        display: grid;
+        place-items: center;
+      }
+
+      .group-foot {
+        padding: 12px 14px;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .fixed .group-foot {
+        background: var(--fixed);
+      }
+
+      .utility .group-foot {
+        background: var(--utility);
+      }
+
+      .variable .group-foot {
+        background: var(--variable);
+      }
+
+      .trip .group-foot {
+        background: var(--trip);
+      }
+
+      .breakdown {
+        margin-top: 5px;
+        display: grid;
+        gap: 4px;
+      }
+
+      .breakdown-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .breakdown-line span:first-child {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      @media (max-width: 1180px) {
+        .groups {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .page {
+          padding: 18px 14px 32px;
+        }
+
+        .toolbar,
+        .payment-strip,
+        .groups {
+          grid-template-columns: 1fr;
+        }
+
+        .month-actions {
+          flex-wrap: wrap;
+        }
+
+        .primary-action,
+        .month-picker {
+          width: 100%;
+          justify-content: center;
+        }
+
+        .month-label {
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="toolbar">
+        <div class="title-block">
+          <h1 class="section-title">Gastos</h1>
+          <div class="section-meta">
+            <span>Suministros</span>
+            <span>·</span>
+            <span>Gastos variables</span>
+            <span>·</span>
+            <span>Viajes</span>
+            <strong>1622 € este mes</strong>
+          </div>
+        </div>
+        <div class="month-actions">
+          <button class="primary-action"><i class="bi bi-plus-lg" aria-hidden="true"></i>Gasto variable</button>
+          <div class="month-picker">
+            <button class="icon-button"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+            <div class="month-label">Junio 2026</div>
+            <button class="icon-button"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </header>
+
+      <section class="payment-strip" aria-label="Distribución de pago">
+        <article class="payment-item cash">
+          <div>
+            <div class="payment-title"><i class="bi bi-cash-stack" aria-hidden="true"></i>Efectivo</div>
+            <div class="payment-sub">Este mes</div>
+          </div>
+          <div class="payment-value">1512 €</div>
+        </article>
+        <article class="payment-item card">
+          <div>
+            <div class="payment-title"><i class="bi bi-credit-card" aria-hidden="true"></i>Tarjeta</div>
+            <div class="payment-sub">Mes de débito</div>
+          </div>
+          <div class="payment-value">0 €</div>
+        </article>
+        <article class="payment-item installments">
+          <div>
+            <div class="payment-title"><i class="bi bi-calendar2-week" aria-hidden="true"></i>Tarjeta en cuotas</div>
+            <div class="payment-sub">Cuotas activas</div>
+          </div>
+          <div class="payment-value">0 €</div>
+        </article>
+      </section>
+
+      <section class="groups" aria-label="Grupos de gasto">
+        <article class="group fixed">
+          <header class="group-head">
+            <div class="group-title-wrap">
+              <div class="group-icon"><i class="bi bi-house-door" aria-hidden="true"></i></div>
+              <div>
+                <div class="group-title">Gastos fijos</div>
+                <div class="group-sub">Compromisos de base</div>
+              </div>
+            </div>
+            <div class="group-total-head">1934 €</div>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-bank" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Hipoteca</div><div class="row-meta">Mensual</div></div></div>
+              <div class="row-right"><div class="amount">1275 €</div></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Seguro de vida</div><div class="row-meta">Mensual</div></div></div>
+              <div class="row-right"><div class="amount">103 €</div></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-car-front" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Seguro auto</div><div class="row-meta">Mensual</div></div></div>
+              <div class="row-right"><div class="amount">50 €</div></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-building" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Comunidad + Derramas</div><div class="row-meta">Mensual</div></div></div>
+              <div class="row-right"><div class="amount">56 €</div></div>
+            </div>
+          </div>
+          <footer class="group-foot"><span>Total Junio</span><span>1934 €</span></footer>
+        </article>
+
+        <article class="group utility">
+          <header class="group-head">
+            <div class="group-title-wrap">
+              <div class="group-icon"><i class="bi bi-lightning-charge" aria-hidden="true"></i></div>
+              <div>
+                <div class="group-title">Suministros</div>
+                <div class="group-sub">Importe, vencimiento y consumo</div>
+              </div>
+            </div>
+            <div class="group-total-head">110 €</div>
+          </header>
+          <div class="rows">
+            <div class="row alert">
+              <div class="row-left">
+                <div class="row-icon"><i class="bi bi-lightning-charge" aria-hidden="true"></i></div>
+                <div class="row-text"><div class="row-title">Luz</div><div class="row-meta"><span>216 kWh</span><span class="status warn">Subió +18</span></div></div>
+              </div>
+              <div class="row-right"><div class="amount">66 €</div><button class="ghost-action"><i class="bi bi-pencil" aria-hidden="true"></i></button></div>
+            </div>
+            <div class="row pending">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-fire" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Gas</div><div class="row-meta"><span>Necesario 01/06</span><span class="status muted">Pendiente</span></div></div></div>
+              <div class="row-right"><div class="amount">—</div><button class="ghost-action"><i class="bi bi-pencil" aria-hidden="true"></i></button></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-wifi" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Internet</div><div class="row-meta"><span>Necesario 29/06</span><span class="status ok">Registrado</span></div></div></div>
+              <div class="row-right"><div class="amount">31 €</div><button class="ghost-action"><i class="bi bi-pencil" aria-hidden="true"></i></button></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-phone" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Móvil</div><div class="row-meta"><span>Necesario 29/06</span><span class="status ok">Registrado</span></div></div></div>
+              <div class="row-right"><div class="amount">13 €</div><button class="ghost-action"><i class="bi bi-pencil" aria-hidden="true"></i></button></div>
+            </div>
+          </div>
+          <footer class="group-foot"><span>Total Junio</span><span>110 €</span></footer>
+        </article>
+
+        <article class="group variable">
+          <header class="group-head">
+            <div class="group-title-wrap">
+              <div class="group-icon"><i class="bi bi-bag-check" aria-hidden="true"></i></div>
+              <div>
+                <div class="group-title">Gastos variables</div>
+                <div class="group-sub">Calendario y líneas del mes</div>
+              </div>
+            </div>
+            <div class="group-total-head">1367 €</div>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-house-heart" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Casa</div><div class="row-meta">Tareas completadas</div></div></div>
+              <div class="row-right"><div class="amount">912 €</div></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Salud</div><div class="row-meta">Calendario</div></div></div>
+              <div class="row-right"><div class="amount">210 €</div></div>
+            </div>
+            <div class="row alert">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-cart3" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Supermercado</div><div class="row-meta"><span>Compra fuerte</span><span class="status warn">Atención</span></div></div></div>
+              <div class="row-right"><div class="amount">203 €</div></div>
+            </div>
+            <div class="row">
+              <div class="row-left"><div class="row-icon"><i class="bi bi-bus-front" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Transporte</div><div class="row-meta">Calendario</div></div></div>
+              <div class="row-right"><div class="amount">26 €</div></div>
+            </div>
+          </div>
+          <footer class="group-foot"><span>Total Junio</span><span>1367 €</span></footer>
+        </article>
+
+        <article class="group trip">
+          <header class="group-head">
+            <div class="group-title-wrap">
+              <div class="group-icon"><i class="bi bi-airplane" aria-hidden="true"></i></div>
+              <div>
+                <div class="group-title">Viajes</div>
+                <div class="group-sub">Conceptos activos este mes</div>
+              </div>
+            </div>
+            <div class="group-total-head">145 €</div>
+          </header>
+          <div class="rows">
+            <div class="row" style="align-items:start;">
+              <div class="row-left" style="align-items:start;">
+                <div class="row-icon"><i class="bi bi-airplane" aria-hidden="true"></i></div>
+                <div class="row-text">
+                  <div class="row-title">Palermo</div>
+                  <div class="breakdown">
+                    <div class="breakdown-line"><span>Otro</span><strong>4 €</strong></div>
+                    <div class="breakdown-line"><span>Hotel</span><strong>71 €</strong></div>
+                    <div class="breakdown-line"><span>Transporte</span><strong>28 €</strong></div>
+                    <div class="breakdown-line"><span>Restaurante</span><strong>42 €</strong></div>
+                  </div>
+                </div>
+              </div>
+              <div class="row-right"><div class="amount">145 €</div></div>
+            </div>
+          </div>
+          <footer class="group-foot"><span>Total Junio</span><span>145 €</span></footer>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
