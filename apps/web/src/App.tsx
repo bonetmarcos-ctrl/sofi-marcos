@@ -1,17 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { C } from "./constants/colores.ts";
 import { Login } from "./components/Login.tsx";
 import { useAuth } from "./hooks/useAuth.ts";
 import { useBreakpoint } from "./hooks/useBreakpoint.ts";
 import { useAppState } from "./hooks/useAppState.ts";
 import { todayISO } from "./utils/dates.ts";
-import { DEFAULT_APP_NAME, buildCreditCardDebtFromExpense, tripExpenseItems } from "@sofi-marqui/domain";
+import { DEFAULT_APP_NAME, buildCreditCardDebtFromExpense, calculateLeverBudgetAmount, calculateLeverCalendarFit, tripExpenseItems } from "@sofi-marqui/domain";
 import TabPresupuesto from "./features/presupuesto/TabPresupuesto.tsx";
 import TabCalendario  from "./features/calendario/TabCalendario.tsx";
 import TabGantt       from "./features/casa/TabGantt.tsx";
 import ModalEvento    from "./features/calendario/modals/ModalEvento.tsx";
 import ModalViaje     from "./features/viajes/ModalViaje.tsx";
 import { LanguageMenu } from "./components/LanguageMenu.tsx";
+import { useDatosMes } from "./hooks/useDatosMes.ts";
 import { useI18n } from "./i18n.tsx";
 import { BG_VIAJE, COLOR_VIAJE } from "./constants/categorias.ts";
 
@@ -218,7 +219,7 @@ function AuthenticatedApp({ user, onLogout }) {
       {/* Content */}
       <div style={{ maxWidth:1180, margin:"0 auto", padding:isMobile?"14px 12px 32px":isTablet?"18px 16px 40px":"24px 24px 48px", minWidth:0 }}>
         {tab === "hoy" && (
-          <TabHoy eventos={eventos} viajes={viajes} proyectos={proyectos} palancas={palancas} deudas={deudas} setTab={setTab} />
+          <TabHoy base={base} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} deudas={deudas} suministros={suministros} gastosVariables={gastosVariables} compromisosAnuales={compromisosAnuales} setTab={setTab} />
         )}
         {tab === "suenos" && (
           <TabSuenos viajes={viajes} proyectos={proyectos} palancas={palancas} setTab={setTab} />
@@ -257,16 +258,64 @@ const sortByDate = (items, key) => [...(items || [])].sort((a, b) => cleanText(a
 const upcomingByDate = (items, key) => sortByDate(items, key).filter(item => cleanText(item?.[key]) >= todayISO);
 const isProjectDone = (project) => ["done", "completado", "completed"].includes(lowerText(project?.estado));
 const money = (value) => new Intl.NumberFormat("es-ES", { style:"currency", currency:"EUR", maximumFractionDigits:0 }).format(Number(value || 0));
+const currentYear = () => Number(todayISO.slice(0, 4));
+const currentMonthIndex = () => Math.max(0, Math.min(11, Number(todayISO.slice(5, 7)) - 1));
+const daysUntilDate = (value) => {
+  const text = cleanText(value);
+  if (!text.includes("-")) return null;
+  return Math.ceil((new Date(`${text}T12:00:00`).getTime() - new Date(`${todayISO}T12:00:00`).getTime()) / 86400000);
+};
+const sameDateInYear = (date, year) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || "")) ? `${year}${String(date).slice(4)}` : "";
+const nextAnnualDate = (date, year) => {
+  const thisYear = sameDateInYear(date, year);
+  if (!thisYear) return "";
+  return thisYear >= todayISO ? thisYear : sameDateInYear(date, year + 1);
+};
 
-function TabHoy({ eventos = [], viajes = [], proyectos = [], palancas = [], deudas = [], setTab }) {
+function TabHoy({ base, eventos = [], bloqueos = [], viajes = [], proyectos = [], palancas = [], deudas = [], suministros = [], gastosVariables = [], compromisosAnuales = [], setTab }) {
+  const year = currentYear();
+  const monthIndex = currentMonthIndex();
+  const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, compromisosAnuales, año:year, mesActual:monthIndex });
+  const monthData = datosMes[monthIndex];
+  const resourceSummary = monthData?.resumen_recursos;
   const activeProjects = (proyectos || []).filter(project => !isProjectDone(project));
   const blockedProjects = activeProjects.filter(project => lowerText(project.estado).includes("bloque"));
   const upcomingEvents = upcomingByDate(eventos, "fecha");
   const upcomingTrips = upcomingByDate(viajes, "inicio");
   const inactiveLevers = (palancas || []).filter(lever => !lever.activa);
   const activeDebts = (deudas || []).filter(debt => Number(debt?.cuota_actual || 0) < Number(debt?.cuotas_totales || 0));
+  const upcomingCommitments = useMemo(() => (compromisosAnuales || [])
+    .map(commitment => {
+      const dueDate = nextAnnualDate(commitment.fechaVencimiento, year);
+      return { ...commitment, dueDate, daysToDue:daysUntilDate(dueDate) };
+    })
+    .filter(commitment => commitment.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [compromisosAnuales, year]);
+  const calendarLeverStatus = useMemo(() => inactiveLevers
+    .filter(lever => lever.calendarioVinculado)
+    .map(lever => {
+      const fit = calculateLeverCalendarFit(lever, { events:eventos, blocks:bloqueos, trips:viajes });
+      return { lever, fit, viableAmount:calculateLeverBudgetAmount(lever, { events:eventos, blocks:bloqueos, trips:viajes }) };
+    }), [bloqueos, eventos, inactiveLevers, viajes]);
+  const conflictedLever = calendarLeverStatus.find(item => item.fit.conflictos.length > 0);
+  const availableLever = calendarLeverStatus.find(item => item.fit.disponible && item.viableAmount > 0);
+  const dueCommitment = upcomingCommitments.find(commitment => commitment.daysToDue !== null && commitment.daysToDue <= Number(commitment.avisoDiasAntes || 30));
+  const reserveThisMonth = Number(monthData?.gasto_reservas || 0);
+  const cardPressure = Number(resourceSummary?.presion_tarjeta || 0);
+  const margin = Number(resourceSummary?.margen_real || 0);
+  const pressure = Number(resourceSummary?.presion_financiera || 0);
+  const resourceSignals = [
+    margin < 0 && { when:"Recursos", title:"Margen real en negativo", detail:`Faltan ${money(Math.abs(margin))} para cerrar el mes.`, tab:"recursos", color:C.error, bg:C.errorBg },
+    margin >= 0 && pressure >= 90 && { when:"Recursos", title:"Presión financiera alta", detail:`${pressure}% del ingreso ya está asignado.`, tab:"recursos", color:C.warn, bg:C.warnBg },
+    reserveThisMonth > 0 && { when:"Reserva", title:"Separar reserva del mes", detail:`${money(reserveThisMonth)} para compromisos conocidos.`, tab:"recursos", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed },
+    dueCommitment && { when:formatIsoDay(dueCommitment.dueDate), title:`Vence ${cleanText(dueCommitment.nombre, "compromiso")}`, detail:`Aviso activo · ${money(dueCommitment.importe)}`, tab:"recursos", color:C.brandTertiary, bg:C.brandTertiaryFixed },
+    cardPressure > 0 && { when:"Tarjeta", title:"Impacto de tarjeta y cuotas", detail:`${money(cardPressure)} presionan caja este mes.`, tab:"recursos", color:C.warn, bg:C.warnBg },
+    conflictedLever && { when:"Calendario", title:`Revisar ${cleanText(conflictedLever.lever.nombre, "palanca")}`, detail:`Tiene ${conflictedLever.fit.conflictos.length} conflicto${conflictedLever.fit.conflictos.length === 1 ? "" : "s"}.`, tab:"recursos", color:C.warn, bg:C.warnBg },
+    availableLever && { when:"Palanca", title:`Disponible ${cleanText(availableLever.lever.nombre, "palanca")}`, detail:`Potencial viable de ${money(availableLever.viableAmount)}.`, tab:"recursos", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed },
+  ].filter(Boolean);
 
   const actions = [
+    ...resourceSignals.slice(0, 3),
     ...upcomingEvents.slice(0, 2).map(event => ({
       when:formatIsoDay(event.fecha),
       title:cleanText(event.titulo, "Evento"),
@@ -301,23 +350,18 @@ function TabHoy({ eventos = [], viajes = [], proyectos = [], palancas = [], deud
     })),
   ].slice(0, 5);
 
-  const recommended = upcomingTrips[0]
+  const recommended = resourceSignals[0]
+    || (upcomingTrips[0]
     ? { title:`Revisar ${cleanText(upcomingTrips[0].nombre, "viaje")}`, detail:"Viajes mantiene su azul propio y aparece acá cuando puede afectar tiempo o recursos.", tab:"recursos", color:COLOR_VIAJE, bg:BG_VIAJE }
     : inactiveLevers[0]
       ? { title:"Activar una palanca", detail:`${cleanText(inactiveLevers[0].nombre)} puede mejorar el margen del mes.`, tab:"recursos", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed }
       : blockedProjects[0]
         ? { title:"Cerrar una decisión pequeña", detail:`${cleanText(blockedProjects[0].titulo)} está frenando movimiento.`, tab:"proyectos", color:C.brandPrimary, bg:C.brandPrimaryFixed }
-        : { title:"Mantener la semana simple", detail:"No hay señales fuertes; conviene mirar lo próximo y no abrir demasiados frentes.", tab:"tiempo", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed };
+        : { title:"Mantener la semana simple", detail:"No hay señales fuertes; conviene mirar lo próximo y no abrir demasiados frentes.", tab:"tiempo", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed });
 
   return (
     <div style={{ display:"grid", gap:18 }}>
       <PageIntro eyebrow="Estado de situación" title="Hoy" copy="Lo primero es lo que necesita acción esta semana; lo demás queda como contexto." />
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:10 }}>
-        <MetricCard label="Pendiente semana" value={`${actions.length} acciones`} color={C.brandPrimary} bg={C.brandPrimaryFixed} />
-        <MetricCard label="Proyectos activos" value={activeProjects.length} color={C.brandSecondaryStrong} bg={C.brandSecondaryFixed} />
-        <MetricCard label="Viajes" value={upcomingTrips.length} color={COLOR_VIAJE} bg={BG_VIAJE} />
-        <MetricCard label="Deudas activas" value={activeDebts.length} color={C.brandTertiary} bg={C.brandTertiaryFixed} />
-      </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap:18, alignItems:"start" }}>
         <section style={panelS()}>
           <PanelHead title="Esta semana" copy="Pocas acciones visibles para poder moverte con calma." tag={`${actions.length} acciones`} />
@@ -345,6 +389,14 @@ function TabHoy({ eventos = [], viajes = [], proyectos = [], palancas = [], deud
             </button>
           </section>
         </div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))", gap:10 }}>
+        <MetricCard label="Margen real" value={money(margin)} color={margin < 0 ? C.error : C.brandSecondaryStrong} bg={margin < 0 ? C.errorBg : C.brandSecondaryFixed} />
+        <MetricCard label="Presión" value={`${pressure}%`} color={pressure >= 90 ? C.warn : C.brandPrimary} bg={pressure >= 90 ? C.warnBg : C.brandPrimaryFixed} />
+        <MetricCard label="Reserva mes" value={money(reserveThisMonth)} color={C.brandSecondaryStrong} bg={C.brandSecondaryFixed} />
+        <MetricCard label="Tarjeta/cuotas" value={money(cardPressure)} color={C.warn} bg={C.warnBg} />
+        <MetricCard label="Proyectos activos" value={activeProjects.length} color={C.brandPrimary} bg={C.brandPrimaryFixed} />
+        <MetricCard label="Deudas activas" value={activeDebts.length} color={C.brandTertiary} bg={C.brandTertiaryFixed} />
       </div>
     </div>
   );
