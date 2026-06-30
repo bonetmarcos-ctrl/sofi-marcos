@@ -159,6 +159,24 @@ export const BASE = {
   }
 };
 
+export const EMPTY_BASE = {
+  ingresos_fijos: 0,
+  gastos_fijos: 0,
+  deudas: 0,
+  previsiones: 0,
+  presupuesto_variable: 0,
+  coste_coche: 0,
+  detalle_fijos: [],
+  detalle_ingresos: [],
+  detalle_deudas: [],
+  ingresos_puntuales_mayo: [],
+  prestamo_coche: {
+    importe: 0,
+    vence: "",
+  },
+  monthlyOverrides: {},
+};
+
 const asRecord = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
 
 const toAmount = (value: unknown) => {
@@ -215,8 +233,8 @@ const normalizeMonthlyOverrides = (overrides: unknown) => Object.fromEntries(
     .filter(([, values]) => Object.keys(values).length > 0),
 );
 
-export const normalizeBudgetBase = (base: unknown = BASE) => {
-  const source: Record<string, any> = { ...structuredClone(BASE), ...asRecord(base) };
+export const normalizeBudgetBase = (base: unknown = EMPTY_BASE) => {
+  const source: Record<string, any> = { ...structuredClone(EMPTY_BASE), ...asRecord(base) };
   return {
     ...source,
     id: source.id || "base",
@@ -1162,7 +1180,7 @@ export const DEMO_SUMINISTROS = [
 ];
 
 export const createInitialState = () => ({
-  base: normalizeBudgetBase(),
+  base: normalizeBudgetBase(BASE),
   eventos: structuredClone(DEMO_EVENTOS),
   viajes: structuredClone(DEMO_VIAJES),
   bloqueos: [],
@@ -1177,7 +1195,7 @@ export const createInitialState = () => ({
 });
 
 export const createEmptyState = () => ({
-  base: normalizeBudgetBase(),
+  base: normalizeBudgetBase(EMPTY_BASE),
   eventos: [],
   viajes: [],
   bloqueos: [],

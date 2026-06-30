@@ -58,6 +58,8 @@ describe("api", () => {
     expect(response.body.user).toEqual({ username: "nueva", appName: "Casa Nueva" });
     const state = await agent.get("/api/state").expect(200);
     expect(state.body).toEqual(createEmptyState());
+    expect(state.body.base.ingresos_fijos).toBe(0);
+    expect(state.body.base.detalle_ingresos).toEqual([]);
   });
 
   it("keeps application state isolated per authenticated user", async () => {
@@ -140,6 +142,7 @@ describe("api", () => {
     const response = await agent.post("/api/state/reset").expect(200);
 
     expect(response.body.palancas.some((palanca: { nombre: string }) => palanca.nombre === "Temporal")).toBe(false);
+    expect(response.body).toEqual(createEmptyState());
   });
 
   it("validates payloads", async () => {
