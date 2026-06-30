@@ -18,7 +18,7 @@ describe("income timeline", () => {
 
     expect(result.monthlyOverrides["2026-06"].fixedIncome).toBe(1000);
     expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(1200);
-    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1300);
+    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1200);
     expect(result.detalle_ingresos[0]).toMatchObject({ id:"salary", hasta:"2026-06", importe:1000 });
     expect(result.detalle_ingresos[1]).toMatchObject({ id:"salary-2026-07", desde:"2026-07", importe:1200 });
     expect(lineaIngresoActivaEnMes(result.detalle_ingresos[0], "2026-06")).toBe(true);
@@ -61,6 +61,40 @@ describe("income timeline", () => {
     expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(1200);
   });
 
+  it("can replace hidden monthly adjustment with visible income lines", () => {
+    const base = {
+      ingresos_fijos:1000,
+      detalle_ingresos:[{ id:"salary", nombre:"Salary", importe:1000, recurrente:true }],
+      monthlyOverrides:{
+        "2026-06": { fixedIncome:1000 },
+        "2026-07": { fixedIncome:1200 },
+      },
+    };
+
+    const detalleIngresos = [...base.detalle_ingresos, { id:"extra", nombre:"Extra", importe:200, recurrente:false, desde:"2026-07", hasta:"2026-07" }];
+    const result = actualizarIngresosFijosDesdeMes(base, "2026-07", detalleIngresos);
+
+    expect(result.monthlyOverrides["2026-06"].fixedIncome).toBe(1000);
+    expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(1200);
+  });
+
+  it("replaces hidden future adjustments with visible income sources", () => {
+    const base = {
+      ingresos_fijos:1000,
+      detalle_ingresos:[{ id:"salary", nombre:"Salary", importe:1000, recurrente:true }],
+      monthlyOverrides:{
+        "2026-07": { fixedIncome:1200 },
+        "2026-08": { fixedIncome:1100 },
+      },
+    };
+
+    const detalleIngresos = [...base.detalle_ingresos, { id:"extra", nombre:"Extra", importe:200, recurrente:false, desde:"2026-07", hasta:"2026-07" }];
+    const result = actualizarIngresosFijosDesdeMes(base, "2026-07", detalleIngresos, { resetSelectedAdjustment:true });
+
+    expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(1200);
+    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1000);
+  });
+
   it("edits only the selected month while preserving later monthly totals", () => {
     const base = {
       ingresos_fijos:1000,
@@ -77,7 +111,7 @@ describe("income timeline", () => {
 
     expect(result.monthlyOverrides["2026-06"].fixedIncome).toBe(1000);
     expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(1200);
-    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1100);
+    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1000);
     expect(result.detalle_ingresos).toEqual([
       { id:"salary", nombre:"Salary", importe:1000, recurrente:true, diaAcreditacion:28, hasta:"2026-06" },
       { id:"salary-2026-07", nombre:"Salary", importe:1200, recurrente:true, diaAcreditacion:28, fechaAcreditacion:"2026-06-26", desde:"2026-07", hasta:"2026-07" },
@@ -101,7 +135,7 @@ describe("income timeline", () => {
 
     expect(result.monthlyOverrides["2026-06"].fixedIncome).toBe(1000);
     expect(result.monthlyOverrides["2026-07"].fixedIncome).toBe(0);
-    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1100);
+    expect(result.monthlyOverrides["2026-08"].fixedIncome).toBe(1000);
     expect(result.detalle_ingresos).toEqual([
       { id:"salary", nombre:"Salary", importe:1000, recurrente:true, hasta:"2026-06" },
       { id:"salary-2026-08", nombre:"Salary", importe:1000, recurrente:true, desde:"2026-08" },

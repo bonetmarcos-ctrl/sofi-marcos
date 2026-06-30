@@ -185,13 +185,14 @@ export const eliminarLineaIngresoEnMes = (lineas = [], index, pref, ids: IncomeS
   });
 };
 
-export const actualizarIngresosFijosDesdeMes = (base, pref, detalleIngresos) => {
+export const actualizarIngresosFijosDesdeMes = (base, pref, detalleIngresos, options: { preserveAdjustment?: boolean; resetSelectedAdjustment?: boolean } = {}) => {
   const monthlyOverrides = { ...(base.monthlyOverrides || {}) };
 
   for (const prefMes of yearMonthsFrom(pref)) {
+    const preserveAdjustment = options.preserveAdjustment === true && !(options.resetSelectedAdjustment && prefMes === pref);
     const totalActual = monthlyOverrides[prefMes]?.fixedIncome ?? base.ingresos_fijos;
     const totalLineasActual = totalLineasIngresoEnMes(base.detalle_ingresos || [], prefMes);
-    const ajuste = toAmount(totalActual) - totalLineasActual;
+    const ajuste = preserveAdjustment ? toAmount(totalActual) - totalLineasActual : 0;
     const nuevoTotal = totalLineasIngresoEnMes(detalleIngresos, prefMes) + ajuste;
 
     monthlyOverrides[prefMes] = {

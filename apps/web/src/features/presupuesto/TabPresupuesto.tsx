@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, leverCalendarMonths, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
-import { C, cardN, inputS } from "../../constants/colores.ts";
+import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, labelMes } from "../../utils/format.ts";
 import { todayISO, addMeses, daysBetween } from "../../utils/dates.ts";
@@ -14,7 +14,7 @@ import AnalizadorPresionFinanciera from "./AnalizadorPresionFinanciera.tsx";
 import ActionIconButton from "./ActionIconButton.tsx";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
-import { actualizarIngresosFijosDesdeMes, editarLineaIngresoEnMes, eliminarLineaIngresoEnMes, fechaAcreditacionIngresoEnMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
+import { actualizarIngresosFijosDesdeMes, editarLineaIngresoDesdeMes, editarLineaIngresoEnMes, eliminarLineaIngresoDesdeMes, eliminarLineaIngresoEnMes, fechaAcreditacionIngresoEnMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
 import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
@@ -53,6 +53,17 @@ const deudaVisibleEnMes = (deuda, pref) => {
   return offset === null || cuotasTotales <= 0 || offset < cuotasTotales;
 };
 
+const esPrefMes = (value) => /^\d{4}-\d{2}$/.test(String(value || ""));
+const etiquetaAlcanceIngreso = (linea, pref) => {
+  const desde = String(linea?.desde || "").trim();
+  const hasta = String(linea?.hasta || "").trim();
+  if (desde === pref && hasta === pref) return "solo este mes";
+  if (desde && hasta) return `${esPrefMes(desde) ? labelMes(desde) : desde} a ${esPrefMes(hasta) ? labelMes(hasta) : hasta}`;
+  if (desde) return `desde ${esPrefMes(desde) ? labelMes(desde) : desde}`;
+  if (hasta) return `hasta ${esPrefMes(hasta) ? labelMes(hasta) : hasta}`;
+  return "recurrente";
+};
+
 export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables, compromisosAnuales = [], setCompromisosAnuales }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
@@ -68,6 +79,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
+  const [modalIngreso,setModalIngreso] = useState(null);
   const [simulacionPago, setSimulacionPago] = useState({ titulo:"Gasto simulado", categoria:"otro", importe:600, fecha:todayISO, tarjetaDiaCierre:20, tarjetaNombre:"", cuotas:"3,6,12" });
   const [deudasAbiertas, setDeudasAbiertas] = useState(false);
   const [compromisosAbiertos, setCompromisosAbiertos] = useState(false);
@@ -235,19 +247,63 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
     .filter(({ line }) => lineaIngresoActivaEnMes(line, prefVista)), [base.detalle_ingresos, prefVista]);
   const ingresosFijosLineasTotal = useMemo(() => detalleIngresosMes.reduce((sum, { line }) => sum + Number(line.importe || 0), 0), [detalleIngresosMes]);
   const ajusteIngresosFijos = ingresosFijosResumen - ingresosFijosLineasTotal;
-  const updateIncomeLines = useCallback((updater) => {
+  const ingresosFijosVisibles = detalleIngresosMes.length > 0 ? ingresosFijosLineasTotal : ingresosFijosResumen;
+  const ingresosTienenDescuadre = detalleIngresosMes.length > 0 && Math.abs(ajusteIngresosFijos) > 0.005;
+  const gastoComprometidoMes = Number(resumenMes?.resumen_recursos?.gasto_comprometido ?? resumenMes?.gasto_estructural ?? 0);
+  const gastoTotalRealMes = Number(resumenMes?.resumen_recursos?.gasto_total_real ?? resumenMes?.total_gastos ?? 0);
+  const ingresosVariablesConfirmadosMes = Number(resumenMes?.resumen_recursos?.ingresos_variables_confirmados ?? resumenMes?.ingresos_var_total ?? 0);
+  const margenVisibleMes = ingresosFijosVisibles + ingresosVariablesConfirmadosMes - gastoTotalRealMes;
+  const brechaComprometidaMes = ingresosFijosVisibles - gastoComprometidoMes;
+  const mostrarInsightPresionIngresos = detalleIngresosMes.length > 0 && (brechaComprometidaMes < -0.005 || margenVisibleMes < -0.005);
+  const updateIncomeLines = useCallback((updater, options = {}) => {
     if (!setBase) return;
 
     setBase((currentBase) => {
       const source = currentBase || base;
       const nextLines = updater([...(source.detalle_ingresos || [])]);
-      return actualizarIngresosFijosDesdeMes(source, prefVista, nextLines);
+      return actualizarIngresosFijosDesdeMes(source, prefVista, nextLines, options);
     });
   }, [base, prefVista, setBase]);
   const incomeLineIds = () => ({ current:Date.now() + Math.random(), future:Date.now() + Math.random() });
-  const setIncomeLine = (index, patch) => updateIncomeLines((lines) => editarLineaIngresoEnMes(lines, index, prefVista, patch, incomeLineIds()));
-  const addIncomeLine = () => updateIncomeLines((lines) => [...lines, { id:Date.now() + Math.random(), nombre:t("Income"), importe:0, recurrente:true, desde:prefVista, hasta:prefVista, fechaAcreditacion:`${prefVista}-01`, notas:"" }]);
-  const removeIncomeLine = (index) => updateIncomeLines((lines) => eliminarLineaIngresoEnMes(lines, index, prefVista, incomeLineIds()));
+  const ingresoFijoDraft = (line = {}) => ({ ...line, fechaAcreditacion:fechaAcreditacionIngresoEnMes(line, prefVista) || `${prefVista}-01` });
+  const abrirNuevoIngreso = () => setModalIngreso({ mode:"new", scope:"desde", line:ingresoFijoDraft({ nombre:"", importe:"", recurrente:true, desde:prefVista, fechaAcreditacion:`${prefVista}-01`, notas:"" }) });
+  const abrirEditarIngreso = (line, index) => setModalIngreso({ mode:"edit", scope:"desde", index, line:ingresoFijoDraft(line) });
+  const regularizarIngresosFijos = () => updateIncomeLines((lines) => lines);
+  const normalizarIngresoFijo = (draft, scope = "desde") => {
+    const fechaAcreditacion = /^\d{4}-\d{2}-\d{2}$/.test(String(draft.fechaAcreditacion || "")) ? String(draft.fechaAcreditacion) : `${prefVista}-01`;
+    const recurrente = scope !== "soloMes";
+    return {
+      ...draft,
+      id:draft.id || Date.now() + Math.random(),
+      nombre:String(draft.nombre || "Ingreso fijo").trim() || "Ingreso fijo",
+      importe:Number(draft.importe || 0),
+      recurrente,
+      desde:prefVista,
+      hasta:recurrente ? "" : prefVista,
+      fechaAcreditacion,
+      diaAcreditacion:Number(fechaAcreditacion.slice(8, 10)) || 1,
+      notas:draft.notas || "",
+    };
+  };
+  const guardarIngresoFijo = (draft, scope = "desde") => {
+    const patch = normalizarIngresoFijo(draft, scope);
+    updateIncomeLines((lines) => {
+      if (modalIngreso?.index !== undefined && modalIngreso?.index !== null) {
+        return scope === "soloMes"
+          ? editarLineaIngresoEnMes(lines, modalIngreso.index, prefVista, patch, incomeLineIds())
+          : editarLineaIngresoDesdeMes(lines, modalIngreso.index, prefVista, patch, Date.now() + Math.random());
+      }
+      return [...lines, patch];
+    });
+    setModalIngreso(null);
+  };
+  const eliminarIngresoFijo = (scope = "desde") => {
+    if (modalIngreso?.index === undefined || modalIngreso?.index === null) return;
+    updateIncomeLines((lines) => scope === "soloMes"
+      ? eliminarLineaIngresoEnMes(lines, modalIngreso.index, prefVista, incomeLineIds())
+      : eliminarLineaIngresoDesdeMes(lines, modalIngreso.index, prefVista));
+    setModalIngreso(null);
+  };
 
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const expenseLayerColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
@@ -487,31 +543,55 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                 <div style={{ width:10,height:10,borderRadius:"50%",background:C.cyan,flexShrink:0 }}/>
                 <span style={{ fontSize:12,fontWeight:700,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.6px",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t("Fixed income")}</span>
               </div>
-              <button onClick={addIncomeLine} aria-label={t("New")} style={{ background:C.cyan,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif",flexShrink:0 }}>+ {t("New")}</button>
+              <button onClick={abrirNuevoIngreso} disabled={!setBase} aria-label="Nuevo ingreso fijo" style={{ background:C.cyan,color:"white",border:"none",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,cursor:setBase?"pointer":"not-allowed",fontFamily:"'Lato',sans-serif",flexShrink:0,opacity:setBase?1:0.55 }}>+ {t("New")}</button>
             </div>
             <div style={{ display:"grid", gap:5 }}>
               {detalleIngresosMes.length === 0 && <div style={{ fontSize:12,color:C.txt2,background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:9,padding:"10px 12px" }}>{t("No records")}</div>}
               {detalleIngresosMes.map(({ line, index }) => (
-                <div key={String((line as Record<string, unknown>).id || `${line.nombre}-${index}`)} style={{ display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr) minmax(82px,0.38fr) 30px":"minmax(0,1fr) minmax(88px,0.34fr) minmax(132px,0.46fr) 30px",gap:6,alignItems:"center",fontSize:13,padding:6,background:C.fondo,borderRadius:9,border:`1px solid ${C.borde}`,minWidth:0 }}>
-                  <input value={line.nombre || ""} onChange={(event) => setIncomeLine(index, { nombre:event.target.value })} placeholder={t("Name")} style={{ ...inputS,background:"white",padding:"7px 9px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0 }}/>
-                  <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setIncomeLine(index, { importe:event.target.value })} placeholder="0" style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"right",color:Number(line.importe || 0)<0?C.error:C.txt }}/>
-                  {!isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0 }}/>
-                  }
-                  <ActionIconButton label={t("Delete")} bootstrapIcon="trash3" tone="delete" size={30} onClick={() => removeIncomeLine(index)} />
-                  {isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,gridColumn:"1 / -1" }}/>
-                  }
-                  <span style={{ gridColumn:"1 / -1",fontSize:10,color:C.txt2,padding:"0 2px" }}>{t("Credited")} {fechaAcreditacionIngresoEnMes(line, prefVista)}</span>
+                <div key={String((line as Record<string, unknown>).id || `${line.nombre}-${index}`)} style={{ display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr) auto":"minmax(0,1fr) minmax(92px,0.34fr) auto",gap:8,alignItems:"center",fontSize:13,padding:"9px 10px",background:C.fondo,borderRadius:9,border:`1px solid ${C.borde}`,minWidth:0 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13,fontWeight:800,color:C.txt,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{line.nombre || "Ingreso fijo"}</div>
+                    <div style={{ fontSize:10.5,color:C.txt2,marginTop:2,display:"flex",gap:6,flexWrap:"wrap" }}>
+                      <span>{t("Credited")} {fechaAcreditacionIngresoEnMes(line, prefVista)}</span>
+                      <span>{etiquetaAlcanceIngreso(line, prefVista)}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize:14,fontWeight:850,color:Number(line.importe || 0)<0?C.error:C.cyan,textAlign:isMobile?"left":"right",fontFamily:"'Playfair Display',serif",whiteSpace:"nowrap" }}>{fmt(line.importe || 0)}</div>
+                  <ActionIconButton label="Editar ingreso fijo" bootstrapIcon="pencil" tone="edit" size={30} disabled={!setBase} onClick={() => abrirEditarIngreso(line, index)} />
                 </div>
               ))}
-              {Math.abs(ajusteIngresosFijos) > 0.005 && (
-                <div style={{ display:"flex",justifyContent:"space-between",gap:10,fontSize:13,padding:"8px 12px",background:C.cyanLight,borderRadius:9,border:`1px solid ${C.cyan}33` }}>
-                  <span style={{ color:C.cyan,fontWeight:700 }}>{t("Monthly adjustment")}</span>
-                  <span style={{ fontWeight:800,color:ajusteIngresosFijos<0?C.error:C.cyan }}>{fmt(ajusteIngresosFijos)}</span>
+              {ingresosTienenDescuadre && (
+                <div style={{ display:"grid",gap:8,fontSize:12,padding:"10px 11px",background:C.warnBg,borderRadius:9,border:`1px solid ${C.warn}44`,color:C.txt }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start" }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ color:C.warn,fontWeight:850,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>Insight Iter · ingresos sin cuadrar</div>
+                      <div style={{ fontSize:10.5,color:C.txt2,marginTop:2,lineHeight:1.35 }}>Las fuentes visibles suman {fmt(ingresosFijosLineasTotal)} y el total anterior era {fmt(ingresosFijosResumen)}. No se compensa como ingreso automático.</div>
+                    </div>
+                    <span style={{ fontWeight:850,color:ajusteIngresosFijos<0?C.error:C.warn,fontFamily:"'Playfair Display',serif",whiteSpace:"nowrap" }}>{fmt(ajusteIngresosFijos)}</span>
+                  </div>
+                  <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                    <button onClick={abrirNuevoIngreso} disabled={!setBase} style={{ background:"white",color:C.warn,border:`1px solid ${C.warn}55`,borderRadius:8,padding:"6px 9px",fontSize:11,fontWeight:800,cursor:setBase?"pointer":"not-allowed",fontFamily:"'Lato',sans-serif",opacity:setBase?1:0.55 }}>Agregar fuente real</button>
+                    <button onClick={regularizarIngresosFijos} disabled={!setBase || detalleIngresosMes.length === 0} style={{ background:C.warn,color:"white",border:"none",borderRadius:8,padding:"6px 9px",fontSize:11,fontWeight:800,cursor:setBase&&detalleIngresosMes.length>0?"pointer":"not-allowed",fontFamily:"'Lato',sans-serif",opacity:setBase&&detalleIngresosMes.length>0?1:0.55 }}>Usar fuentes visibles desde este mes</button>
+                  </div>
                 </div>
               )}
               <div style={{ display:"flex",justifyContent:"space-between",fontSize:13,padding:"9px 12px",background:C.cyan,borderRadius:9,color:"white",marginTop:2 }}>
-                <span style={{ fontWeight:700 }}>{t("Monthly total")}</span><span style={{ fontWeight:700 }}>{fmt(ingresosFijosResumen)}</span>
+                <span style={{ fontWeight:700 }}>{t("Monthly total")}</span><span style={{ fontWeight:700 }}>{fmt(ingresosFijosVisibles)}</span>
               </div>
+              {mostrarInsightPresionIngresos && (
+                <div style={{ display:"grid",gap:8,fontSize:12,padding:"10px 11px",background:margenVisibleMes<0?C.errorBg:C.brandPrimaryFixed,borderRadius:9,border:`1px solid ${margenVisibleMes<0?C.error:C.brandPrimary}33`,color:C.txt }}>
+                  <div style={{ fontWeight:850,color:margenVisibleMes<0?C.error:C.brandPrimary }}>Insight Iter · nivel de gasto elevado</div>
+                  <div style={{ fontSize:10.8,color:C.txt2,lineHeight:1.35 }}>
+                    {brechaComprometidaMes < 0
+                      ? `Los ingresos fijos visibles quedan ${fmt(Math.abs(brechaComprometidaMes))} por debajo de los compromisos del mes.`
+                      : `Con las fuentes visibles, el margen del mes queda en ${fmt(margenVisibleMes)}.`}
+                  </div>
+                  <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
+                    <button onClick={() => scrollToResourceSection("recursos-flujo")} style={{ background:"white",color:margenVisibleMes<0?C.error:C.brandPrimary,border:`1px solid ${margenVisibleMes<0?C.error:C.brandPrimary}44`,borderRadius:8,padding:"6px 9px",fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>Ver presión</button>
+                    <button onClick={() => { setSimulacionesAbiertas(true); window.setTimeout(() => scrollToResourceSection("recursos-simulaciones"), 0); }} style={{ background:margenVisibleMes<0?C.error:C.brandPrimary,color:"white",border:"none",borderRadius:8,padding:"6px 9px",fontSize:11,fontWeight:800,cursor:"pointer",fontFamily:"'Lato',sans-serif" }}>Simular cuotas o pagos</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -731,7 +811,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
       <div style={{ order:41 }}>
-      <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
+      <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosVisibles} mesVista={mesVista} año={año}/>
       </div>
 
       {/* ── EXPLORADOR DE GASTOS ── */}
@@ -1094,6 +1174,16 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         />
       )}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
+      {modalIngreso !== null && (
+        <ModalIngresoFijo
+          ingreso={modalIngreso.line}
+          scope={modalIngreso.scope}
+          mesLabel={`${monthName(mesVista)} ${año}`}
+          onSave={guardarIngresoFijo}
+          onDelete={modalIngreso.index !== undefined && modalIngreso.index !== null ? eliminarIngresoFijo : undefined}
+          onClose={() => setModalIngreso(null)}
+        />
+      )}
       {modalCompromiso !== null && (
         <ModalCompromisoAnual
           compromiso={modalCompromiso?.id ? modalCompromiso : undefined}
@@ -1135,6 +1225,81 @@ const daysUntil = (date) => date ? Math.ceil((new Date(`${date}T12:00:00`).getTi
 const formatDate = (date) => date ? date.split("-").reverse().join("/") : "";
 const commitmentTypeLabel = (type) => ANNUAL_COMMITMENT_TYPES.find(option => option.key === type)?.label || "Otro";
 const paymentSourceLabel = (source) => PAYMENT_SOURCE_OPTIONS.find(option => option.key === source)?.label || "Efectivo";
+
+function ModalIngresoFijo({ ingreso = {}, scope = "desde", mesLabel, onSave, onDelete, onClose }) {
+  const { isMobile } = useBreakpoint();
+  const [form, setForm] = useState(() => ({ nombre:"", importe:"", fechaAcreditacion:"", notas:"", ...ingreso }));
+  const [alcance, setAlcance] = useState(scope || "desde");
+  const set = (key, value) => setForm(current => ({ ...current, [key]:value }));
+  const importe = Number(form.importe || 0);
+  const canSave = String(form.nombre || "").trim() && Number.isFinite(importe) && Math.abs(importe) > 0.005;
+  const scopeOptions = [
+    { key:"desde", label:"Desde este mes", detail:`Actualiza ${mesLabel} y los meses siguientes.` },
+    { key:"soloMes", label:"Solo este mes", detail:`Crea una excepción puntual en ${mesLabel}.` },
+  ];
+
+  return (
+    <Modal onClose={onClose} maxW={520}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:18 }}>
+        <div style={{ minWidth:0 }}>
+          <h3 style={{ fontSize:18, fontWeight:800, color:C.txt }}>Fuente de ingreso fijo</h3>
+          <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Se guarda sobre {mesLabel}, con la misma lógica de vigencia del mes actual.</div>
+        </div>
+        <button onClick={onClose} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
+      </div>
+
+      <div style={{ display:"grid", gap:13 }}>
+        <label style={{ display:"grid", gap:5 }}>
+          <span style={labelS}>Nombre</span>
+          <input value={form.nombre || ""} onChange={event => set("nombre", event.target.value)} placeholder="Sueldo, nómina, pensión..." style={{ ...inputS, background:C.fondo }}/>
+        </label>
+
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:10 }}>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={labelS}>Importe mensual</span>
+            <input type="number" step="0.01" value={form.importe ?? ""} onChange={event => set("importe", event.target.value)} placeholder="0" style={{ ...inputS, background:C.fondo }}/>
+          </label>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={labelS}>Fecha de cobro</span>
+            <input type="date" value={form.fechaAcreditacion || ""} onChange={event => set("fechaAcreditacion", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+          </label>
+        </div>
+
+        <div style={{ display:"grid", gap:7 }}>
+          <span style={labelS}>Aplicación</span>
+          <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:8 }}>
+            {scopeOptions.map(option => {
+              const active = alcance === option.key;
+              return (
+                <button key={option.key} type="button" onClick={() => setAlcance(option.key)}
+                  style={{ textAlign:"left", background:active?C.cyanLight:C.fondo, border:`1px solid ${active?C.cyan:C.borde}`, borderRadius:11, padding:"9px 10px", cursor:"pointer", fontFamily:"'Lato',sans-serif", color:C.txt }}>
+                  <span style={{ display:"block", fontSize:12, fontWeight:850, color:active?C.cyan:C.txt }}>{option.label}</span>
+                  <span style={{ display:"block", fontSize:10.5, color:C.txt2, marginTop:3, lineHeight:1.3 }}>{option.detail}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <label style={{ display:"grid", gap:5 }}>
+          <span style={labelS}>Notas</span>
+          <textarea value={form.notas || ""} onChange={event => set("notas", event.target.value)} placeholder="Contexto o condiciones..." style={{ ...inputS, minHeight:66, resize:"vertical", background:C.fondo }}/>
+        </label>
+
+        <div style={{ background:C.cyanLight, border:`1px solid ${C.cyan}33`, borderRadius:11, padding:"10px 12px", fontSize:12, color:C.txt2, lineHeight:1.35 }}>
+          Al guardar, el total de ingresos fijos se recalcula desde las fuentes visibles. Si no alcanza para cubrir el mes, Iter lo mostrará como alerta de presión, no como saldo compensado.
+        </div>
+
+        <div style={{ display:"flex", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
+          {onDelete && <button onClick={() => onDelete(alcance)} style={{ background:C.errorBg, color:C.error, border:`1px solid ${C.error}44`, borderRadius:12, padding:"10px 14px", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>Eliminar</button>}
+          <div style={{ flex:1 }}/>
+          <button onClick={onClose} style={{ background:C.fondo, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:12, padding:"10px 14px", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>Cerrar</button>
+          <button onClick={() => onSave(form, alcance)} disabled={!canSave} style={{ background:C.cyan, color:"white", border:"none", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:800, cursor:canSave?"pointer":"not-allowed", fontFamily:"'Lato',sans-serif", opacity:canSave?1:0.55 }}>Guardar ingreso</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año, onCreateExpense, lastCreated, onClose }) {
   const { isMobile, isTablet } = useBreakpoint();
