@@ -55,6 +55,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
   const [simulacionPago, setSimulacionPago] = useState({ titulo:"Gasto simulado", categoria:"otro", importe:600, fecha:todayISO, tarjetaDiaCierre:20, tarjetaNombre:"", cuotas:"3,6,12" });
+  const [compromisosAbiertos, setCompromisosAbiertos] = useState(false);
   const [simulacionesAbiertas, setSimulacionesAbiertas] = useState(false);
   const [ultimoGastoSimulado, setUltimoGastoSimulado] = useState(null);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
@@ -435,7 +436,28 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         </div>
       </div>
 
-      <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} />
+      {compromisosAbiertos ? (
+        <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} onClose={() => setCompromisosAbiertos(false)} />
+      ) : (
+        <section id="recursos-compromisos" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"center", gap:12, flexDirection:isMobile?"column":"row", minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:C.brandSecondaryFixed, color:C.brandSecondaryStrong, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <i className="bi bi-calendar2-check" aria-hidden="true" />
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:800, color:C.txt }}>Compromisos anuales</div>
+                <div style={{ fontSize:12, color:C.txt2, marginTop:2, whiteSpace:isMobile?"normal":"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {compromisosAnuales.length} registrados · reservas, vencimientos y avisos.
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setCompromisosAbiertos(true)} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"9px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:7, whiteSpace:"nowrap" }}>
+              <i className="bi bi-chevron-down" aria-hidden="true" /> Abrir compromisos
+            </button>
+          </div>
+        </section>
+      )}
 
       {simulacionesAbiertas ? (
         <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} onCreateExpense={crearGastoDesdeSimulacion} lastCreated={ultimoGastoSimulado} onClose={() => setSimulacionesAbiertas(false)} />
@@ -584,7 +606,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
-      <SeccionGastosVariables base={base} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} deudas={deudas} setDeudas={setDeudas}/>
+      <SeccionGastosVariables base={base} setBase={setBase} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} deudas={deudas} setDeudas={setDeudas}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
       <div id="recursos-flujo" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
@@ -1285,7 +1307,7 @@ function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escen
   );
 }
 
-function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, onEditar }) {
+function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, onEditar, onClose }) {
   const { isMobile, isTablet } = useBreakpoint();
   const compromisosOrdenados = [...(compromisos || [])]
     .map(commitment => {
@@ -1315,7 +1337,10 @@ function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, o
           <div style={{ fontSize:16, fontWeight:800, color:C.txt }}>Compromisos anuales</div>
           <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Vencimientos previsibles, reserva mensual y avisos antes de que presionen caja.</div>
         </div>
-        <button onClick={onNuevo} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"8px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>+ Compromiso</button>
+        <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:isMobile?"stretch":"flex-end", flexWrap:"wrap" }}>
+          <button onClick={onNuevo} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"8px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>+ Compromiso</button>
+          <button onClick={onClose} style={{ background:C.fondo, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>Ocultar</button>
+        </div>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:columns, gap:10, marginBottom:14 }}>
