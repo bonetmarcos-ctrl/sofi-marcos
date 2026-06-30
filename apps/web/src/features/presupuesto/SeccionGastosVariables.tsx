@@ -15,6 +15,9 @@ import ActionIconButton from "./ActionIconButton.tsx";
 const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
 const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestral:"Quarterly", anual:"Annual", puntual:"One-off" };
+const VARIABLE_EXPENSE_COLOR = C.lavender;
+const VARIABLE_EXPENSE_BG = C.lavLight;
+const VARIABLE_EXPENSE_BORDER = `${C.lavender}33`;
 
 export default function SeccionGastosVariables({ base = BASE, eventos, viajes, proyectos = [], año, mesActual, mesSeleccionado, setMesSeleccionado, suministros, setSuministros, gastosVariables = [], setGastosVariables, deudas = [], setDeudas }) {
   const { t, monthName } = useI18n();
@@ -226,7 +229,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
         {/* Selector de mes */}
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <button onClick={() => setModalGasto({ mes:pref, titulo:"", categoria:"otro", importe:"", origenFondos:FUNDING_SOURCES.MONTH_INCOME, cuotasTarjeta:1, mesPrimerCargo:"", tarjetaNombre:"", tarjetaDiaCierre:"", notas:"" })}
-            style={{ background:C.cyan, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
+            style={{ background:VARIABLE_EXPENSE_COLOR, color:"white", border:"none", borderRadius:9, padding:"7px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>
             + {t("Variable expense")}
           </button>
           <button onClick={() => setMesIdx(i => Math.max(0, i-1))}
@@ -305,18 +308,18 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
 
         {/* COL 2: Discrecional */}
         <div style={columnStyle}>
-          {colHeader(C.lavender, C.lavLight, `${C.lavender}33`, C.lavender, `🗓️ ${t("Variable expenses")}`)}
+          {colHeader(VARIABLE_EXPENSE_COLOR, VARIABLE_EXPENSE_BG, VARIABLE_EXPENSE_BORDER, VARIABLE_EXPENSE_COLOR, `🗓️ ${t("Variable expenses")}`)}
           <div style={columnBodyStyle}>
             {catsCal.length === 0
               ? <div style={{ textAlign:"center", padding:"20px 0", fontSize:12, color:C.txt2 }}>{t("No calendar expenses")}</div>
               : catsCal.map(c => (
-                <div key={c.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, fontSize:13, padding:"8px 12px", background:c.bg, borderRadius:9, border:`1px solid ${c.color}33` }}>
-                  <span style={{ color:c.color, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.emoji} {t(c.label)}</span>
-                  <span style={{ fontWeight:700, color:c.color, flexShrink:0 }}>{fmt(c.sum)}</span>
+                <div key={c.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, fontSize:13, padding:"8px 12px", background:VARIABLE_EXPENSE_BG, borderRadius:9, border:`1px solid ${VARIABLE_EXPENSE_BORDER}` }}>
+                  <span style={{ color:VARIABLE_EXPENSE_COLOR, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.emoji} {t(c.label)}</span>
+                  <span style={{ fontWeight:700, color:VARIABLE_EXPENSE_COLOR, flexShrink:0 }}>{fmt(c.sum)}</span>
                 </div>
               ))
             }
-            {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, C.lavender, "white")}
+            {rowTotal(`${t("Total")} ${monthName(mesIdx)}`, totalCalendario, VARIABLE_EXPENSE_COLOR, "white")}
           </div>
         </div>
 
@@ -435,7 +438,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                 {Object.entries(CATEGORIAS).filter(([k, v]) => v.tipo === "gasto" && k !== "viaje").map(([k, v]) => (
                   <button key={k} onClick={() => setModalGasto(g => ({ ...g, categoria:k }))}
-                    style={{ padding:"5px 11px", borderRadius:20, fontSize:12, border:"none", cursor:"pointer", fontFamily:"'Lato',sans-serif", background:modalGasto.categoria===k?v.color:v.bg, color:modalGasto.categoria===k?"white":v.color, fontWeight:modalGasto.categoria===k?700:400 }}>
+                    style={{ padding:"5px 11px", borderRadius:20, fontSize:12, border:`1px solid ${VARIABLE_EXPENSE_BORDER}`, cursor:"pointer", fontFamily:"'Lato',sans-serif", background:modalGasto.categoria===k?VARIABLE_EXPENSE_COLOR:VARIABLE_EXPENSE_BG, color:modalGasto.categoria===k?"white":VARIABLE_EXPENSE_COLOR, fontWeight:modalGasto.categoria===k?700:400 }}>
                     {v.emoji} {t(v.label)}
                   </button>
                 ))}
@@ -496,7 +499,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={() => guardarGastoVariable(modalGasto)} disabled={!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0}
-                style={{ flex:1, background:C.cyan, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0 ? 0.55 : 1 }}>
+                style={{ flex:1, background:VARIABLE_EXPENSE_COLOR, color:"white", border:"none", borderRadius:12, padding:11, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!modalGasto.titulo || Number(modalGasto.importe || 0) <= 0 ? 0.55 : 1 }}>
                 {modalGasto.id ? t("Save changes") : t("Save expense")}
               </button>
               {modalGasto.id && (
