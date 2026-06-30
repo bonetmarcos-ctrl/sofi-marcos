@@ -7,9 +7,10 @@ const toneStyles = {
   delete: { background:C.errorBg, border:`${C.error}44`, color:C.error },
 };
 
-export default function ActionIconButton({ label, icon, onClick, tone = "neutral", size = 28, style }: {
+export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, tone = "neutral", size = 28, style }: {
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
+  bootstrapIcon?: string;
   onClick: () => void;
   tone?: keyof typeof toneStyles;
   size?: number;
@@ -45,7 +46,7 @@ export default function ActionIconButton({ label, icon, onClick, tone = "neutral
         ...style,
       }}
     >
-      {icon}
+      {icon ?? (bootstrapIcon ? <i className={`bi bi-${bootstrapIcon}`} aria-hidden="true" /> : null)}
     </button>
   );
 }

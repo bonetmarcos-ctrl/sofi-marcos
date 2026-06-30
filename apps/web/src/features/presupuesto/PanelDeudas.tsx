@@ -218,7 +218,7 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
                       </div>
                       <button onClick={() => onEditar(d)}
                         style={{ background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.5)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:9, padding:"7px 0", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif", fontWeight:600 }}>
-                        ✎ {t("Edit debt")}
+                        <i className="bi bi-pencil" aria-hidden="true" /> {t("Edit debt")}
                       </button>
                     </div>
                   </div>

@@ -60,7 +60,7 @@ export default function ModalPalanca({ palanca, defaults = {}, eventos = [], blo
         <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>
           {palanca ? t("Edit lever") : `✨ ${t("New lever")}`}
         </h3>
-        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+        <button onClick={onClose} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
       </div>
 
       <div style={{ display:"grid", gap:14 }}>

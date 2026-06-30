@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@sofi-marqui/domain": "file:../../packages/domain",
+    "bootstrap-icons": "^1.13.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

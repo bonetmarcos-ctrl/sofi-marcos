@@ -472,7 +472,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                   <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setIncomeLine(index, { importe:event.target.value })} placeholder="0" style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"right",color:Number(line.importe || 0)<0?C.error:C.txt }}/>
                   {!isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0 }}/>
                   }
-                  <ActionIconButton label={t("Delete")} icon="🗑️" tone="delete" size={30} onClick={() => removeIncomeLine(index)} />
+                  <ActionIconButton label={t("Delete")} bootstrapIcon="trash3" tone="delete" size={30} onClick={() => removeIncomeLine(index)} />
                   {isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,gridColumn:"1 / -1" }}/>
                   }
                   <span style={{ gridColumn:"1 / -1",fontSize:10,color:C.txt2,padding:"0 2px" }}>{t("Credited")} {fechaAcreditacionIngresoEnMes(line, prefVista)}</span>
@@ -532,7 +532,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                         <div style={{ fontSize:12,fontWeight:700,color:C.txt,display:"flex",alignItems:"center",gap:5 }}><span>{sub?.emoji}</span> {p.nombre}</div>
                         <div style={{ fontSize:10,color:C.txt2,marginTop:2 }}>{labelMes(p.mes)} · {fmt(displayAmount)}</div>
                       </div>
-                      <ActionIconButton label={t("Edit lever")} icon="✎" tone="edit" size={28} onClick={()=>setModalPalanca(p)} />
+                      <ActionIconButton label={t("Edit lever")} bootstrapIcon="pencil" tone="edit" size={28} onClick={()=>setModalPalanca(p)} />
                     </div>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
                       <div style={{ display:"flex",gap:5,flexWrap:"wrap",minWidth:0 }}>
@@ -1338,7 +1338,7 @@ function ModalCompromisoAnual({ compromiso, defaults = {}, onSave, onDelete, onC
           <h3 style={{ fontSize:18, fontWeight:800, color:C.txt }}>{compromiso ? "Editar compromiso" : "Nuevo compromiso anual"}</h3>
           <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Reserva mensual, vencimiento y aviso previo.</div>
         </div>
-        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+        <button onClick={onClose} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
       </div>
 
       <div style={{ display:"grid", gap:13 }}>

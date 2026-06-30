@@ -131,7 +131,7 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
         <div key={line.id || index} style={{ display:"grid", gridTemplateColumns:"minmax(120px,1.35fr) minmax(82px,0.65fr) 34px", gap:8, alignItems:"center" }}>
           <input value={line.nombre || ""} onChange={(event) => setLine(collection, index, { nombre:event.target.value })} placeholder={t("Name")} style={{ ...inputS, background:C.fondo }}/>
           <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setLine(collection, index, { importe:event.target.value })} placeholder="0.00" style={{ ...inputS, background:C.fondo }}/>
-          <ActionIconButton label={t("Delete")} icon="🗑️" tone="delete" size={34} onClick={() => removeLine(collection, index)} />
+          <ActionIconButton label={t("Delete")} bootstrapIcon="trash3" tone="delete" size={34} onClick={() => removeLine(collection, index)} />
           {options.income && (
             <div style={{ gridColumn:"1 / -1", display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:8 }}>
               <label style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:C.txt2 }}>
@@ -154,7 +154,7 @@ export default function PanelConfiguracionPresupuesto({ base, prefVista, onSave,
           <h3 style={{ fontSize:18, fontWeight:800, color:C.txt }}>{t("Editable base data")}</h3>
           <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>{t("Fixed tables and monthly overrides")}</div>
         </div>
-        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+        <button onClick={onClose} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
       </div>
 
       <div style={{ display:"grid", gap:16, maxHeight:"72vh", overflowY:"auto", paddingRight:2 }}>

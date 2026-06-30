@@ -294,7 +294,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                     <span style={{ fontWeight:700, color:s.importe>0?"#d97706":C.txt2 }}>{s.importe>0?fmt(s.importe):"—"}</span>
-                    <ActionIconButton label={`${t("Edit utility bill")} ${t(s.label)}`} icon="✎" tone="edit" size={26} onClick={() => abrirSuministro(s)} />
+                    <ActionIconButton label={`${t("Edit utility bill")} ${t(s.label)}`} bootstrapIcon="pencil" tone="edit" size={26} onClick={() => abrirSuministro(s)} />
                   </div>
                 </div>
               );
@@ -358,7 +358,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
           <Modal onClose={() => setModalSuministro(null)} maxW={560}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
               <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>{t("Edit utility bill")} · {modalSuministro.emoji} {t(modalSuministro.label)}</h3>
-              <button onClick={() => setModalSuministro(null)} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+              <button onClick={() => setModalSuministro(null)} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
             </div>
             <div style={{ display:"grid", gap:14 }}>
               <div style={{ display:"grid", gridTemplateColumns:modalColumns, gap:12 }}>
@@ -427,7 +427,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
         <Modal onClose={() => setModalGasto(null)} maxW={420}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
             <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>{modalGasto.id ? t("Edit expense") : t("Variable expense")}</h3>
-            <button onClick={() => setModalGasto(null)} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+            <button onClick={() => setModalGasto(null)} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
           </div>
           <div style={{ display:"grid", gap:14 }}>
             <div>
@@ -502,7 +502,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
               {modalGasto.id && (
                 <button onClick={() => eliminarGastoVariable(modalGasto.id)}
                   style={{ background:C.errorBg, color:C.error, border:`1px solid ${C.error}44`, borderRadius:12, padding:"11px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-                  🗑️ {t("Delete")}
+                  <i className="bi bi-trash3" aria-hidden="true" /> {t("Delete")}
                 </button>
               )}
             </div>

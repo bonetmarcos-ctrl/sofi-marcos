@@ -22,7 +22,7 @@ export default function ModalDeuda({ deuda, onSave, onDelete, onClose }) {
     <Modal onClose={onClose} maxW={460}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
         <h3 style={{ fontSize:18, fontWeight:700, color:C.txt }}>{deuda ? t("Edit debt") : t("New debt")}</h3>
-        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
+        <button onClick={onClose} aria-label="Cerrar" style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}><i className="bi bi-x-lg" aria-hidden="true" /></button>
       </div>
 
       <div style={{ display:"grid", gap:13 }}>
