@@ -7,7 +7,7 @@ const toneStyles = {
   delete: { background:C.errorBg, border:`${C.error}44`, color:C.error },
 };
 
-export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, tone = "neutral", size = 28, style }: {
+export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, tone = "neutral", size = 28, style, disabled = false }: {
   label: string;
   icon?: ReactNode;
   bootstrapIcon?: string;
@@ -15,6 +15,7 @@ export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, 
   tone?: keyof typeof toneStyles;
   size?: number;
   style?: CSSProperties;
+  disabled?: boolean;
 }) {
   const toneStyle = toneStyles[tone];
 
@@ -22,6 +23,7 @@ export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, 
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       style={{
@@ -33,7 +35,8 @@ export default function ActionIconButton({ label, icon, bootstrapIcon, onClick, 
         border:`1px solid ${toneStyle.border}`,
         background:toneStyle.background,
         color:toneStyle.color,
-        cursor:"pointer",
+        cursor:disabled?"not-allowed":"pointer",
+        opacity:disabled?0.5:1,
         display:"inline-flex",
         alignItems:"center",
         justifyContent:"center",

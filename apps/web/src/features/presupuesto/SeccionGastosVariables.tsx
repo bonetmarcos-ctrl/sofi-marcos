@@ -324,17 +324,16 @@ export default function SeccionGastosVariables({ base = BASE, setBase, eventos, 
           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"8px 12px", background:"#f1f5f9", borderRadius:10, border:"1px solid #64748b33", minWidth:0 }}>
             <div style={{ width:10, height:10, borderRadius:"50%", background:"#64748b", flexShrink:0 }}/>
             <span style={{ fontSize:12, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.6px", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>🏠 {t("Fixed costs")}</span>
-            <button onClick={() => setModalFijo({ index:null, nombre:"", importe:"", notas:"" })} disabled={!setBase} style={{ background:"white", color:"#64748b", border:`1px solid ${C.borde}`, borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:800, cursor:setBase?"pointer":"not-allowed", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap", opacity:setBase?1:0.5 }}>+ {t("New")}</button>
-            <button onClick={abrirEstructuraFijos} disabled={!setBase} style={{ background:"white", color:"#64748b", border:`1px solid ${C.borde}`, borderRadius:8, padding:"4px 8px", fontSize:11, fontWeight:800, cursor:setBase?"pointer":"not-allowed", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap", opacity:setBase?1:0.5 }}><i className="bi bi-sliders" aria-hidden="true" /> {t("Structure")}</button>
+            <ActionIconButton label={t("Edit structure")} bootstrapIcon="pencil" tone="edit" size={28} onClick={abrirEstructuraFijos} disabled={!setBase} style={{ color:"#64748b" }} />
           </div>
           <div style={columnBodyStyle}>
             {fixedLineEntries.map(({ line, index }) => rowItem(line.nombre, fmt(line.importe), C.fondo, C.txt2, "#64748b",
-              <ActionIconButton label={`${t("Edit")} ${line.nombre}`} bootstrapIcon="three-dots" tone="edit" size={26} onClick={() => setModalFijo({ ...line, index })} />,
+              <ActionIconButton label={`${t("Edit")} ${line.nombre}`} bootstrapIcon="pencil" tone="edit" size={26} onClick={() => setModalFijo({ ...line, index })} />,
             ))}
             {(() => {
               const sum = communityFixedEntries.reduce((total, { line }) => total + Number(line.importe || 0), 0);
               return sum > 0 ? rowItem("Comunidad + Derramas", fmt(sum), C.fondo, C.txt2, "#64748b",
-                <ActionIconButton label={t("Edit structure")} bootstrapIcon="three-dots" tone="edit" size={26} onClick={abrirEstructuraFijos} />,
+                <ActionIconButton label={t("Edit structure")} bootstrapIcon="pencil" tone="edit" size={26} onClick={abrirEstructuraFijos} />,
               ) : null;
             })()}
             {rowTotal(t("Monthly total"), fixedCostForMonth, "#64748b", "white")}
