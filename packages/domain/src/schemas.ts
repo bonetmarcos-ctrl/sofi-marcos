@@ -170,6 +170,25 @@ export const birthdaySchema = z.object({
   notas: optionalText,
 });
 
+export const annualCommitmentSchema = z.object({
+  id: idSchema.optional(),
+  nombre: z.string().min(1),
+  tipo: z.string().default("otro"),
+  importe: amount,
+  frecuencia: z.enum(["anual", "semestral", "trimestral"]).default("anual"),
+  fechaVencimiento: z.string().min(1),
+  fechaPago: optionalText,
+  origenFondos: z.string().default("ingresos_mes"),
+  cuotasTarjeta: z.coerce.number().int().positive().default(1),
+  mesPrimerCargo: optionalText,
+  tarjetaNombre: optionalText,
+  tarjetaDiaCierre: z.coerce.number().int().positive().max(31).optional(),
+  reservaActiva: z.coerce.boolean().default(true),
+  mesesReserva: z.coerce.number().int().positive().default(12),
+  avisoDiasAntes: z.coerce.number().int().nonnegative().default(30),
+  notas: optionalText,
+});
+
 export const collectionSchemas = {
   eventos: eventSchema,
   viajes: tripSchema,
@@ -181,6 +200,7 @@ export const collectionSchemas = {
   gastosVariables: variableExpenseSchema,
   comprasSuper: supermarketPurchaseSchema,
   cumpleanos: birthdaySchema,
+  compromisosAnuales: annualCommitmentSchema,
 };
 
 export const collectionNames = Object.freeze(Object.keys(collectionSchemas));

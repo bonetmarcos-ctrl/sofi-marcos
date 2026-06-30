@@ -233,6 +233,68 @@ export const calculatePaymentMethodBreakdownForMonth = (expenses, debts, yearMon
 });
 
 const asAmount = (value) => Number(value || 0);
+const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+const isInYearMonthRange = (yearMonth, startMonth, endMonth) =>
+  Boolean(yearMonth && startMonth && endMonth) && monthDiff(startMonth, yearMonth) >= 0 && monthDiff(yearMonth, endMonth) >= 0;
+
+const dateForYear = (date, year) => {
+  if (!isIsoDate(date) || !Number.isFinite(Number(year))) return "";
+  return `${year}${String(date).slice(4)}`;
+};
+
+export const annualCommitmentDueDateForYear = (commitment, year) => dateForYear(commitment.fechaVencimiento, year);
+
+export const annualCommitmentPaymentDateForYear = (commitment, year) =>
+  dateForYear(commitment.fechaPago || commitment.fechaVencimiento, year);
+
+export const annualCommitmentReserveMonths = (commitment) => Math.max(1, Number(commitment.mesesReserva || 12));
+
+export const annualCommitmentMonthlyReserve = (commitment) =>
+  commitment.reservaActiva === false ? 0 : asAmount(commitment.importe) / annualCommitmentReserveMonths(commitment);
+
+export const annualCommitmentReserveWindowForYear = (commitment, year) => {
+  const dueDate = annualCommitmentDueDateForYear(commitment, year);
+  const dueMonth = dueDate.slice(0, 7);
+  if (!dueMonth) return { start:"", end:"", dueMonth:"" };
+
+  return {
+    start:addMonths(dueMonth, -annualCommitmentReserveMonths(commitment)),
+    end:addMonths(dueMonth, -1),
+    dueMonth,
+  };
+};
+
+export const calculateAnnualCommitmentReserveForMonth = (commitment, yearMonth) => {
+  if (commitment.reservaActiva === false || !yearMonth) return 0;
+
+  const targetYear = Number(yearMonth.slice(0, 4));
+  const reserve = annualCommitmentMonthlyReserve(commitment);
+  const applies = [targetYear, targetYear + 1].some((year) => {
+    const window = annualCommitmentReserveWindowForYear(commitment, year);
+    return isInYearMonthRange(yearMonth, window.start, window.end);
+  });
+
+  return applies ? reserve : 0;
+};
+
+export const annualCommitmentExpenseItem = (commitment, year) => ({
+  id:commitment.id,
+  titulo:commitment.nombre || "Compromiso anual",
+  nombre:commitment.nombre || "Compromiso anual",
+  importe:asAmount(commitment.importe),
+  fecha:annualCommitmentPaymentDateForYear(commitment, year),
+  mes:annualCommitmentPaymentDateForYear(commitment, year).slice(0, 7),
+  origenFondos:commitment.origenFondos || FUNDING_SOURCES.MONTH_INCOME,
+  cuotasTarjeta:commitment.cuotasTarjeta || 1,
+  mesPrimerCargo:commitment.mesPrimerCargo || "",
+  tarjetaNombre:commitment.tarjetaNombre || "",
+  tarjetaDiaCierre:commitment.tarjetaDiaCierre,
+});
+
+export const calculateAnnualCommitmentCashImpactForMonth = (commitment, yearMonth) => {
+  if (commitment.reservaActiva !== false || !yearMonth) return 0;
+  return calculateExpenseCashImpactForMonth(annualCommitmentExpenseItem(commitment, Number(yearMonth.slice(0, 4))), yearMonth);
+};
 
 export const calculateResourceMonthSummary = ({
   pref = "",
@@ -245,6 +307,7 @@ export const calculateResourceMonthSummary = ({
   variableExpenseLines = 0,
   projectExpenses = 0,
   tripExpenses = 0,
+  annualCommitmentExpenses = 0,
   reserveCommitments = 0,
   assignedSavings = 0,
   potentialLevers = 0,
@@ -252,7 +315,7 @@ export const calculateResourceMonthSummary = ({
   cardInstallmentExpenses = 0,
 } = {}) => {
   const confirmedIncome = asAmount(fixedIncome) + asAmount(variableIncome);
-  const committedSpending = asAmount(fixedExpenses) + asAmount(debtExpenses) + asAmount(utilityExpenses) + asAmount(reserveCommitments);
+  const committedSpending = asAmount(fixedExpenses) + asAmount(debtExpenses) + asAmount(utilityExpenses) + asAmount(reserveCommitments) + asAmount(annualCommitmentExpenses);
   const flexibleSpending = asAmount(calendarExpenses) + asAmount(variableExpenseLines) + asAmount(projectExpenses) + asAmount(tripExpenses);
   const assignedMoney = asAmount(assignedSavings);
   const realMonthlyUse = committedSpending + flexibleSpending + assignedMoney;
@@ -269,6 +332,7 @@ export const calculateResourceMonthSummary = ({
     gasto_flexible: flexibleSpending,
     gasto_total_real: realMonthlyUse,
     reservas_necesarias: asAmount(reserveCommitments),
+    gastos_anuales: asAmount(annualCommitmentExpenses),
     ahorro_asignado: assignedMoney,
     margen_real: realFreeMargin,
     palancas_potenciales: potentialCapacity,
@@ -291,6 +355,7 @@ type MonthlyBudgetInput = {
   utilities: any[];
   variableExpenses?: any[];
   projects?: any[];
+  annualCommitments?: any[];
   year: number;
   currentMonth: number;
 };
@@ -306,6 +371,7 @@ export const calculateMonthlyBudget = ({
   utilities,
   variableExpenses = [],
   projects = [],
+  annualCommitments = [],
   year,
   currentMonth,
 }: MonthlyBudgetInput) => {
@@ -377,8 +443,13 @@ export const calculateMonthlyBudget = ({
     const utilityExpenses = utilities
       .filter((utility) => utilityCashMonth(utility) === prefix)
       .reduce((sum, utility) => sum + Number(utility.importe || 0), 0);
+    const annualReserveCommitments = annualCommitments
+      .reduce((sum, commitment) => sum + calculateAnnualCommitmentReserveForMonth(commitment, prefix), 0);
+    const annualCommitmentExpenses = annualCommitments
+      .reduce((sum, commitment) => sum + calculateAnnualCommitmentCashImpactForMonth(commitment, prefix), 0);
 
-    const structuralExpenses = fixedExpenses + debtExpenses;
+    const annualCommittedExpenses = annualReserveCommitments + annualCommitmentExpenses;
+    const structuralExpenses = fixedExpenses + debtExpenses + annualCommittedExpenses;
     const discretionaryExpenses = calendarVariableExpenses + monthlyVariableExpenses + monthCompletedHomeExpenses + tripExpenses;
     const totalIncome = fixedIncome + variableIncomeTotal;
     const totalExpenses = structuralExpenses + utilityExpenses + discretionaryExpenses;
@@ -390,6 +461,8 @@ export const calculateMonthlyBudget = ({
       fixedExpenses,
       debtExpenses,
       utilityExpenses,
+      annualCommitmentExpenses,
+      reserveCommitments: annualReserveCommitments,
       calendarExpenses: calendarVariableExpenses,
       variableExpenseLines: monthlyVariableExpenses,
       projectExpenses: monthCompletedHomeExpenses,
@@ -419,6 +492,8 @@ export const calculateMonthlyBudget = ({
       gasto_tarjeta_mes_anterior: nextMonthCardBalance,
       gasto_deudas: debtExpenses,
       gasto_suministros: utilityExpenses,
+      gasto_reservas: annualReserveCommitments,
+      gasto_compromisos_anuales: annualCommitmentExpenses,
       gasto_estructural: structuralExpenses,
       gasto_discrecional: discretionaryExpenses,
       total_ingresos: totalIncome,

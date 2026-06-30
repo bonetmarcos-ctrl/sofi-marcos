@@ -1,4 +1,4 @@
-export type CollectionName = "eventos" | "viajes" | "bloqueos" | "proyectos" | "palancas" | "deudas" | "suministros" | "gastosVariables" | "comprasSuper" | "cumpleanos";
+export type CollectionName = "eventos" | "viajes" | "bloqueos" | "proyectos" | "palancas" | "deudas" | "suministros" | "gastosVariables" | "comprasSuper" | "cumpleanos" | "compromisosAnuales";
 export type AppState = Record<CollectionName, unknown[]> & { base?: Record<string, unknown> };
 export type CollectionItem = Record<string, unknown> & { id?: string | number };
 

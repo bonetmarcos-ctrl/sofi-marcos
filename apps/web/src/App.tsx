@@ -49,7 +49,7 @@ function AuthenticatedApp({ user, onLogout }) {
     document.title = appName;
   }, [appName]);
 
-  const { base, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, comprasSuper, cumpleanos } = state;
+  const { base, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, comprasSuper, cumpleanos, compromisosAnuales } = state;
   const setEventos     = useCallback(updater => setCollection("eventos", updater), [setCollection]);
   const setViajes      = useCallback(updater => setCollection("viajes", updater), [setCollection]);
   const setBloqueos    = useCallback(updater => setCollection("bloqueos", updater), [setCollection]);
@@ -60,6 +60,7 @@ function AuthenticatedApp({ user, onLogout }) {
   const setGastosVariables = useCallback(updater => setCollection("gastosVariables", updater), [setCollection]);
   const setComprasSuper = useCallback(updater => setCollection("comprasSuper", updater), [setCollection]);
   const setCumpleanos = useCallback(updater => setCollection("cumpleanos", updater), [setCollection]);
+  const setCompromisosAnuales = useCallback(updater => setCollection("compromisosAnuales", updater), [setCollection]);
 
   const syncLinkedCardDebt = useCallback((collection, item) => {
     const debt = buildCreditCardDebtFromExpense(item, collection);
@@ -223,7 +224,7 @@ function AuthenticatedApp({ user, onLogout }) {
           <TabSuenos viajes={viajes} proyectos={proyectos} palancas={palancas} setTab={setTab} />
         )}
         {tab === "recursos" && (
-          <TabPresupuesto base={base} setBase={setBase} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables}/>
+          <TabPresupuesto base={base} setBase={setBase} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} compromisosAnuales={compromisosAnuales} setCompromisosAnuales={setCompromisosAnuales}/>
         )}
         {tab === "tiempo" && (
           <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal} comprasSuper={comprasSuper} onSaveSuperPurchase={saveSuperPurchase} onDeleteSuperPurchase={deleteSuperPurchase} cumpleanos={cumpleanos} setCumpleanos={setCumpleanos}/>

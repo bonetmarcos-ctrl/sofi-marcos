@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { birthdaySchema, collectionNames, debtSchema, eventSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
+import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
@@ -14,6 +14,7 @@ describe("domain schemas", () => {
       "gastosVariables",
       "comprasSuper",
       "cumpleanos",
+      "compromisosAnuales",
     ]);
   });
 
@@ -75,5 +76,19 @@ describe("domain schemas", () => {
     const parsed = birthdaySchema.parse({ nombre: "Sofi", fecha: "1990-06-22", presupuestoRegalo: "40" });
 
     expect(parsed).toMatchObject({ nombre: "Sofi", fecha: "1990-06-22", presupuestoRegalo: 40, relacion: "" });
+  });
+
+  it("normalizes annual commitments with reserve defaults", () => {
+    const parsed = annualCommitmentSchema.parse({ nombre: "IBI", importe: "720", fechaVencimiento: "2026-05-15" });
+
+    expect(parsed).toMatchObject({
+      nombre: "IBI",
+      importe: 720,
+      frecuencia: "anual",
+      origenFondos: "ingresos_mes",
+      reservaActiva: true,
+      mesesReserva: 12,
+      avisoDiasAntes: 30,
+    });
   });
 });

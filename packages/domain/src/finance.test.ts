@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCreditCardDebtFromExpense, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
+import { buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -95,6 +95,42 @@ describe("finance domain", () => {
       cuotas_tarjeta: 100,
       margen_real: 480,
     });
+  });
+
+  it("calculates monthly reserves before annual commitment due dates", () => {
+    const commitment = { nombre:"IBI", importe:600, fechaVencimiento:"2026-07-15", reservaActiva:true, mesesReserva:6 };
+
+    expect(calculateAnnualCommitmentReserveForMonth(commitment, "2026-01")).toBe(100);
+    expect(calculateAnnualCommitmentReserveForMonth(commitment, "2026-06")).toBe(100);
+    expect(calculateAnnualCommitmentReserveForMonth(commitment, "2026-07")).toBe(0);
+  });
+
+  it("keeps reserved annual commitments out of cash impact and inside resource margin", () => {
+    const result = calculateMonthlyBudget({
+      base: { ...BASE, ingresos_fijos: 1000, gastos_fijos: 300, monthlyOverrides: {} },
+      categories,
+      events: [],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [],
+      utilities: [],
+      annualCommitments: [{ nombre:"IBI", importe:600, fechaVencimiento:"2026-07-15", reservaActiva:true, mesesReserva:6 }],
+      year: 2026,
+      currentMonth: 0,
+    });
+
+    expect(result.datosMes[0].gasto_reservas).toBe(100);
+    expect(result.datosMes[0].resumen_recursos.reservas_necesarias).toBe(100);
+    expect(result.datosMes[0].resumen_recursos.margen_real).toBe(600);
+    expect(result.datosMes[6].gasto_compromisos_anuales).toBe(0);
+  });
+
+  it("applies unreserved annual commitments in their payment month", () => {
+    const commitment = { nombre:"ITV", importe:120, fechaVencimiento:"2026-11-15", fechaPago:"2026-01-20", reservaActiva:false };
+
+    expect(calculateAnnualCommitmentCashImpactForMonth(commitment, "2026-01")).toBe(120);
+    expect(calculateAnnualCommitmentCashImpactForMonth(commitment, "2026-11")).toBe(0);
   });
 
   it("does not apply levers outside their assigned year-month", () => {

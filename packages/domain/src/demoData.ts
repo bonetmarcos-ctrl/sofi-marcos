@@ -1165,6 +1165,7 @@ export const createInitialState = () => ({
   gastosVariables: [],
   comprasSuper: [],
   cumpleanos: [],
+  compromisosAnuales: [],
 });
 
 export const createEmptyState = () => ({
@@ -1179,4 +1180,5 @@ export const createEmptyState = () => ({
   gastosVariables: [],
   comprasSuper: [],
   cumpleanos: [],
+  compromisosAnuales: [],
 });

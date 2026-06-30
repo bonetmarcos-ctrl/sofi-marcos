@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
@@ -17,8 +18,27 @@ import ModalPalanca from "./modals/ModalPalanca.tsx";
 import ModalDeuda from "./modals/ModalDeuda.tsx";
 
 const UTILITY_UNIT_FALLBACK = { luz:"kWh", gas:"m3", agua:"m3" };
+const ANNUAL_COMMITMENT_TYPES = [
+  { key:"seguro", label:"Seguro" },
+  { key:"impuesto", label:"Impuesto" },
+  { key:"coche", label:"Coche" },
+  { key:"vivienda", label:"Vivienda" },
+  { key:"suscripcion", label:"Suscripción" },
+  { key:"salud", label:"Salud" },
+  { key:"otro", label:"Otro" },
+];
+const ANNUAL_FREQUENCIES = [
+  { key:"anual", label:"Anual" },
+  { key:"semestral", label:"Semestral" },
+  { key:"trimestral", label:"Trimestral" },
+];
+const PAYMENT_SOURCE_OPTIONS = [
+  { key:FUNDING_SOURCES.MONTH_INCOME, label:"Efectivo" },
+  { key:FUNDING_SOURCES.CREDIT_NEXT_MONTH, label:"Tarjeta mes siguiente" },
+  { key:FUNDING_SOURCES.CREDIT_INSTALLMENTS, label:"Tarjeta en cuotas" },
+];
 
-export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables }) {
+export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables, compromisosAnuales = [], setCompromisosAnuales }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
   const mesActual = new Date().getMonth();
@@ -32,6 +52,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [expenseTimingMode, setExpenseTimingMode] = useState("cash");
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
+  const [modalCompromiso,setModalCompromiso] = useState(null);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -43,9 +64,24 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   // ── Handlers deudas ──
   const guardarDeuda    = (d) => { setDeudas(prev => d.id && prev.find(x=>x.id===d.id) ? prev.map(x=>x.id===d.id?d:x) : [...prev,d]); setModalDeuda(null); };
   const eliminarDeuda   = (id) => { setDeudas(prev=>prev.filter(x=>x.id!==id)); setModalDeuda(null); };
+  const guardarCompromiso = (draft) => {
+    const item = {
+      ...draft,
+      id:draft.id || Date.now(),
+      importe:Number(draft.importe || 0),
+      cuotasTarjeta:Number(draft.cuotasTarjeta || 1),
+      mesesReserva:Number(draft.mesesReserva || 12),
+      avisoDiasAntes:Number(draft.avisoDiasAntes || 30),
+      tarjetaDiaCierre:draft.tarjetaDiaCierre ? Number(draft.tarjetaDiaCierre) : undefined,
+    };
+
+    setCompromisosAnuales?.(prev => item.id && prev.find(compromiso => String(compromiso.id) === String(item.id)) ? prev.map(compromiso => String(compromiso.id) === String(item.id) ? item : compromiso) : [...prev, item]);
+    setModalCompromiso(null);
+  };
+  const eliminarCompromiso = (id) => { setCompromisosAnuales?.(prev => prev.filter(compromiso => String(compromiso.id) !== String(id))); setModalCompromiso(null); };
 
   // ── Datos calculados ──
-  const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, año, mesActual });
+  const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, compromisosAnuales, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
   const resumenMes = datosMes[mesVista] || datosMes[mesActual];
 
@@ -279,6 +315,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   ];
   const resourceSections = [
     { id:"recursos-resumen", label:"Resumen", detail:"Capacidad del mes" },
+    { id:"recursos-compromisos", label:"Compromisos", detail:"Reservas y vencimientos" },
     { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
     { id:"recursos-flujo", label:"Flujo", detail:"Capas y presión" },
     { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
@@ -351,6 +388,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         </div>
       </div>
+
+      <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} />
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
@@ -948,7 +987,224 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
+      {modalCompromiso !== null && (
+        <ModalCompromisoAnual
+          compromiso={modalCompromiso?.id ? modalCompromiso : undefined}
+          defaults={modalCompromiso?.id ? {} : modalCompromiso}
+          onSave={guardarCompromiso}
+          onDelete={eliminarCompromiso}
+          onClose={() => setModalCompromiso(null)}
+        />
+      )}
     </div>
+  );
+}
+
+const nuevoCompromisoAnual = (prefVista) => ({
+  nombre:"",
+  tipo:"vivienda",
+  importe:"",
+  frecuencia:"anual",
+  fechaVencimiento:`${prefVista}-01`,
+  fechaPago:"",
+  origenFondos:FUNDING_SOURCES.MONTH_INCOME,
+  cuotasTarjeta:1,
+  mesPrimerCargo:"",
+  tarjetaNombre:"",
+  tarjetaDiaCierre:"",
+  reservaActiva:true,
+  mesesReserva:12,
+  avisoDiasAntes:30,
+  notas:"",
+});
+
+const compromisoDateForYear = (date, year) => /^\d{4}-\d{2}-\d{2}$/.test(String(date || "")) ? `${year}${String(date).slice(4)}` : "";
+const nextCommitmentDueDate = (commitment, year) => {
+  const currentDueDate = compromisoDateForYear(commitment.fechaVencimiento, year);
+  if (!currentDueDate) return "";
+  return currentDueDate >= todayISO ? currentDueDate : compromisoDateForYear(commitment.fechaVencimiento, year + 1);
+};
+const daysUntil = (date) => date ? Math.ceil((new Date(`${date}T12:00:00`).getTime() - new Date(`${todayISO}T12:00:00`).getTime()) / 86400000) : null;
+const formatDate = (date) => date ? date.split("-").reverse().join("/") : "";
+const commitmentTypeLabel = (type) => ANNUAL_COMMITMENT_TYPES.find(option => option.key === type)?.label || "Otro";
+const paymentSourceLabel = (source) => PAYMENT_SOURCE_OPTIONS.find(option => option.key === source)?.label || "Efectivo";
+
+function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, onEditar }) {
+  const { isMobile, isTablet } = useBreakpoint();
+  const compromisosOrdenados = [...(compromisos || [])]
+    .map(commitment => {
+      const dueDate = nextCommitmentDueDate(commitment, año);
+      const dueYear = Number(dueDate.slice(0, 4)) || año;
+      return {
+        ...commitment,
+        dueDate,
+        dueYear,
+        daysToDue:daysUntil(dueDate),
+        reserveWindow:annualCommitmentReserveWindowForYear(commitment, dueYear),
+        monthlyReserve:annualCommitmentMonthlyReserve(commitment),
+        reserveThisMonth:calculateAnnualCommitmentReserveForMonth(commitment, prefVista),
+        cashImpactThisMonth:calculateAnnualCommitmentCashImpactForMonth(commitment, prefVista),
+      };
+    })
+    .sort((first, second) => String(first.dueDate).localeCompare(String(second.dueDate)));
+  const reservaMes = compromisosOrdenados.reduce((sum, commitment) => sum + Number(commitment.reserveThisMonth || 0), 0);
+  const impactoMes = compromisosOrdenados.reduce((sum, commitment) => sum + Number(commitment.cashImpactThisMonth || 0), 0);
+  const proximo = compromisosOrdenados[0];
+  const columns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
+
+  return (
+    <section id="recursos-compromisos" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"flex-start", gap:12, flexDirection:isMobile?"column":"row", marginBottom:14 }}>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:16, fontWeight:800, color:C.txt }}>Compromisos anuales</div>
+          <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Vencimientos previsibles, reserva mensual y avisos antes de que presionen caja.</div>
+        </div>
+        <button onClick={onNuevo} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"8px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>+ Compromiso</button>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:columns, gap:10, marginBottom:14 }}>
+        {[
+          { label:"Reserva este mes", value:fmt(reservaMes), sub:"dinero comprometido", color:C.brandSecondaryStrong, bg:C.brandSecondaryFixed },
+          { label:"Pago directo", value:fmt(impactoMes), sub:"sin reserva activa", color:impactoMes > 0 ? C.warn : C.txt2, bg:impactoMes > 0 ? C.warnBg : C.fondo },
+          { label:"Compromisos", value:compromisosOrdenados.length, sub:"registrados", color:C.brandPrimary, bg:C.brandPrimaryFixed },
+          { label:"Próximo vencimiento", value:proximo ? formatDate(proximo.dueDate) : "—", sub:proximo ? proximo.nombre : "sin compromisos", color:C.brandTertiary, bg:C.brandTertiaryFixed },
+        ].map(metric => (
+          <div key={metric.label} style={{ background:metric.bg, border:`1px solid ${metric.color}33`, borderLeft:`4px solid ${metric.color}`, borderRadius:12, padding:"11px 12px", minWidth:0 }}>
+            <div style={{ fontSize:10, color:metric.color, fontWeight:850, textTransform:"uppercase", letterSpacing:"0.05em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.label}</div>
+            <div style={{ marginTop:6, fontSize:22, lineHeight:1, color:metric.color, fontWeight:900, fontFamily:"'Playfair Display',serif", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.value}</div>
+            <div style={{ marginTop:5, fontSize:10.5, color:C.txt2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {compromisosOrdenados.length === 0 ? (
+        <div style={{ background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:12, padding:"14px 16px", color:C.txt2, fontSize:13 }}>Aún no hay compromisos anuales. IBI, pólizas, ITV o seguros pueden vivir aquí con reserva mensual y aviso previo.</div>
+      ) : (
+        <div style={{ display:"grid", gap:8 }}>
+          {compromisosOrdenados.map(commitment => {
+            const dueSoon = commitment.daysToDue !== null && commitment.daysToDue <= Number(commitment.avisoDiasAntes || 30);
+            const reserveText = commitment.reservaActiva === false
+              ? `${paymentSourceLabel(commitment.origenFondos)} · pago ${formatDate(commitment.fechaPago || commitment.fechaVencimiento)}`
+              : `${fmt(commitment.monthlyReserve)}/mes · ${labelMes(commitment.reserveWindow.start)} a ${labelMes(commitment.reserveWindow.end)}`;
+            return (
+              <button key={commitment.id || commitment.nombre} onClick={() => onEditar(commitment)} style={{ textAlign:"left", background:dueSoon?C.warnBg:C.fondo, border:`1px solid ${dueSoon?C.warn:C.borde}`, borderRadius:12, padding:"11px 12px", cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"grid", gridTemplateColumns:isMobile?"1fr":"minmax(0,1.35fr) minmax(150px,0.65fr) minmax(150px,0.65fr)", gap:10, alignItems:"center", minWidth:0 }}>
+                <span style={{ minWidth:0 }}>
+                  <strong style={{ display:"block", color:C.txt, fontSize:13.5, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{commitment.nombre}</strong>
+                  <span style={{ display:"block", color:C.txt2, fontSize:11, marginTop:3, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{commitmentTypeLabel(commitment.tipo)} · {formatDate(commitment.dueDate)}</span>
+                </span>
+                <span style={{ color:commitment.reservaActiva === false ? C.warn : C.brandSecondaryStrong, fontSize:12, fontWeight:800, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{reserveText}</span>
+                <span style={{ justifySelf:isMobile?"start":"end", color:dueSoon?C.warn:C.txt2, fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>{dueSoon ? "Aviso activo" : `${Math.max(0, commitment.daysToDue || 0)} días`}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ModalCompromisoAnual({ compromiso, defaults = {}, onSave, onDelete, onClose }) {
+  const { isMobile } = useBreakpoint();
+  const [form, setForm] = useState(() => ({ ...nuevoCompromisoAnual(new Date().toISOString().slice(0, 7)), ...(compromiso || defaults) }));
+  const set = (key, value) => setForm(current => ({ ...current, [key]:value }));
+  const origenFondos = form.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+  const reservaActiva = form.reservaActiva !== false;
+  const canSave = String(form.nombre || "").trim() && Number(form.importe || 0) > 0 && form.fechaVencimiento;
+
+  return (
+    <Modal onClose={onClose} maxW={620}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:18 }}>
+        <div>
+          <h3 style={{ fontSize:18, fontWeight:800, color:C.txt }}>{compromiso ? "Editar compromiso" : "Nuevo compromiso anual"}</h3>
+          <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Reserva mensual, vencimiento y aviso previo.</div>
+        </div>
+        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>x</button>
+      </div>
+
+      <div style={{ display:"grid", gap:13 }}>
+        <label style={{ display:"grid", gap:5 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Nombre</span>
+          <input value={form.nombre || ""} onChange={event => set("nombre", event.target.value)} placeholder="IBI, póliza de vida, ITV..." style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:10 }}>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Tipo</span>
+            <select value={form.tipo || "otro"} onChange={event => set("tipo", event.target.value)} style={{ ...inputS, background:C.fondo }}>
+              {ANNUAL_COMMITMENT_TYPES.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
+            </select>
+          </label>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Importe</span>
+            <input type="number" min="0" step="0.01" value={form.importe ?? ""} onChange={event => set("importe", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+          </label>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Frecuencia</span>
+            <select value={form.frecuencia || "anual"} onChange={event => set("frecuencia", event.target.value)} style={{ ...inputS, background:C.fondo }}>
+              {ANNUAL_FREQUENCIES.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
+            </select>
+          </label>
+          <label style={{ display:"grid", gap:5 }}>
+            <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Vencimiento</span>
+            <input type="date" value={form.fechaVencimiento || ""} onChange={event => set("fechaVencimiento", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+          </label>
+        </div>
+
+        <label style={{ display:"flex", alignItems:"center", gap:8, background:C.brandSecondaryFixed, border:`1px solid ${C.brandSecondaryBorder}`, borderRadius:12, padding:"10px 12px", color:C.brandSecondaryStrong, fontSize:13, fontWeight:800 }}>
+          <input type="checkbox" checked={reservaActiva} onChange={event => set("reservaActiva", event.target.checked)}/>
+          Activar reserva mensual
+        </label>
+
+        {reservaActiva ? (
+          <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:10 }}>
+            <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Meses de reserva</span>
+              <input type="number" min="1" step="1" value={form.mesesReserva || 12} onChange={event => set("mesesReserva", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+            </label>
+            <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Aviso previo</span>
+              <input type="number" min="0" step="1" value={form.avisoDiasAntes || 30} onChange={event => set("avisoDiasAntes", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+            </label>
+          </div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:10 }}>
+            <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Fecha de pago</span>
+              <input type="date" value={form.fechaPago || ""} onChange={event => set("fechaPago", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+            </label>
+            <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Forma de pago</span>
+              <select value={origenFondos} onChange={event => set("origenFondos", event.target.value)} style={{ ...inputS, background:C.fondo }}>
+                {PAYMENT_SOURCE_OPTIONS.map(option => <option key={option.key} value={option.key}>{option.label}</option>)}
+              </select>
+            </label>
+            {origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>{origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? "Primer mes de débito" : "Mes de débito"}</span>
+              <input type="month" value={form.mesPrimerCargo || ""} onChange={event => set("mesPrimerCargo", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+            </label>}
+            {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS && <label style={{ display:"grid", gap:5 }}>
+              <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Cuotas</span>
+              <input type="number" min="1" step="1" value={form.cuotasTarjeta || 1} onChange={event => set("cuotasTarjeta", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+            </label>}
+          </div>
+        )}
+
+        <label style={{ display:"grid", gap:5 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Notas</span>
+          <textarea value={form.notas || ""} onChange={event => set("notas", event.target.value)} placeholder="Contexto o preparación necesaria..." style={{ ...inputS, minHeight:70, resize:"vertical", background:C.fondo }}/>
+        </label>
+
+        <div style={{ background:reservaActiva?C.brandSecondaryFixed:C.warnBg, border:`1px solid ${reservaActiva?C.brandSecondaryBorder:C.warn}44`, borderRadius:12, padding:"10px 12px", fontSize:12, color:C.txt2 }}>
+          {reservaActiva ? `Reserva estimada: ${fmt(Number(form.importe || 0) / Math.max(1, Number(form.mesesReserva || 12)))}/mes` : `Impacta como ${paymentSourceLabel(origenFondos)} en el mes de pago o débito.`}
+        </div>
+
+        <div style={{ display:"flex", justifyContent:"space-between", gap:8, flexWrap:"wrap" }}>
+          {compromiso && <button onClick={() => onDelete(compromiso.id)} style={{ background:C.errorBg, color:C.error, border:`1px solid ${C.error}44`, borderRadius:12, padding:"10px 14px", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>Eliminar</button>}
+          <div style={{ flex:1 }}/>
+          <button onClick={onClose} style={{ background:C.fondo, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:12, padding:"10px 14px", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>Cerrar</button>
+          <button onClick={() => onSave(form)} disabled={!canSave} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:canSave?1:0.55 }}>Guardar</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
