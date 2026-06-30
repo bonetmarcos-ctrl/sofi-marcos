@@ -277,11 +277,23 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       ? { label:t("Consumption"), value:`${numberFmt(selectedUtilityConsumption)} ${selectedUtilityUnit}`.trim(), sub:`${t("Annual total")} ${numberFmt(selectedUtility.consumoTotal)} ${selectedUtilityUnit}`.trim(), color:C.cyan }
       : { label:t("Monthly total"), value:fmt(datosMes[explorerMonth]?.total_gastos || 0), sub:t("Layered expenses") },
   ];
+  const resourceSections = [
+    { id:"recursos-resumen", label:"Resumen", detail:"Capacidad del mes" },
+    { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
+    { id:"recursos-flujo", label:"Flujo", detail:"Capas y presión" },
+    { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
+    { id:"recursos-explorador", label:"Explorador", detail:"Origen de gastos" },
+  ];
+  const scrollToResourceSection = useCallback((sectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior:"smooth", block:"start" });
+  }, []);
 
   return (
     <div style={{ display:"grid", gap:20, minWidth:0 }}>
 
       <RecursosResumenPanel resumen={resumenMes?.resumen_recursos} mesVista={mesVista} año={año} setMesVista={setMesVista} />
+
+      <RecursosNav sections={resourceSections} onSelect={scrollToResourceSection} />
 
       {/* ── KPIs ── */}
       <div style={{ display:"grid", gap:10 }}>
@@ -341,7 +353,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
-      <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
+      <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10 }}>
           <div>
             <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:4 }}>{t("Income structure")}</div>
@@ -453,7 +465,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       <SeccionGastosVariables base={base} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} deudas={deudas} setDeudas={setDeudas}/>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
-      <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
+      <div id="recursos-flujo" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4,flexDirection:isMobile?"column":"row",gap:isMobile?8:12 }}>
           <div>
             <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Layered expenses")} - {año}</div>
@@ -583,10 +595,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
 
       {/* ── PANEL DEUDAS ── */}
-      <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
+      <div id="recursos-deudas" style={{ scrollMarginTop:96 }}>
+        <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
+      </div>
 
       {/* ── EXPLORADOR DE GASTOS ── */}
-      <div style={cardN(isMobile ? { padding:"14px 12px" } : undefined)}>
+      <div id="recursos-explorador" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:16 }}>
           <div>
             <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>🔎 {t("Expense explorer")} - {año}</div>
@@ -938,6 +952,21 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   );
 }
 
+function RecursosNav({ sections, onSelect }) {
+  const { isMobile } = useBreakpoint();
+
+  return (
+    <nav aria-label="Navegación interna de Recursos" style={{ display:"flex", gap:6, overflowX:"auto", scrollbarWidth:"none", background:"rgba(255,255,255,0.82)", border:`1px solid ${C.borde}`, borderRadius:14, padding:6, boxShadow:"0 1px 6px rgba(17,20,24,0.04)", minWidth:0 }}>
+      {sections.map(section => (
+        <button key={section.id} onClick={() => onSelect(section.id)} style={{ flex:isMobile?"0 0 132px":"1 1 0", minWidth:isMobile?132:0, textAlign:"left", background:C.fondo, border:`1px solid ${C.borde}`, borderRadius:10, padding:"8px 10px", cursor:"pointer", fontFamily:"'Lato',sans-serif", minHeight:48 }}>
+          <span style={{ display:"block", color:C.txt, fontSize:12, fontWeight:850, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{section.label}</span>
+          <span style={{ display:"block", color:C.txt2, fontSize:10.5, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{section.detail}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 function RecursosResumenPanel({ resumen, mesVista, año, setMesVista }) {
   const { monthName } = useI18n();
   const { isMobile, isTablet } = useBreakpoint();
@@ -957,7 +986,7 @@ function RecursosResumenPanel({ resumen, mesVista, año, setMesVista }) {
   ];
 
   return (
-    <section style={cardN({ padding:isMobile?"15px 13px":"20px 22px", borderColor:C.brandSecondaryBorder, background:`linear-gradient(135deg, ${C.superficie}, ${C.brandSecondaryFixed})` })}>
+    <section id="recursos-resumen" style={cardN({ padding:isMobile?"15px 13px":"20px 22px", borderColor:C.brandSecondaryBorder, background:`linear-gradient(135deg, ${C.superficie}, ${C.brandSecondaryFixed})`, scrollMarginTop:96 })}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"flex-start", gap:12, flexDirection:isMobile?"column":"row", marginBottom:14 }}>
         <div style={{ minWidth:0 }}>
           <div style={{ fontSize:11, fontWeight:850, color:C.brandSecondaryStrong, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:5 }}>Resumen de recursos</div>
