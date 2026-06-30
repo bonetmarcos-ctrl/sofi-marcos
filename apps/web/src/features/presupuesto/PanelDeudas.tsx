@@ -7,9 +7,12 @@ import { calcDeuda } from "../../utils/calcDeuda.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
-const DEUDA_COLORS = [C.lavender, C.cyan, C.warn, C.sage, C.error, C.cyanMid];
-const CARD_DEBT_COLOR = "#C8D3D7";
-const EXTERNAL_DEBT_COLOR = C.brandTertiaryDim;
+const DEUDA_COLORS = [C.brandPrimary, "#7A708D", "#8A7D99", "#6F7890"];
+const CARD_DEBT_COLOR = C.brandPrimary;
+const EXTERNAL_DEBT_COLOR = C.brandTertiary;
+const PANEL_BORDER = C.brandPrimaryDim;
+const SOFT_LAVENDER = "rgba(110,99,133,0.08)";
+const SOFT_LAVENDER_BORDER = "rgba(110,99,133,0.18)";
 
 export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar = null }) {
   const { t } = useI18n();
@@ -44,60 +47,60 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
   const deudasExternas      = deudas.filter(d => !isLinkedCardInstallmentDebt(d));
 
   return (
-    <div style={{ background:"linear-gradient(160deg,#0f1520 0%,#1a1f2e 100%)", borderRadius:16, border:"none", padding:isMobile?"16px 12px":"22px 24px" }}>
+    <div style={{ background:`linear-gradient(160deg,${C.brandPrimaryFixed} 0%,#FAF8FB 100%)`, borderRadius:16, border:`1px solid ${PANEL_BORDER}`, boxShadow:"0 1px 6px rgba(17,20,24,0.06)", padding:isMobile?"16px 12px":"22px 24px" }}>
 
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"center", marginBottom:20, flexDirection:isMobile?"column":"row", gap:isMobile?12:0 }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:700, color:"white", fontFamily:"'Playfair Display',serif", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <div style={{ fontSize:18, fontWeight:700, color:C.txt, fontFamily:"'Playfair Display',serif", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
             💳 {t("Debt")}
-            <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20, background:"rgba(255,255,255,0.08)", color:"rgba(255,255,255,0.5)" }}>
+            <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:SOFT_LAVENDER, color:C.brandPrimary, border:`1px solid ${SOFT_LAVENDER_BORDER}` }}>
               {totalActivas} {t("Active")}
             </span>
-            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:"rgba(200,211,215,0.1)", color:CARD_DEBT_COLOR, border:"1px solid rgba(200,211,215,0.18)" }}>
+            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:SOFT_LAVENDER, color:CARD_DEBT_COLOR, border:`1px solid ${SOFT_LAVENDER_BORDER}` }}>
               <i className="bi bi-credit-card-2-front" aria-hidden="true" /> {deudasTarjeta.length}
             </span>
-            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:"rgba(223,200,189,0.1)", color:EXTERNAL_DEBT_COLOR, border:"1px solid rgba(223,200,189,0.18)" }}>
+            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:C.brandTertiaryFixed, color:EXTERNAL_DEBT_COLOR, border:`1px solid ${C.brandTertiaryDim}` }}>
               <i className="bi bi-bank" aria-hidden="true" /> {deudasExternas.length}
             </span>
           </div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t("Credit card installments")} · {t("External debt")}</div>
+          <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>{t("Credit card installments")} · {t("External debt")}</div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
-          <button onClick={onNueva} style={{ background:C.lavender, color:"white", border:"none", borderRadius:9, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
-          {onCerrar && <button onClick={onCerrar} style={{ background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.45)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:9, padding:"8px 12px", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>{t("Close")}</button>}
+          <button onClick={onNueva} style={{ background:C.brandPrimary, color:"white", border:"none", borderRadius:9, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
+          {onCerrar && <button onClick={onCerrar} style={{ background:C.superficie, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:9, padding:"8px 12px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}><i className="bi bi-chevron-up" aria-hidden="true" /> Ocultar</button>}
         </div>
       </div>
 
       {/* KPIs globales */}
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":isTablet?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))", gap:10, marginBottom:22 }}>
         {[
-          { l:t("Outstanding debt"),  v:fmt(totalPendiente),     sub:t("capital + interest"),    accent:C.error    },
+          { l:t("Outstanding debt"),  v:fmt(totalPendiente),     sub:t("capital + interest"),    accent:C.brandPrimary },
           { l:t("This month's payment"),   v:fmt(cuotaMesActual),     sub:t("balance impact"),        accent:C.warn     },
           { l:t("Paid principal"),   v:fmt(totalCapitalPagado), sub:`${pctGlobal}% ${t("of")}`, accent:C.sage     },
-          { l:t("Active debts"),   v:totalActivas,            sub:`${deudasTarjeta.length} ${t("Credit card installments")} · ${deudasExternas.length} ${t("External debt")}`, accent:C.lavender },
+          { l:t("Active debts"),   v:totalActivas,            sub:`${deudasTarjeta.length} ${t("Credit card installments")} · ${deudasExternas.length} ${t("External debt")}`, accent:C.brandPrimary },
         ].map(k => (
-          <div key={k.l} style={{ background:"rgba(255,255,255,0.05)", borderRadius:12, padding:"13px 15px", border:`1px solid ${k.accent}33` }}>
+          <div key={k.l} style={{ background:C.superficie, borderRadius:12, padding:"13px 15px", border:`1px solid ${k.accent}33`, boxShadow:"0 1px 4px rgba(17,20,24,0.04)" }}>
             <div style={{ fontSize:10, fontWeight:700, color:k.accent, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:5 }}>{k.l}</div>
-            <div style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:"'Playfair Display',serif" }}>{k.v}</div>
-            <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)", marginTop:3 }}>{k.sub}</div>
+            <div style={{ fontSize:22, fontWeight:700, color:C.txt, fontFamily:"'Playfair Display',serif" }}>{k.v}</div>
+            <div style={{ fontSize:10, color:C.txt2, marginTop:3 }}>{k.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Barra global */}
       <div style={{ marginBottom:22 }}>
-        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:6 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:C.txt2, marginBottom:6 }}>
           <span>{t("Global repayment progress")}</span>
-          <span style={{ fontWeight:700, color:C.exito }}>{pctGlobal}%</span>
+          <span style={{ fontWeight:700, color:C.brandPrimary }}>{pctGlobal}%</span>
         </div>
-        <div style={{ height:8, background:"rgba(255,255,255,0.08)", borderRadius:8, overflow:"hidden" }}>
-          <div style={{ width:`${pctGlobal}%`, height:"100%", background:`linear-gradient(90deg,${C.lavender},${C.cyan})`, borderRadius:8, transition:"width 0.6s ease" }}/>
+        <div style={{ height:8, background:C.brandPrimaryDim, borderRadius:8, overflow:"hidden" }}>
+          <div style={{ width:`${pctGlobal}%`, height:"100%", background:`linear-gradient(90deg,${C.brandPrimary},#8A7D99)`, borderRadius:8, transition:"width 0.6s ease" }}/>
         </div>
       </div>
 
       {deudas.length === 0 && (
-        <div style={{ textAlign:"center", padding:"32px 0", fontSize:14, color:"rgba(255,255,255,0.3)" }}>{t("No debts registered")} 🎉</div>
+        <div style={{ textAlign:"center", padding:"32px 0", fontSize:14, color:C.txt2 }}>{t("No debts registered")} 🎉</div>
       )}
 
       {/* Fichas */}
@@ -121,58 +124,58 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
           const pctCapital     = capitalTotalD > 0 ? Math.round((capitalPagadoD / capitalTotalD) * 100) : 100;
 
           return (
-            <div key={d.id} style={{ background:activa?"rgba(255,255,255,0.04)":"rgba(117,223,144,0.07)", borderRadius:16, border:`1px solid ${activa?color+"44":C.exito+"44"}`, overflow:"hidden", transition:"all 0.2s" }}>
+            <div key={d.id} style={{ background:activa?C.superficie:C.exitoBg, borderRadius:16, border:`1px solid ${activa?color+"33":C.exito+"44"}`, overflow:"hidden", transition:"all 0.2s", boxShadow:"0 1px 4px rgba(17,20,24,0.04)" }}>
 
               {/* Cabecera */}
               <div onClick={() => setExpandida(isOpen ? null : d.id)}
                 style={{ padding:isMobile?"14px 12px":"16px 18px", cursor:"pointer", display:"flex", alignItems:isMobile?"stretch":"center", gap:isMobile?10:14, flexDirection:isMobile?"column":"row" }}>
-                <div style={{ width:10, height:10, borderRadius:"50%", background:activa?color:C.exito, flexShrink:0, boxShadow:`0 0 8px ${activa?color:C.exito}88` }}/>
+                <div style={{ width:10, height:10, borderRadius:"50%", background:activa?color:C.exito, flexShrink:0 }}/>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                    <span style={{ fontSize:14, fontWeight:700, color:"white" }}>{d.nombre}</span>
+                    <span style={{ fontSize:14, fontWeight:700, color:C.txt }}>{d.nombre}</span>
                     <span style={{ fontSize:9, padding:"2px 7px", borderRadius:10, background:`${sourceColor}16`, color:sourceColor, fontWeight:800, border:`1px solid ${sourceColor}33`, textTransform:"uppercase", letterSpacing:"0.04em" }}>
                       <i className={`bi ${sourceIcon}`} aria-hidden="true" /> {sourceLabel}
                     </span>
                     {!activa && <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:"rgba(117,223,144,0.15)", color:C.exito, fontWeight:700, border:`1px solid ${C.exito}44` }}>✓ {t("Paid off")}</span>}
                   </div>
-                  {sourceDetails.length > 0 && <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{sourceDetails.join(" · ")}</div>}
+                  {sourceDetails.length > 0 && <div style={{ fontSize:11, color:C.txt2, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{sourceDetails.join(" · ")}</div>}
                 </div>
 
                 {/* Barra progreso compacta */}
                 <div style={{ width:isMobile?"100%":120, flexShrink:0 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"rgba(255,255,255,0.4)", marginBottom:4 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.txt2, marginBottom:4 }}>
                     <span>{c.pagadas}/{d.cuotas_totales}</span>
                     <span style={{ color:activa?color:C.exito, fontWeight:700 }}>{c.pct}%</span>
                   </div>
-                  <div style={{ height:5, background:"rgba(255,255,255,0.08)", borderRadius:5, overflow:"hidden" }}>
+                  <div style={{ height:5, background:C.brandPrimaryFixed, borderRadius:5, overflow:"hidden" }}>
                     <div style={{ width:`${c.pct}%`, height:"100%", background:activa?`linear-gradient(90deg,${color},${color}99)`:`linear-gradient(90deg,${C.sage},${C.exito})`, borderRadius:5, transition:"width 0.5s" }}/>
                   </div>
                 </div>
 
                 <div style={{ textAlign:isMobile?"left":"right", flexShrink:0 }}>
                   <div style={{ fontSize:15, fontWeight:700, color:activa?color:C.exito, fontFamily:"'Playfair Display',serif" }}>{fmt(d.cuota + d.interes_mensual)}</div>
-                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>{t("/month")}</div>
+                  <div style={{ fontSize:10, color:C.txt2 }}>{t("/month")}</div>
                 </div>
 
                 <div style={{ textAlign:isMobile?"left":"center", flexShrink:0, width:isMobile?"auto":72 }}>
                   {activa ? (
                     <>
-                      <div style={{ fontSize:13, fontWeight:700, color:cd?.meses<=3?C.exito:cd?.meses<=12?C.warn:"rgba(255,255,255,0.7)" }}>{cd?.label}</div>
-                      <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)" }}>{t("to free")}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:cd?.meses<=3?C.sageDark:cd?.meses<=12?C.warn:C.txt }}>{cd?.label}</div>
+                      <div style={{ fontSize:9, color:C.txt2 }}>{t("to free")}</div>
                     </>
                   ) : <div style={{ fontSize:18 }}>🎉</div>}
                 </div>
 
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.3)", flexShrink:0, transition:"transform 0.2s", transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▼</div>
+                <div style={{ fontSize:12, color:C.txt2, flexShrink:0, transition:"transform 0.2s", transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>▼</div>
               </div>
 
               {/* Panel expandido */}
               {isOpen && (
-                <div style={{ padding:"0 18px 18px", borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:16, display:"grid", gap:16 }}>
+                <div style={{ padding:"0 18px 18px", borderTop:`1px solid ${C.borde}`, paddingTop:16, display:"grid", gap:16 }}>
                   <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:14 }}>
 
                     {/* Donut capital */}
-                    <div style={{ background:"rgba(255,255,255,0.03)", borderRadius:12, padding:"14px 16px", border:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", gap:16, overflowX:"auto" }}>
+                    <div style={{ background:C.superficie, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.borde}`, display:"flex", alignItems:"center", gap:16, overflowX:"auto" }}>
                       {(() => {
                         const r = 36, cx = 44, cy = 44, stroke = 7;
                         const circ       = 2 * Math.PI * r;
@@ -182,25 +185,25 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
                         return (
                           <div style={{ display:"flex", alignItems:"center", gap:14 }}>
                             <svg width={88} height={88} viewBox="0 0 88 88">
-                              <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke}/>
+                              <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.brandPrimaryDim} strokeWidth={stroke}/>
                               <circle cx={cx} cy={cy} r={r} fill="none" stroke={activa?color:C.exito} strokeWidth={stroke} strokeDasharray={`${paid} ${circ-paid}`} strokeDashoffset={circ*0.25} strokeLinecap="round" style={{ transition:"stroke-dasharray 0.6s ease" }}/>
                               <circle cx={cx} cy={cy} r={r} fill="none" stroke={color+"33"} strokeWidth={stroke} strokeDasharray={`${circ-paid} ${paid}`} strokeDashoffset={circ*0.25-paid}/>
-                              <text x={cx} y={cy-5}  textAnchor="middle" fontSize={13} fontWeight={700} fill="white" fontFamily="'Playfair Display',serif">{pctCapital}%</text>
-                              <text x={cx} y={cy+10} textAnchor="middle" fontSize={8}  fill="rgba(255,255,255,0.35)" fontFamily="'Lato',sans-serif">pagado</text>
+                              <text x={cx} y={cy-5}  textAnchor="middle" fontSize={13} fontWeight={700} fill={C.txt} fontFamily="'Playfair Display',serif">{pctCapital}%</text>
+                              <text x={cx} y={cy+10} textAnchor="middle" fontSize={8}  fill={C.txt2} fontFamily="'Lato',sans-serif">pagado</text>
                             </svg>
                             <div style={{ display:"grid", gap:6 }}>
                               <div>
-                                <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginBottom:2 }}>{t("Paid principal")}</div>
+                                <div style={{ fontSize:10, color:C.txt2, marginBottom:2 }}>{t("Paid principal")}</div>
                                 <div style={{ fontSize:13, fontWeight:700, color:activa?color:C.exito }}>{fmt(capitalPagadoD)}</div>
                               </div>
                               <div>
-                                <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginBottom:2 }}>{t("Outstanding principal")}</div>
-                                <div style={{ fontSize:13, fontWeight:700, color:"rgba(255,255,255,0.6)" }}>{fmt(c.pendiente_capital)}</div>
+                                <div style={{ fontSize:10, color:C.txt2, marginBottom:2 }}>{t("Outstanding principal")}</div>
+                                <div style={{ fontSize:13, fontWeight:700, color:C.txt }}>{fmt(c.pendiente_capital)}</div>
                               </div>
                               {d.interes_mensual > 0 && (
                                 <div>
-                                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginBottom:2 }}>{t("Paid interest")}</div>
-                                  <div style={{ fontSize:13, fontWeight:700, color:C.warn }}>{fmt(interestPaid)} <span style={{ fontSize:10, fontWeight:400, color:"rgba(255,255,255,0.3)" }}>{t("of")} {fmt(interestTotal)}</span></div>
+                                  <div style={{ fontSize:10, color:C.txt2, marginBottom:2 }}>{t("Paid interest")}</div>
+                                  <div style={{ fontSize:13, fontWeight:700, color:C.warn }}>{fmt(interestPaid)} <span style={{ fontSize:10, fontWeight:400, color:C.txt2 }}>{t("of")} {fmt(interestTotal)}</span></div>
                                 </div>
                               )}
                             </div>
@@ -210,60 +213,62 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
                     </div>
 
                     {/* Datos clave */}
-                    <div style={{ background:"rgba(255,255,255,0.03)", borderRadius:12, padding:"14px 16px", border:"1px solid rgba(255,255,255,0.06)", display:"grid", gap:10 }}>
+                    <div style={{ background:C.superficie, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.borde}`, display:"grid", gap:10 }}>
                       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:8 }}>
                         {[
-                          { l:t("Monthly payment (€)"),  v:fmt(d.cuota),                      c:"white" },
-                          { l:t("Monthly interest / fee (€)"),    v:d.interes_mensual>0?fmt(d.interes_mensual):"—", c:d.interes_mensual>0?C.warn:"rgba(255,255,255,0.3)" },
+                          { l:t("Monthly payment (€)"),  v:fmt(d.cuota),                      c:C.txt },
+                          { l:t("Monthly interest / fee (€)"),    v:d.interes_mensual>0?fmt(d.interes_mensual):"—", c:d.interes_mensual>0?C.warn:C.txt2 },
                           { l:t("Total impact"),  v:fmt(d.cuota+d.interes_mensual),    c:color   },
-                          { l:t("Paid payments"), v:`${c.pagadas} / ${d.cuotas_totales}`, c:"rgba(255,255,255,0.7)" },
+                          { l:t("Paid payments"), v:`${c.pagadas} / ${d.cuotas_totales}`, c:C.txt },
                           { l:t("Debt source"), v:sourceLabel, c:sourceColor },
                         ].map(x => (
-                          <div key={x.l} style={{ background:"rgba(255,255,255,0.04)", borderRadius:9, padding:"8px 10px" }}>
-                            <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.5px" }}>{x.l}</div>
+                          <div key={x.l} style={{ background:C.fondo, borderRadius:9, padding:"8px 10px", border:`1px solid ${C.borde}` }}>
+                            <div style={{ fontSize:9, color:C.txt2, marginBottom:3, textTransform:"uppercase", letterSpacing:"0.5px" }}>{x.l}</div>
                             <div style={{ fontSize:13, fontWeight:700, color:x.c }}>{x.v}</div>
                           </div>
                         ))}
                       </div>
                       <div style={{ background:activa?`${color}18`:"rgba(117,223,144,0.1)", borderRadius:10, padding:"10px 12px", border:`1px solid ${activa?color+"33":C.exito+"33"}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                         <div>
-                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginBottom:2 }}>{t("final payment")}</div>
+                          <div style={{ fontSize:10, color:C.txt2, marginBottom:2 }}>{t("final payment")}</div>
                           <div style={{ fontSize:14, fontWeight:700, color:activa?color:C.exito }}>{labelMes(c.mes_fin_real)}</div>
                         </div>
                         {activa && cd && (
                           <div style={{ textAlign:"right" }}>
-                            <div style={{ fontSize:18, fontWeight:700, color:cd.meses<=3?C.exito:cd.meses<=12?C.warn:"white", fontFamily:"'Playfair Display',serif" }}>{cd.label}</div>
-                            <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)" }}>{t("to free")}</div>
+                            <div style={{ fontSize:18, fontWeight:700, color:cd.meses<=3?C.sageDark:cd.meses<=12?C.warn:C.txt, fontFamily:"'Playfair Display',serif" }}>{cd.label}</div>
+                            <div style={{ fontSize:9, color:C.txt2 }}>{t("to free")}</div>
                           </div>
                         )}
                         {!activa && <div style={{ fontSize:22 }}>🎉</div>}
                       </div>
                       <button onClick={() => onEditar(d)}
-                        style={{ background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.5)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:9, padding:"7px 0", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif", fontWeight:600 }}>
+                        style={{ background:C.fondo, color:C.brandPrimary, border:`1px solid ${C.brandPrimaryDim}`, borderRadius:9, padding:"7px 0", fontSize:12, cursor:"pointer", fontFamily:"'Lato',sans-serif", fontWeight:700 }}>
                         <i className="bi bi-pencil" aria-hidden="true" /> {t("Edit debt")}
                       </button>
                     </div>
                   </div>
 
                   {/* Timeline */}
-                  <div style={{ background:"rgba(255,255,255,0.03)", borderRadius:12, padding:"14px 16px", border:"1px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>
+                  <div style={{ background:C.superficie, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.borde}` }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:10 }}>
                       Timeline · {d.cuotas_totales} {t("Payments")} {t("From").toLowerCase()} {labelMes(d.mes_inicio)}
                     </div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
                       {timeline.map(item => (
                         <div key={item.i}
                           title={`${labelMes(item.mesPref)} · ${item.pagado?t("Paid"):item.esActual?t("This month!"):t("Pending")}`}
-                          style={{ width:20, height:20, borderRadius:5, background:item.pagado?(activa?color:C.exito):item.esActual?C.warn:"rgba(255,255,255,0.07)", border:item.esActual?`2px solid ${C.warn}`:"2px solid transparent", flexShrink:0, position:"relative", cursor:"default" }}>
-                          {item.esActual && <div style={{ position:"absolute", top:-1, right:-1, width:6, height:6, borderRadius:"50%", background:C.warn, border:"1px solid #1a1f2e" }}/>} 
+                          style={{ width:20, height:20, borderRadius:5, background:item.pagado?(activa?color:C.exito):item.esActual?C.warn:C.brandPrimaryFixed, border:item.esActual?`2px solid ${C.warn}`:`2px solid ${C.brandPrimaryDim}`, flexShrink:0, position:"relative", cursor:"default" }}>
+                          {item.esActual && (
+                            <div style={{ position:"absolute", top:-1, right:-1, width:6, height:6, borderRadius:"50%", background:C.warn, border:`1px solid ${C.superficie}` }}/>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <div style={{ display:"flex", gap:14, marginTop:10, fontSize:10, color:"rgba(255,255,255,0.35)" }}>
+                    <div style={{ display:"flex", gap:14, marginTop:10, fontSize:10, color:C.txt2 }}>
                       {[
                         { bg:activa?color:C.exito, label:t("Paid") },
                         { bg:C.warn,               label:t("This month!") },
-                        { bg:"rgba(255,255,255,0.07)", label:t("Pending"), border:"1px solid rgba(255,255,255,0.15)" },
+                        { bg:C.brandPrimaryFixed, label:t("Pending"), border:`1px solid ${C.brandPrimaryDim}` },
                       ].map(x => (
                         <span key={x.label} style={{ display:"flex", alignItems:"center", gap:5 }}>
                           <span style={{ width:10, height:10, borderRadius:3, background:x.bg, display:"inline-block", border:x.border }}/>

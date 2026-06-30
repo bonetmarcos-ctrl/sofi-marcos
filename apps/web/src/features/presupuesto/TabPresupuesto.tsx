@@ -55,6 +55,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
   const [simulacionPago, setSimulacionPago] = useState({ titulo:"Gasto simulado", categoria:"otro", importe:600, fecha:todayISO, tarjetaDiaCierre:20, tarjetaNombre:"", cuotas:"3,6,12" });
+  const [deudasAbiertas, setDeudasAbiertas] = useState(false);
   const [compromisosAbiertos, setCompromisosAbiertos] = useState(false);
   const [simulacionesAbiertas, setSimulacionesAbiertas] = useState(false);
   const [ultimoGastoSimulado, setUltimoGastoSimulado] = useState(null);
@@ -362,10 +363,10 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const resourceSections = [
     { id:"recursos-resumen", label:"Resumen", detail:"Capacidad del mes" },
     { id:"recursos-compromisos", label:"Compromisos", detail:"Reservas y vencimientos" },
+    { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
     { id:"recursos-simulaciones", label:"Simulaciones", detail:"Pago y caja" },
     { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
     { id:"recursos-flujo", label:"Flujo", detail:"Capas y presión" },
-    { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
     { id:"recursos-explorador", label:"Explorador", detail:"Origen de gastos" },
   ];
   const scrollToResourceSection = useCallback((sectionId) => {
@@ -423,12 +424,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               <div style={{ width:`${Math.min(100, presionResumen)}%`,height:"100%",borderRadius:4,background:presionResumen>85?C.error:presionResumen>70?C.warn:C.exito,transition:"width 0.5s" }}/>
             </div>
           </div>
-          <div style={{ ...cardN(), background:"linear-gradient(135deg,#1e1a2e,#2d1f3d)", border:"none" }}>
-            <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.45)",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.warn,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
-            <div style={{ fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudas.length} {t("debts")}</div>
+          <div style={{ ...cardN(), background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` }}>
+            <div style={{ fontSize:10,fontWeight:700,color:C.brandPrimary,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
+            <div style={{ fontSize:26,fontWeight:700,color:C.brandPrimary,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudas.length} {t("debts")}</div>
             {proxVencimiento && (
-              <div style={{ marginTop:8,fontSize:10,color:"rgba(255,255,255,0.3)" }}>
+              <div style={{ marginTop:8,fontSize:10,color:C.txt2 }}>
                 {t("Next payoff")}: {proxVencimiento.nombre} · {labelMes(addMeses(proxVencimiento.mes_inicio, proxVencimiento.cuotas_totales-1))}
               </div>
             )}
@@ -454,6 +455,31 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
             </div>
             <button onClick={() => setCompromisosAbiertos(true)} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"9px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:7, whiteSpace:"nowrap" }}>
               <i className="bi bi-chevron-down" aria-hidden="true" /> Abrir compromisos
+            </button>
+          </div>
+        </section>
+      )}
+
+      {deudasAbiertas ? (
+        <div id="recursos-deudas" style={{ scrollMarginTop:96 }}>
+          <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={() => setDeudasAbiertas(false)}/>
+        </div>
+      ) : (
+        <section id="recursos-deudas" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96, background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` } : { scrollMarginTop:96, background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` })}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"center", gap:12, flexDirection:isMobile?"column":"row", minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:C.superficie, color:C.brandPrimary, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:`1px solid ${C.brandPrimaryDim}` }}>
+                <i className="bi bi-credit-card-2-front" aria-hidden="true" />
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:800, color:C.txt }}>Deudas</div>
+                <div style={{ fontSize:12, color:C.txt2, marginTop:2, whiteSpace:isMobile?"normal":"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {deudas.length} registradas · {fmt(cuotaMesVista)}{t("/month")} · {fmt(totalPendienteMes)} pendiente.
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setDeudasAbiertas(true)} style={{ background:C.brandPrimary, color:"white", border:"none", borderRadius:10, padding:"9px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:7, whiteSpace:"nowrap" }}>
+              <i className="bi bi-chevron-down" aria-hidden="true" /> Abrir deudas
             </button>
           </div>
         </section>
@@ -746,11 +772,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
       <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
-
-      {/* ── PANEL DEUDAS ── */}
-      <div id="recursos-deudas" style={{ scrollMarginTop:96 }}>
-        <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)}/>
-      </div>
 
       {/* ── EXPLORADOR DE GASTOS ── */}
       <div id="recursos-explorador" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
