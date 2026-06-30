@@ -55,6 +55,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
   const [simulacionPago, setSimulacionPago] = useState({ titulo:"Gasto simulado", categoria:"otro", importe:600, fecha:todayISO, tarjetaDiaCierre:20, tarjetaNombre:"", cuotas:"3,6,12" });
+  const [simulacionesAbiertas, setSimulacionesAbiertas] = useState(false);
   const [ultimoGastoSimulado, setUltimoGastoSimulado] = useState(null);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
@@ -436,7 +437,26 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} />
 
-  <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} onCreateExpense={crearGastoDesdeSimulacion} lastCreated={ultimoGastoSimulado} />
+      {simulacionesAbiertas ? (
+        <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} onCreateExpense={crearGastoDesdeSimulacion} lastCreated={ultimoGastoSimulado} onClose={() => setSimulacionesAbiertas(false)} />
+      ) : (
+        <section id="recursos-simulaciones" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"center", gap:12, flexDirection:isMobile?"column":"row", minWidth:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:C.brandPrimaryFixed, color:C.brandPrimary, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <i className="bi bi-calculator" aria-hidden="true" />
+              </div>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:15, fontWeight:800, color:C.txt }}>Simulaciones de pago</div>
+                <div style={{ fontSize:12, color:C.txt2, marginTop:2, whiteSpace:isMobile?"normal":"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>Caja, tarjeta y cuotas antes de registrar un gasto.</div>
+              </div>
+            </div>
+            <button onClick={() => setSimulacionesAbiertas(true)} style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"9px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:7, whiteSpace:"nowrap" }}>
+              <i className="bi bi-chevron-down" aria-hidden="true" /> Abrir simulaciones
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
@@ -1103,7 +1123,7 @@ const formatDate = (date) => date ? date.split("-").reverse().join("/") : "";
 const commitmentTypeLabel = (type) => ANNUAL_COMMITMENT_TYPES.find(option => option.key === type)?.label || "Otro";
 const paymentSourceLabel = (source) => PAYMENT_SOURCE_OPTIONS.find(option => option.key === source)?.label || "Efectivo";
 
-function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año, onCreateExpense, lastCreated }) {
+function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año, onCreateExpense, lastCreated, onClose }) {
   const { isMobile, isTablet } = useBreakpoint();
   const monthByPref = useMemo(() => new Map(datosMes.map(month => [month.pref, month])), [datosMes]);
   const update = (key, value) => setSimulacion(current => ({ ...current, [key]:value }));
@@ -1119,8 +1139,15 @@ function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escen
           <div style={{ fontSize:16, fontWeight:800, color:C.txt }}>Simulaciones de pago</div>
           <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Compara caja, tarjeta y cuotas antes de registrar el gasto real.</div>
         </div>
-        <div style={{ background:C.brandPrimaryFixed, border:`1px solid ${C.brandPrimary}22`, borderRadius:10, padding:"8px 10px", color:C.brandPrimary, fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
-          No modifica registros
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <div style={{ background:C.brandPrimaryFixed, border:`1px solid ${C.brandPrimary}22`, borderRadius:10, padding:"8px 10px", color:C.brandPrimary, fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
+            No modifica registros
+          </div>
+          {onClose && (
+            <button onClick={onClose} style={{ background:C.fondo, border:`1px solid ${C.borde}`, color:C.txt2, borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
+              <i className="bi bi-chevron-up" aria-hidden="true" /> Ocultar
+            </button>
+          )}
         </div>
       </div>
 
