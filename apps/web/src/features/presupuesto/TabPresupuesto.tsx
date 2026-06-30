@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
@@ -53,7 +53,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
-  const [simulacionPago, setSimulacionPago] = useState({ importe:600, fecha:todayISO, tarjetaDiaCierre:20, cuotas:"3,6,12" });
+  const [simulacionPago, setSimulacionPago] = useState({ titulo:"Gasto simulado", categoria:"otro", importe:600, fecha:todayISO, tarjetaDiaCierre:20, tarjetaNombre:"", cuotas:"3,6,12" });
+  const [ultimoGastoSimulado, setUltimoGastoSimulado] = useState(null);
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -99,6 +100,32 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       horizonMonths:14,
     });
   }, [prefVista, simulacionPago]);
+  const crearGastoDesdeSimulacion = useCallback((scenario) => {
+    const id = Date.now() + Math.random();
+    const origenFondos = scenario.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+    const compraMes = scenario.compraMes || simulacionPago.fecha?.slice(0, 7) || prefVista;
+    const item = {
+      id,
+      mes:compraMes,
+      titulo:String(simulacionPago.titulo || "Gasto simulado").trim() || "Gasto simulado",
+      categoria:simulacionPago.categoria || "otro",
+      importe:Number(simulacionPago.importe || 0),
+      origenFondos,
+      cuotasTarjeta:origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(scenario.cuotasTarjeta || 2)) : 1,
+      mesPrimerCargo:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : (scenario.primerImpacto || ""),
+      tarjetaNombre:origenFondos === FUNDING_SOURCES.MONTH_INCOME ? "" : String(simulacionPago.tarjetaNombre || ""),
+      tarjetaDiaCierre:origenFondos === FUNDING_SOURCES.MONTH_INCOME || !simulacionPago.tarjetaDiaCierre ? undefined : Number(simulacionPago.tarjetaDiaCierre),
+      notas:[`Creado desde simulacion: ${scenario.label}`, `Compra ${compraMes}`].filter(Boolean).join(" · "),
+    };
+    const debt = buildCreditCardDebtFromExpense(item, "gastosVariables");
+    const finalItem = debt ? { ...item, deudaTarjetaId:debt.id } : { ...item, deudaTarjetaId:"" };
+
+    setGastosVariables?.(prev => [...prev, finalItem]);
+    setDeudas?.(prev => debt ? [...prev.filter(deuda => !(deuda.origenColeccion === "gastosVariables" && String(deuda.origenId) === String(finalItem.id))), debt] : prev);
+    const focusMonth = scenario.primerImpacto || compraMes;
+    if (Number(focusMonth.slice(0, 4)) === año) setMesVista(Math.min(11, Math.max(0, Number(focusMonth.slice(5, 7)) - 1)));
+    setUltimoGastoSimulado({ id:finalItem.id, titulo:finalItem.titulo, scenario:scenario.label, mes:compraMes, deuda:debt?.id || "" });
+  }, [año, prefVista, setDeudas, setGastosVariables, simulacionPago]);
 
   // KPIs deudas
   const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [base, deudas, prefVista]);
@@ -407,7 +434,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} />
 
-  <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} />
+  <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} onCreateExpense={crearGastoDesdeSimulacion} lastCreated={ultimoGastoSimulado} />
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
@@ -1074,7 +1101,7 @@ const formatDate = (date) => date ? date.split("-").reverse().join("/") : "";
 const commitmentTypeLabel = (type) => ANNUAL_COMMITMENT_TYPES.find(option => option.key === type)?.label || "Otro";
 const paymentSourceLabel = (source) => PAYMENT_SOURCE_OPTIONS.find(option => option.key === source)?.label || "Efectivo";
 
-function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año }) {
+function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año, onCreateExpense, lastCreated }) {
   const { isMobile, isTablet } = useBreakpoint();
   const monthByPref = useMemo(() => new Map(datosMes.map(month => [month.pref, month])), [datosMes]);
   const update = (key, value) => setSimulacion(current => ({ ...current, [key]:value }));
@@ -1095,7 +1122,19 @@ function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escen
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":isTablet?"repeat(2,minmax(0,1fr))":"1fr 1fr 1fr 1fr", gap:10, marginBottom:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":isTablet?"repeat(2,minmax(0,1fr))":"1.2fr 0.8fr 0.8fr 0.8fr", gap:10, marginBottom:10 }}>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Concepto</span>
+          <input value={simulacion.titulo || ""} onChange={event => update("titulo", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Categoría</span>
+          <select value={simulacion.categoria || "otro"} onChange={event => update("categoria", event.target.value)} style={{ ...inputS, background:C.fondo }}>
+            {Object.entries(CATEGORIAS).filter(([key, category]) => category.tipo === "gasto" && key !== "viaje").map(([key, category]) => (
+              <option key={key} value={key}>{category.emoji} {category.label}</option>
+            ))}
+          </select>
+        </label>
         <label style={{ display:"grid", gap:5, minWidth:0 }}>
           <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Importe</span>
           <input type="number" min="0" step="0.01" value={simulacion.importe ?? ""} onChange={event => update("importe", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
@@ -1104,15 +1143,28 @@ function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escen
           <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Fecha de compra</span>
           <input type="date" value={simulacion.fecha || ""} onChange={event => update("fecha", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
         </label>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":isTablet?"repeat(2,minmax(0,1fr))":"repeat(3,minmax(0,1fr))", gap:10, marginBottom:14 }}>
         <label style={{ display:"grid", gap:5, minWidth:0 }}>
           <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Cierre tarjeta</span>
           <input type="number" min="1" max="31" step="1" value={simulacion.tarjetaDiaCierre ?? ""} onChange={event => update("tarjetaDiaCierre", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Tarjeta</span>
+          <input value={simulacion.tarjetaNombre || ""} onChange={event => update("tarjetaNombre", event.target.value)} placeholder="Visa, Mastercard..." style={{ ...inputS, background:C.fondo }}/>
         </label>
         <label style={{ display:"grid", gap:5, minWidth:0 }}>
           <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Cuotas a comparar</span>
           <input value={simulacion.cuotas || ""} onChange={event => update("cuotas", event.target.value)} placeholder="3,6,12" style={{ ...inputS, background:C.fondo }}/>
         </label>
       </div>
+
+      {lastCreated && (
+        <div style={{ background:C.exitoBg, border:`1px solid ${C.exito}44`, borderRadius:11, padding:"9px 11px", color:C.sageDark, fontSize:12, fontWeight:800, marginBottom:12 }}>
+          Gasto creado: {lastCreated.titulo} · {lastCreated.scenario} · {labelMes(lastCreated.mes)}{lastCreated.deuda ? " · deuda vinculada" : ""}
+        </div>
+      )}
 
       <div style={{ display:"grid", gridTemplateColumns:scenarioColumns, gap:10 }}>
         {escenarios.map(scenario => {
@@ -1169,6 +1221,11 @@ function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escen
                 })}
                 {rows.length > visibleRows.length && <div style={{ fontSize:10.5, color:C.txt2, padding:"2px 2px" }}>+{rows.length - visibleRows.length} meses más</div>}
               </div>
+
+              <button onClick={() => onCreateExpense?.(scenario)} disabled={!Number(simulacion.importe || 0) || !String(simulacion.titulo || "").trim()}
+                style={{ width:"100%", marginTop:10, background:lowest?C.brandSecondaryStrong:C.cyan, color:"white", border:"none", borderRadius:10, padding:"9px 10px", fontSize:12, fontWeight:900, cursor:"pointer", fontFamily:"'Lato',sans-serif", opacity:!Number(simulacion.importe || 0) || !String(simulacion.titulo || "").trim()?0.55:1 }}>
+                Crear gasto real
+              </button>
             </div>
           );
         })}
