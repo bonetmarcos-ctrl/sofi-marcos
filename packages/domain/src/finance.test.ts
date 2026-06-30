@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
+import { buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -150,6 +150,35 @@ describe("finance domain", () => {
     expect(result.datosMes[5].ing_habitacion).toBe(0);
     expect(result.datosMes[5].ingresos_var_total).toBe(0);
     expect(result.totales.varAnual).toBe(0);
+  });
+
+  it("estimates calendar-linked room levers from their available window", () => {
+    const lever = { subcategoria:"habitacion", calendarioVinculado:true, fechaInicio:"2026-08-01", fechaFin:"2026-08-04", precioUnidad:70, importe:0, mes:"2026-08" };
+    const fit = calculateLeverCalendarFit(lever, { events:[], blocks:[], trips:[] });
+
+    expect(fit).toMatchObject({ disponible:true, unidades:3, unidad:"noche", importeEstimado:210, conflictos:[] });
+    expect(calculateLeverBudgetAmount(lever, { events:[], blocks:[], trips:[] })).toBe(210);
+  });
+
+  it("keeps conflicted calendar-linked levers out of potential capacity", () => {
+    const lever = { subcategoria:"habitacion", calendarioVinculado:true, fechaInicio:"2026-08-01", fechaFin:"2026-08-04", precioUnidad:70, importe:0, mes:"2026-08", activa:false };
+    const blocks = [{ tipo:"habitacion", inicio:"2026-08-02", fin:"2026-08-03", nota:"Reserva ya tomada", importe:140 }];
+    const result = calculateMonthlyBudget({
+      base: BASE,
+      categories,
+      events: [],
+      blocks,
+      trips: [],
+      levers: [lever],
+      debts: [],
+      utilities: [],
+      year: 2026,
+      currentMonth: 7,
+    });
+
+    expect(calculateLeverCalendarFit(lever, { events:[], blocks, trips:[] }).conflictos).toHaveLength(1);
+    expect(result.datosMes[7].palancasPot).toBe(0);
+    expect(result.datosMes[7].resumen_recursos.palancas_potenciales).toBe(0);
   });
 
   it("includes monthly variable expense lines in discretionary expenses", () => {

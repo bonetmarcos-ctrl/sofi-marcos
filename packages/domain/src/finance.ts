@@ -1,4 +1,4 @@
-import { addMonths } from "./dates.js";
+import { addMonths, daysBetween } from "./dates.js";
 
 export const FUNDING_SOURCES = {
   MONTH_INCOME: "ingresos_mes",
@@ -236,10 +236,84 @@ const asAmount = (value) => Number(value || 0);
 const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 const isInYearMonthRange = (yearMonth, startMonth, endMonth) =>
   Boolean(yearMonth && startMonth && endMonth) && monthDiff(startMonth, yearMonth) >= 0 && monthDiff(yearMonth, endMonth) >= 0;
+const calendarLinkedLeverTypes = new Set(["habitacion", "coche"]);
 
 const dateForYear = (date, year) => {
   if (!isIsoDate(date) || !Number.isFinite(Number(year))) return "";
   return `${year}${String(date).slice(4)}`;
+};
+
+const normalizeIsoDate = (value) => String(value || "").slice(0, 10);
+
+const rangesOverlap = (start, end, otherStart, otherEnd) =>
+  isIsoDate(start) && isIsoDate(end) && isIsoDate(otherStart) && isIsoDate(otherEnd) && start <= otherEnd && otherStart <= end;
+
+export const isCalendarLinkedLever = (lever) =>
+  Boolean(lever?.calendarioVinculado && calendarLinkedLeverTypes.has(lever.subcategoria));
+
+export const leverBudgetMonth = (lever) => lever.mes || normalizeIsoDate(lever.fechaInicio).slice(0, 7) || "";
+
+export const leverCalendarUnit = (lever) => lever.unidadCalendario || (lever.subcategoria === "coche" ? "dia" : "noche");
+
+export const leverAvailabilityUnits = (lever) => {
+  if (!isCalendarLinkedLever(lever)) return 0;
+
+  const start = normalizeIsoDate(lever.fechaInicio);
+  const end = normalizeIsoDate(lever.fechaFin || lever.fechaInicio);
+  if (!isIsoDate(start) || !isIsoDate(end) || start > end) return 0;
+
+  return daysBetween(start, end);
+};
+
+export const estimateLeverCalendarAmount = (lever) => {
+  const units = leverAvailabilityUnits(lever);
+  const unitPrice = asAmount(lever.precioUnidad);
+  return units > 0 && unitPrice > 0 ? units * unitPrice : 0;
+};
+
+export const leverAmount = (lever) => estimateLeverCalendarAmount(lever) || asAmount(lever.importe);
+
+type CalendarContext = {
+  events?: any[];
+  blocks?: any[];
+  trips?: any[];
+};
+
+export const calculateLeverCalendarFit = (lever, { events = [], blocks = [], trips = [] }: CalendarContext = {}) => {
+  const linked = isCalendarLinkedLever(lever);
+  const start = normalizeIsoDate(lever.fechaInicio);
+  const end = normalizeIsoDate(lever.fechaFin || lever.fechaInicio);
+  const validWindow = linked && isIsoDate(start) && isIsoDate(end) && start <= end;
+  const conflicts = validWindow ? [
+    ...blocks
+      .filter((block) => block.tipo === lever.subcategoria && rangesOverlap(start, end, normalizeIsoDate(block.inicio), normalizeIsoDate(block.fin)))
+      .map((block) => ({ tipo:"bloqueo", titulo:block.nota || (block.tipo === "coche" ? "Coche bloqueado" : "Habitacion bloqueada"), inicio:normalizeIsoDate(block.inicio), fin:normalizeIsoDate(block.fin) })),
+    ...events
+      .filter((event) => event.categoria === lever.subcategoria && rangesOverlap(start, end, normalizeIsoDate(event.fecha), normalizeIsoDate(event.fecha)))
+      .map((event) => ({ tipo:"evento", titulo:event.titulo || "Reserva", inicio:normalizeIsoDate(event.fecha), fin:normalizeIsoDate(event.fecha) })),
+    ...trips
+      .filter((trip) => rangesOverlap(start, end, normalizeIsoDate(trip.inicio), normalizeIsoDate(trip.fin)))
+      .map((trip) => ({ tipo:"viaje", titulo:trip.nombre || "Viaje", inicio:normalizeIsoDate(trip.inicio), fin:normalizeIsoDate(trip.fin) })),
+  ] : [];
+
+  return {
+    calendarioVinculado: linked,
+    fechaInicio: start,
+    fechaFin: end,
+    mes: start.slice(0, 7),
+    unidad: leverCalendarUnit(lever),
+    unidades: leverAvailabilityUnits(lever),
+    importeEstimado: estimateLeverCalendarAmount(lever),
+    conflictos: conflicts,
+    disponible: validWindow && conflicts.length === 0,
+  };
+};
+
+export const calculateLeverBudgetAmount = (lever, calendarContext: CalendarContext = {}) => {
+  if (!isCalendarLinkedLever(lever)) return asAmount(lever.importe);
+
+  const fit = calculateLeverCalendarFit(lever, calendarContext);
+  return fit.disponible ? leverAmount(lever) : 0;
 };
 
 export const annualCommitmentDueDateForYear = (commitment, year) => dateForYear(commitment.fechaVencimiento, year);
@@ -380,6 +454,7 @@ export const calculateMonthlyBudget = ({
     const monthlyOverride = base.monthlyOverrides?.[prefix] || {};
     const monthEvents = events.filter((event) => event.fecha?.startsWith(prefix));
     const monthBlocks = blocks.filter((block) => block.inicio?.startsWith(prefix) || block.fin?.startsWith(prefix));
+    const calendarContext = { events, blocks, trips };
     const completedProjectExpenseItems = projects
       .filter((project) => project.estado === "completado")
       .map(projectExpenseItem);
@@ -409,15 +484,15 @@ export const calculateMonthlyBudget = ({
       .reduce((sum, event) => sum + Number(event.importe || 0), 0);
 
     const activeLevers = levers.filter((lever) => lever.activa && matchesBudgetMonth(lever, prefix));
-    const leverRoom = sumLevers(activeLevers, "habitacion");
-    const leverCar = sumLevers(activeLevers, "coche");
-    const leverSales = sumLevers(activeLevers, "ventas");
-    const leverOther = sumLevers(activeLevers, "otros");
+    const leverRoom = sumLevers(activeLevers, "habitacion", calendarContext);
+    const leverCar = sumLevers(activeLevers, "coche", calendarContext);
+    const leverSales = sumLevers(activeLevers, "ventas", calendarContext);
+    const leverOther = sumLevers(activeLevers, "otros", calendarContext);
     const leverTotal = leverRoom + leverCar + leverSales + leverOther;
 
     const potentialLevers = levers
       .filter((lever) => !lever.activa && matchesBudgetMonth(lever, prefix))
-      .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
+      .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext), 0);
 
     const variableIncomeTotal = roomIncome + carIncome + otherIncome + leverTotal;
     const calendarVariableExpenses = events
@@ -512,18 +587,18 @@ export const calculateMonthlyBudget = ({
       varAnual: months.reduce((sum, month) => sum + month.ingresos_var_total, 0),
       potencial: levers
         .filter((lever) => !lever.activa && months.some((month) => matchesBudgetMonth(lever, month.pref)))
-        .reduce((sum, lever) => sum + Number(lever.importe || 0), 0),
+        .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, { events, blocks, trips }), 0),
       presionActual: months[currentMonth]?.presion || 0,
     },
   };
 };
 
-const sumLevers = (levers, subcategory) =>
+const sumLevers = (levers, subcategory, calendarContext = {}) =>
   levers
     .filter((lever) => lever.subcategoria === subcategory)
-    .reduce((sum, lever) => sum + Number(lever.importe || 0), 0);
+    .reduce((sum, lever) => sum + calculateLeverBudgetAmount(lever, calendarContext), 0);
 
 const matchesBudgetMonth = (lever, yearMonth) => {
-  if (!lever.mes || !yearMonth) return false;
-  return lever.mes === yearMonth;
+  if (!leverBudgetMonth(lever) || !yearMonth) return false;
+  return leverBudgetMonth(lever) === yearMonth;
 };

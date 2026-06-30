@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
+import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, leverSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
@@ -89,6 +89,21 @@ describe("domain schemas", () => {
       reservaActiva: true,
       mesesReserva: 12,
       avisoDiasAntes: 30,
+    });
+  });
+
+  it("keeps calendar metadata optional for levers", () => {
+    const parsed = leverSchema.parse({ nombre: "Habitacion", subcategoria: "habitacion", importe: "180", mes: "2026-08" });
+
+    expect(parsed).toMatchObject({
+      nombre: "Habitacion",
+      importe: 180,
+      activa: false,
+      calendarioVinculado: false,
+      fechaInicio: "",
+      fechaFin: "",
+      precioUnidad: 0,
+      unidadCalendario: "",
     });
   });
 });

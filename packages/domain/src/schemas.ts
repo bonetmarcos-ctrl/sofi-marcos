@@ -85,6 +85,11 @@ export const leverSchema = z.object({
   importe: amount,
   mes: z.string().min(1),
   activa: z.coerce.boolean().default(false),
+  calendarioVinculado: z.coerce.boolean().default(false),
+  fechaInicio: optionalText,
+  fechaFin: optionalText,
+  precioUnidad: amount,
+  unidadCalendario: optionalText,
   notas: optionalText,
 });
 

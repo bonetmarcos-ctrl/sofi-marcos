@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
@@ -56,7 +56,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
-  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.mes || prefVista });
+  const normalizarMesPalanca = (palanca) => ({ ...palanca, mes:palanca.calendarioVinculado && palanca.fechaInicio ? palanca.fechaInicio.slice(0, 7) : palanca.mes || prefVista });
   const guardarPalanca  = (palancaDraft) => { const palanca = normalizarMesPalanca(palancaDraft); setPalancas(prev => palanca.id && prev.find(x=>x.id===palanca.id) ? prev.map(x=>x.id===palanca.id?palanca:x) : [...prev,palanca]); setModalPalanca(null); };
   const eliminarPalanca = (id) => { setPalancas(prev=>prev.filter(x=>x.id!==id)); setModalPalanca(null); };
   const togglePalanca   = (id) => setPalancas(prev=>prev.map(p=>p.id===id?normalizarMesPalanca({ ...p, activa:!p.activa }):p));
@@ -475,23 +475,39 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               {palancasMesVista.length === 0 && <div style={{ textAlign:"center",padding:"20px 0",fontSize:12,color:C.txt2 }}>{t("No levers yet")}</div>}
               {palancasMesVista.map(p => {
                 const sub = SUBCAT_VAR[p.subcategoria];
+                const calendarFit = calculateLeverCalendarFit(p, { events:eventos, blocks:bloqueos, trips:viajes });
+                const viableAmount = calculateLeverBudgetAmount(p, { events:eventos, blocks:bloqueos, trips:viajes });
+                const displayAmount = calendarFit.calendarioVinculado ? calendarFit.importeEstimado || p.importe : p.importe;
                 return (
                   <div key={p.id} style={{ padding:"9px 12px",background:p.activa?C.sageLight:C.fondo,borderRadius:10,border:`1px solid ${p.activa?C.sage+"66":C.borde}`,transition:"all 0.2s" }}>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5 }}>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:12,fontWeight:700,color:C.txt,display:"flex",alignItems:"center",gap:5 }}><span>{sub?.emoji}</span> {p.nombre}</div>
-                        <div style={{ fontSize:10,color:C.txt2,marginTop:2 }}>{labelMes(p.mes)} · {fmt(p.importe)}</div>
+                        <div style={{ fontSize:10,color:C.txt2,marginTop:2 }}>{labelMes(p.mes)} · {fmt(displayAmount)}</div>
                       </div>
                       <button onClick={()=>setModalPalanca(p)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:13,color:C.txt2,padding:"0 4px" }}>✏️</button>
                     </div>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
-                      <span style={{ fontSize:10,padding:"2px 8px",borderRadius:10,background:sub?.bg,color:sub?.color,fontWeight:600 }}>{t(sub?.label || "")}</span>
+                      <div style={{ display:"flex",gap:5,flexWrap:"wrap",minWidth:0 }}>
+                        <span style={{ fontSize:10,padding:"2px 8px",borderRadius:10,background:sub?.bg,color:sub?.color,fontWeight:600 }}>{t(sub?.label || "")}</span>
+                        {calendarFit.calendarioVinculado && (
+                          <span style={{ fontSize:10,padding:"2px 8px",borderRadius:10,background:calendarFit.disponible?C.exitoBg:C.warnBg,color:calendarFit.disponible?C.sageDark:C.warn,fontWeight:700 }}>
+                            {calendarFit.disponible ? `Calendario libre · ${fmt(viableAmount)}` : "Revisar calendario"}
+                          </span>
+                        )}
+                      </div>
                       <button onClick={()=>togglePalanca(p.id)}
                         style={{ display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Lato',sans-serif",background:p.activa?C.sage:"white",color:p.activa?"white":C.txt2,border:`1px solid ${p.activa?C.sage:C.borde}`,transition:"all 0.2s" }}>
                         <span style={{ width:14,height:14,borderRadius:"50%",background:p.activa?"white":C.borde,display:"inline-block",flexShrink:0 }}/>
                         {p.activa?t("Active"):t("Activate")}
                       </button>
                     </div>
+                    {calendarFit.calendarioVinculado && calendarFit.conflictos.length > 0 && (
+                      <div style={{ marginTop:6,fontSize:10,color:C.txt2,lineHeight:1.25 }}>
+                        {calendarFit.conflictos[0].tipo}: {calendarFit.conflictos[0].titulo} · {calendarFit.conflictos[0].inicio}
+                        {calendarFit.conflictos.length > 1 ? ` +${calendarFit.conflictos.length - 1}` : ""}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -985,7 +1001,18 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         );
       })()}
 
-      {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
+      {modalPalanca !== null && (
+        <ModalPalanca
+          palanca={modalPalanca?.id ? modalPalanca : undefined}
+          defaults={modalPalanca?.id ? {} : modalPalanca}
+          eventos={eventos}
+          bloqueos={bloqueos}
+          viajes={viajes}
+          onSave={guardarPalanca}
+          onDelete={eliminarPalanca}
+          onClose={() => setModalPalanca(null)}
+        />
+      )}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
       {modalCompromiso !== null && (
         <ModalCompromisoAnual
