@@ -18,7 +18,6 @@ import { BG_VIAJE, COLOR_VIAJE } from "./constants/categorias.ts";
 
 const TABS = [
   { id:"hoy", labelKey:"Today" },
-  { id:"suenos", labelKey:"Iter pillar dreams" },
   { id:"proyectos", labelKey:"Iter pillar projects" },
   { id:"tiempo", labelKey:"Iter pillar time" },
   { id:"recursos", labelKey:"Iter pillar resources" },
@@ -50,7 +49,7 @@ function AuthenticatedApp({ user, onLogout }) {
     document.title = appName;
   }, [appName]);
 
-  const { base, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, comprasSuper, cumpleanos, compromisosAnuales } = state;
+  const { base, eventos, viajes, bloqueos, proyectos, palancas, deudas, suministros, gastosVariables, cumpleanos, compromisosAnuales } = state;
   const setEventos     = useCallback(updater => setCollection("eventos", updater), [setCollection]);
   const setViajes      = useCallback(updater => setCollection("viajes", updater), [setCollection]);
   const setBloqueos    = useCallback(updater => setCollection("bloqueos", updater), [setCollection]);
@@ -59,8 +58,6 @@ function AuthenticatedApp({ user, onLogout }) {
   const setDeudas      = useCallback(updater => setCollection("deudas", updater), [setCollection]);
   const setSuministros = useCallback(updater => setCollection("suministros", updater), [setCollection]);
   const setGastosVariables = useCallback(updater => setCollection("gastosVariables", updater), [setCollection]);
-  const setComprasSuper = useCallback(updater => setCollection("comprasSuper", updater), [setCollection]);
-  const setCumpleanos = useCallback(updater => setCollection("cumpleanos", updater), [setCollection]);
   const setCompromisosAnuales = useCallback(updater => setCollection("compromisosAnuales", updater), [setCollection]);
 
   const syncLinkedCardDebt = useCallback((collection, item) => {
@@ -114,45 +111,6 @@ function AuthenticatedApp({ user, onLogout }) {
     setDeudas(prev => prev.filter(deuda => !(deuda.origenColeccion === "viajes" && String(deuda.origenId).startsWith(`${id}:`))));
     setModal(null);
   }, [setDeudas, setViajes]);
-  const saveSuperPurchase = useCallback((form) => {
-    const lineas = (form.lineas || [])
-      .filter(linea => String(linea.producto || "").trim() || Number(linea.importe || 0) > 0)
-      .map(linea => ({ ...linea, producto:String(linea.producto || "").trim() || "Producto", cantidad:Number(linea.cantidad || 1), importe:Number(linea.importe || 0) }));
-    const purchaseId = form.id || Date.now();
-    const eventId = form.eventoId || `super-${purchaseId}`;
-    const importe = Number(form.importe || lineas.reduce((sum, linea) => sum + Number(linea.importe || 0), 0));
-    const currentEvent = eventos.find(evento => String(evento.id) === String(eventId));
-    const eventItem = syncLinkedCardDebt("eventos", {
-      id:eventId,
-      fecha:form.fecha || todayISO,
-      titulo:form.comercio ? `Supermercado · ${form.comercio}` : "Supermercado",
-      hora:"",
-      categoria:"otro",
-      importe,
-      notas:form.notas || "",
-      origenFondos:form.origenFondos || "ingresos_mes",
-      cuotasTarjeta:Number(form.cuotasTarjeta || 1),
-      mesPrimerCargo:form.mesPrimerCargo || "",
-      tarjetaNombre:form.tarjetaNombre || "",
-      tarjetaDiaCierre:form.tarjetaDiaCierre ? Number(form.tarjetaDiaCierre) : undefined,
-      deudaTarjetaId:currentEvent?.deudaTarjetaId || form.deudaTarjetaId || "",
-    });
-
-    setEventos(prev => prev.find(evento => String(evento.id) === String(eventItem.id)) ? prev.map(evento => String(evento.id) === String(eventItem.id) ? eventItem : evento) : [...prev, eventItem]);
-    setComprasSuper(prev => {
-      const item = { ...form, id:purchaseId, eventoId:eventItem.id, fecha:form.fecha || todayISO, importe, lineas };
-      return prev.find(compra => String(compra.id) === String(purchaseId)) ? prev.map(compra => String(compra.id) === String(purchaseId) ? item : compra) : [...prev, item];
-    });
-  }, [eventos, setComprasSuper, setEventos, syncLinkedCardDebt]);
-  const deleteSuperPurchase = useCallback((id) => {
-    const compra = comprasSuper.find(item => String(item.id) === String(id));
-    setComprasSuper(prev => prev.filter(item => String(item.id) !== String(id)));
-    if (compra?.eventoId) {
-      setEventos(prev => prev.filter(evento => String(evento.id) !== String(compra.eventoId)));
-      removeLinkedCardDebt("eventos", compra.eventoId);
-    }
-  }, [comprasSuper, removeLinkedCardDebt, setComprasSuper, setEventos]);
-
   return (
     <>
       <style>{`
@@ -224,7 +182,7 @@ function AuthenticatedApp({ user, onLogout }) {
           <TabPresupuesto base={base} setBase={setBase} eventos={eventos} bloqueos={bloqueos} viajes={viajes} proyectos={proyectos} palancas={palancas} setPalancas={setPalancas} deudas={deudas} setDeudas={setDeudas} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} compromisosAnuales={compromisosAnuales} setCompromisosAnuales={setCompromisosAnuales}/>
         )}
         {tab === "tiempo" && (
-          <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal} comprasSuper={comprasSuper} onSaveSuperPurchase={saveSuperPurchase} onDeleteSuperPurchase={deleteSuperPurchase} cumpleanos={cumpleanos} setCumpleanos={setCumpleanos}/>
+          <TabCalendario eventos={eventos} viajes={viajes} bloqueos={bloqueos} setBloqueos={setBloqueos} setModal={setModal} cumpleanos={cumpleanos}/>
         )}
         {tab === "proyectos" && (
           <TabGantt proyectos={proyectos} setProyectos={setProyectos} setDeudas={setDeudas}/>

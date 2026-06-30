@@ -405,7 +405,7 @@ export const calculateLeverCalendarFit = (lever, { events = [], blocks = [], tri
   const conflicts = validWindow ? [
     ...blocks
       .filter((block) => block.tipo === lever.subcategoria && rangesOverlap(start, end, normalizeIsoDate(block.inicio), normalizeIsoDate(block.fin)))
-      .map((block) => ({ tipo:"bloqueo", titulo:block.nota || (block.tipo === "coche" ? "Coche bloqueado" : "Habitacion bloqueada"), inicio:normalizeIsoDate(block.inicio), fin:normalizeIsoDate(block.fin) })),
+      .map((block) => ({ tipo:"bloqueo", titulo:block.recursoNombre || block.nota || (block.tipo === "coche" ? "Coche bloqueado" : block.tipo === "habitacion" ? "Habitacion bloqueada" : "Disponibilidad bloqueada"), inicio:normalizeIsoDate(block.inicio), fin:normalizeIsoDate(block.fin) })),
     ...events
       .filter((event) => event.categoria === lever.subcategoria && rangesOverlap(start, end, normalizeIsoDate(event.fecha), normalizeIsoDate(event.fecha)))
       .map((event) => ({ tipo:"evento", titulo:event.titulo || "Reserva", inicio:normalizeIsoDate(event.fecha), fin:normalizeIsoDate(event.fecha) })),

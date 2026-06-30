@@ -49,7 +49,8 @@ export const tripSchema = z.object({
 
 export const blockSchema = z.object({
   id: idSchema.optional(),
-  tipo: z.enum(["habitacion", "coche"]),
+  tipo: z.string().min(1).default("recurso"),
+  recursoNombre: optionalText,
   inicio: z.string().min(1),
   fin: z.string().min(1),
   horaInicio: optionalText,

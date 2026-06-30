@@ -1,10 +1,6 @@
-import { FUNDING_SOURCES } from "@sofi-marqui/domain";
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, COLOR_VIAJE, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
-import { DIAS } from "../../constants/meses.ts";
-import { fmt, fmtd } from "../../utils/format.ts";
 import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
-import { paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
@@ -69,12 +65,9 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
           const iso   = toISO(dia);
           const evsDia = eventos.filter(e => e.fecha === iso);
           const evs   = evsDia.filter(eventoVisibleEnCalendario);
-          const evsImporte = evs.filter(eventoMuestraImporteEnCalendario);
           const bls   = bxf[iso] || [];
           const cumpleDia = cumpleanos.filter(cumple => birthdayMatchesDate(cumple.fecha, iso));
           const isToday = iso === todayISO;
-          const tg    = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
-          const ti    = bls.reduce((a, b) => a + Number(b.importe || 0), 0);
 
           return (
             <div key={i}>
@@ -92,32 +85,25 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
               <div style={{ display:"flex", flexDirection:"column", gap:4, minHeight:90 }}>
                 {evs.map(ev => {
                   const cat   = CATEGORIAS[categoriaEventoKey(ev)];
-                  const esIng = cat?.tipo === "ingreso";
-                  const muestraImporte = eventoMuestraImporteEnCalendario(ev);
-                  const origenFondos = ev.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
                   return (
                     <div key={ev.id} onClick={() => onEvento(ev)}
-                      style={{ padding:"8px 9px", borderRadius:10, cursor:"pointer", background:esIng?C.exitoBg:cat?.bg, border:`1px solid ${esIng?C.exito+"55":cat?.color+"33"}` }}>
-                      <div style={{ fontSize:11, fontWeight:700, color:esIng?C.sageDark:cat?.color }}>{cat?.emoji} {ev.titulo}</div>
+                      style={{ padding:"8px 9px", borderRadius:10, cursor:"pointer", background:cat?.bg || C.fondo, border:`1px solid ${(cat?.color || C.borde)}33` }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:cat?.color || C.txt }}>{cat?.emoji} {ev.titulo}</div>
                       {ev.hora && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {ev.hora}</div>}
-                      {!esIng && origenFondos !== FUNDING_SOURCES.MONTH_INCOME && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>💳 {origenFondos === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? `${Number(ev.cuotasTarjeta || 1)} ${t("Installments").toLowerCase()}` : t(paymentMethodLabelKey(origenFondos))}</div>}
-                      {muestraImporte && <div style={{ fontSize:12, fontWeight:700, color:esIng?C.sageDark:C.txt, marginTop:3 }}>{esIng?"+":"−"}{fmtd(ev.importe)}</div>}
                     </div>
                   );
                 })}
 
                 {bls.map(b => (
-                  <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} onClick={() => onBloqueo?.(b)} style={{ padding:"8px 9px", borderRadius:10, background:b.tipo === "habitacion" ? C.exitoBg : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.exito}55` : "1px solid #fcd34d", cursor:"pointer" }}>
-                    <div style={{ fontSize:11, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309" }}>{b.tipo === "habitacion" ? "🛏️" : "🚗"} {b.nota || weekdayName(i)}</div>
-                    {b.tipo === "coche" && (b.horaInicio || b.horaFin) && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {b.horaInicio || "--:--"} - {b.horaFin || "--:--"}</div>}
-                    {Number(b.importe || 0) > 0 && <div style={{ fontSize:12, fontWeight:700, color:b.tipo === "habitacion" ? C.sageDark : "#b45309", marginTop:3 }}>+{fmtd(Number(b.importe || 0))}</div>}
+                  <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} onClick={() => onBloqueo?.(b)} style={{ padding:"8px 9px", borderRadius:10, background:blockBg(b), border:`1px solid ${blockColor(b)}33`, cursor:"pointer" }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:blockColor(b) }}>{blockIcon(b)} {blockLabel(b, t, weekdayName(i))}</div>
+                    {(b.horaInicio || b.horaFin) && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>⏰ {b.horaInicio || "--:--"} - {b.horaFin || "--:--"}</div>}
                   </div>
                 ))}
 
                 {cumpleDia.map(cumple => (
                   <div key={cumple.id || `${cumple.nombre}-${cumple.fecha}`} style={{ padding:"8px 9px", borderRadius:10, background:"#fffbeb", border:"1px solid #fcd34d" }}>
                     <div style={{ fontSize:11, fontWeight:700, color:"#b45309" }}>🎂 {cumple.nombre}</div>
-                    {Number(cumple.presupuestoRegalo || 0) > 0 && <div style={{ fontSize:10, color:C.txt2, marginTop:1 }}>{fmtd(Number(cumple.presupuestoRegalo || 0))}</div>}
                   </div>
                 ))}
 
@@ -129,9 +115,6 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
                   +
                 </div>
               </div>
-
-              {tg > 0 && <div style={{ textAlign:"center", fontSize:10, color:C.lavender, fontWeight:700, marginTop:4 }}>−{fmt(tg)}</div>}
-              {ti > 0 && <div style={{ textAlign:"center", fontSize:10, color:C.sageDark, fontWeight:700, marginTop:4 }}>+{fmt(ti)}</div>}
             </div>
           );
         })}
@@ -141,3 +124,7 @@ export default function CalSemanal({ inicio, eventos, viajes, bloqueos, cumplean
 }
 
 const birthdayMatchesDate = (birthday, isoDate) => Boolean(birthday && isoDate && birthday.slice(5, 10) === isoDate.slice(5, 10));
+const blockIcon = (block) => block?.tipo === "habitacion" ? "🛏️" : block?.tipo === "coche" ? "🚗" : "📍";
+const blockLabel = (block, t, fallback) => block?.recursoNombre || block?.nota || (block?.tipo === "habitacion" ? t("Room") : block?.tipo === "coche" ? t("Car") : fallback || t("Availability"));
+const blockColor = (block) => block?.tipo === "habitacion" ? C.sageDark : block?.tipo === "coche" ? C.brandTertiary : C.brandPrimary;
+const blockBg = (block) => block?.tipo === "habitacion" ? C.exitoBg : block?.tipo === "coche" ? C.brandTertiaryFixed : C.brandPrimaryFixed;

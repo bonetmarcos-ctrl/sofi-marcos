@@ -1,7 +1,6 @@
-import { CATEGORIAS, PERSONAS, COLOR_VIAJE, BG_VIAJE, COLOR_VIAJE_MID, categoriaEvento, categoriaEventoKey, eventoMuestraImporteEnCalendario, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
+import { CATEGORIAS, PERSONAS, COLOR_VIAJE, BG_VIAJE, COLOR_VIAJE_MID, categoriaEventoKey, eventoVisibleEnCalendario } from "../../constants/categorias.ts";
 import { C } from "../../constants/colores.ts";
 import { DIAS } from "../../constants/meses.ts";
-import { fmt } from "../../utils/format.ts";
 import { toISO, todayISO, rangoFechas } from "../../utils/dates.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -60,34 +59,30 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpl
           const iso         = `${año}-${String(mes + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
           const evsDia      = eventos.filter(e => e.fecha === iso);
           const evs         = evsDia.filter(eventoVisibleEnCalendario);
-          const evsImporte  = evs.filter(eventoMuestraImporteEnCalendario);
           const vh          = vxf[iso] || [];
           const bh          = bxf[iso] || [];
           const cumpleDia   = cumpleanos.filter(cumple => birthdayMatchesDate(cumple.fecha, iso));
           const isToday     = iso === todayISO;
-          const gt          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "gasto").reduce((a, e) => a + e.importe, 0);
-          const it          = evsImporte.filter(e => categoriaEvento(e)?.tipo === "ingreso").reduce((a, e) => a + e.importe, 0) + bh.reduce((a, b) => a + Number(b.importe || 0), 0);
-          const habOcupada  = bh.some(b => b.tipo === "habitacion");
-          const cocheOcupado = bh.some(b => b.tipo === "coche");
+          const conDisponibilidad = bh.length > 0;
           const esViaje     = vh.length > 0;
 
-          const bgPattern = habOcupada
-            ? "repeating-linear-gradient(45deg,#ecfdf5,#ecfdf5 4px,#d1fae5 4px,#d1fae5 8px)"
+          const bgPattern = conDisponibilidad
+            ? `repeating-linear-gradient(45deg,${C.brandPrimaryFixed},${C.brandPrimaryFixed} 4px,${C.superficie} 4px,${C.superficie} 8px)`
             : esViaje
             ? `repeating-linear-gradient(45deg,${BG_VIAJE},${BG_VIAJE} 5px,${COLOR_VIAJE_MID}55 5px,${COLOR_VIAJE_MID}55 10px)`
             : isToday ? C.cyan : C.superficie;
 
-          const borderColor = isToday ? C.cyan : habOcupada ? C.sage : esViaje ? COLOR_VIAJE : C.borde;
+          const borderColor = isToday ? C.cyan : conDisponibilidad ? C.brandPrimaryDim : esViaje ? COLOR_VIAJE : C.borde;
 
           return (
             <div key={i}
               onClick={() => esViaje ? onViaje(vh[0]) : onDia(iso)}
               style={{ minHeight:isMobile?78:88, borderRadius:12, padding:"6px 7px", cursor:"pointer", background:bgPattern, border:`1px solid ${borderColor}`, position:"relative", overflow:"hidden", transition:"box-shadow 0.15s" }}
-              onMouseEnter={e => { if (!isToday && !habOcupada && !esViaje) { e.currentTarget.style.background = C.cyanLight; e.currentTarget.style.borderColor = C.cyan; }}}
-              onMouseLeave={e => { if (!isToday && !habOcupada && !esViaje) { e.currentTarget.style.background = C.superficie; e.currentTarget.style.borderColor = C.borde; }}}>
+              onMouseEnter={e => { if (!isToday && !conDisponibilidad && !esViaje) { e.currentTarget.style.background = C.cyanLight; e.currentTarget.style.borderColor = C.cyan; }}}
+              onMouseLeave={e => { if (!isToday && !conDisponibilidad && !esViaje) { e.currentTarget.style.background = C.superficie; e.currentTarget.style.borderColor = C.borde; }}}>
 
               {esViaje    && <div style={{ position:"absolute", top:3, right:5, fontSize:10 }}>✈️</div>}
-              {cocheOcupado && <div style={{ position:"absolute", top:4, right:4, fontSize:9, background:"#fef3c7", borderRadius:4, padding:"1px 3px", border:"1px solid #fcd34d" }}>🚗</div>}
+              {conDisponibilidad && <div style={{ position:"absolute", top:4, right:4, fontSize:9, background:C.brandPrimaryFixed, color:C.brandPrimary, borderRadius:4, padding:"1px 3px", border:`1px solid ${C.brandPrimaryDim}` }}>{blockIcon(bh[0])}</div>}
 
               <div style={{ fontSize:13, fontWeight:700, color:isToday?"white":C.txt, marginBottom:3, marginTop:vh.length>0?6:0 }}>{dia}</div>
 
@@ -110,8 +105,8 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpl
               {evs.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{evs.length - 2} {t("more")}</div>}
               {bh.slice(0, 2).map(b => (
                 <div key={b.id || `${b.tipo}-${b.inicio}-${b.fin}`} onClick={e => { e.stopPropagation(); onBloqueo?.(b); }}
-                  style={{ fontSize:9, color:b.tipo === "habitacion" ? C.sageDark : "#b45309", fontWeight:700, marginTop:2, background:b.tipo === "habitacion" ? "rgba(236,253,245,0.75)" : "#fef3c7", border:b.tipo === "habitacion" ? `1px solid ${C.sage}44` : "1px solid #fcd34d", borderRadius:6, padding:"2px 5px", cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {b.tipo === "habitacion" ? "🛏️" : "🚗"} {b.tipo === "coche" && (b.horaInicio || b.horaFin) ? `${b.horaInicio || "--:--"}-${b.horaFin || "--:--"}` : (b.nota || t("Occupied"))}
+                  style={{ fontSize:9, color:blockColor(b), fontWeight:700, marginTop:2, background:blockBg(b), border:`1px solid ${blockColor(b)}33`, borderRadius:6, padding:"2px 5px", cursor:"pointer", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {blockIcon(b)} {blockLabel(b, t)}
                 </div>
               ))}
               {bh.length > 2 && <div style={{ fontSize:9, color:C.txt2 }}>+{bh.length - 2} {t("more")}</div>}
@@ -121,11 +116,6 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpl
                 </div>
               ))}
               {cumpleDia.length > 1 && <div style={{ fontSize:9, color:C.txt2 }}>+{cumpleDia.length - 1} {t("more")}</div>}
-
-              <div style={{ marginTop:2 }}>
-                {gt > 0 && <div style={{ fontSize:9, fontWeight:700, color:C.lavender }}>−{fmt(gt)}</div>}
-                {it > 0 && <div style={{ fontSize:9, fontWeight:700, color:C.sageDark }}>+{fmt(it)}</div>}
-              </div>
             </div>
           );
         })}
@@ -135,3 +125,7 @@ export default function CalMensual({ año, mes, eventos, viajes, bloqueos, cumpl
 }
 
 const birthdayMatchesDate = (birthday, isoDate) => Boolean(birthday && isoDate && birthday.slice(5, 10) === isoDate.slice(5, 10));
+const blockIcon = (block) => block?.tipo === "habitacion" ? "🛏️" : block?.tipo === "coche" ? "🚗" : "📍";
+const blockLabel = (block, t) => block?.recursoNombre || block?.nota || (block?.tipo === "habitacion" ? t("Room") : block?.tipo === "coche" ? t("Car") : t("Availability"));
+const blockColor = (block) => block?.tipo === "habitacion" ? C.sageDark : block?.tipo === "coche" ? C.brandTertiary : C.brandPrimary;
+const blockBg = (block) => block?.tipo === "habitacion" ? C.exitoBg : block?.tipo === "coche" ? C.brandTertiaryFixed : C.brandPrimaryFixed;

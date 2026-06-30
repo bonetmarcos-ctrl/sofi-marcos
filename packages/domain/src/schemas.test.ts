@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, leverSchema, projectSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
+import { annualCommitmentSchema, birthdaySchema, blockSchema, collectionNames, debtSchema, eventSchema, leverSchema, projectSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
@@ -45,6 +45,33 @@ describe("domain schemas", () => {
 
     expect(parsed.presupuesto).toBe(900);
     expect(parsed.gastos).toEqual({ vuelo: 120, hotel: 300 });
+  });
+
+  it("accepts generic resource availability blocks", () => {
+    const parsed = blockSchema.parse({
+      tipo: "recurso",
+      recursoNombre: "Parking",
+      inicio: "2026-08-10",
+      fin: "2026-08-12",
+      horaInicio: "09:00",
+      horaFin: "18:00",
+      importe: "120",
+    });
+
+    expect(parsed).toMatchObject({
+      tipo: "recurso",
+      recursoNombre: "Parking",
+      inicio: "2026-08-10",
+      fin: "2026-08-12",
+      horaInicio: "09:00",
+      horaFin: "18:00",
+      importe: 120,
+    });
+  });
+
+  it("keeps legacy room and car block types valid", () => {
+    expect(blockSchema.parse({ tipo: "habitacion", inicio: "2026-08-01", fin: "2026-08-02" }).tipo).toBe("habitacion");
+    expect(blockSchema.parse({ tipo: "coche", inicio: "2026-08-01", fin: "2026-08-02" }).tipo).toBe("coche");
   });
 
   it("normalizes generic project planning fields", () => {
