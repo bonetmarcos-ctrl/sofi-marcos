@@ -48,7 +48,6 @@ const translations: Record<Language, Record<string, string>> = {
   en: {
     "Iter login headline": "Design the life you want to build.",
     "Iter login copy": "Iter connects your dreams, projects, time and resources so intention becomes steady progress.",
-    "Iter product principle": "A calm place that organizes enough complexity so you can act with clarity.",
     "Iter pillars label": "Iter pillars",
     "Iter pillar dreams": "Dreams",
     "Iter pillar dreams copy": "Name the future you want to move toward.",
@@ -416,7 +415,6 @@ const translations: Record<Language, Record<string, string>> = {
   es: {
     "Iter login headline": "Diseña la vida que quieres construir.",
     "Iter login copy": "Iter conecta tus sueños, proyectos, tiempo y recursos para convertir intención en avance real.",
-    "Iter product principle": "Un lugar tranquilo que ordena lo suficiente para que puedas actuar con claridad.",
     "Iter pillars label": "Pilares de Iter",
     "Iter pillar dreams": "Sueños",
     "Iter pillar dreams copy": "Nombra el futuro hacia el que quieres avanzar.",
@@ -455,7 +453,6 @@ const translations: Record<Language, Record<string, string>> = {
   ca: {
     "Iter login headline": "Dissenya la vida que vols construir.",
     "Iter login copy": "Iter connecta els teus somnis, projectes, temps i recursos perquè la intenció es converteixi en progrés real.",
-    "Iter product principle": "Un lloc tranquil que ordena prou complexitat perquè puguis actuar amb claredat.",
     "Iter pillars label": "Pilars d'Iter",
     "Iter pillar dreams": "Somnis",
     "Iter pillar dreams copy": "Dona nom al futur cap al qual vols avançar.",

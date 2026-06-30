@@ -109,16 +109,6 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
           font-size:clamp(17px, 2vw, 21px);
           line-height:1.55;
         }
-        .iter-principle {
-          width:min(100%, 610px);
-          border-left:4px solid ${C.cyan};
-          padding:14px 18px;
-          color:${C.txt};
-          background:rgba(255,255,255,0.58);
-          font-size:15px;
-          font-weight:700;
-          line-height:1.5;
-        }
         .iter-pillar-grid {
           display:grid;
           grid-template-columns:repeat(4, minmax(0, 1fr));
@@ -334,9 +324,6 @@ export const Login = ({ error, loading, onLogin, onRegister, onError }) => {
             <h1 id="iter-login-title" className="iter-login-title">{t("Iter login headline")}</h1>
             <p className="iter-login-copy">{t("Iter login copy")}</p>
           </div>
-
-          <p className="iter-principle">{t("Iter product principle")}</p>
-
           <div className="iter-pillar-grid" role="list" aria-label={t("Iter pillars label")}>
             {pillarKeys.map((pillar) => (
               <div className="iter-pillar" role="listitem" key={pillar.title}>
