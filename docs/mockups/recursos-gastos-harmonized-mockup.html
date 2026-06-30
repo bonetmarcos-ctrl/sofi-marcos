@@ -26,18 +26,11 @@
         --fixed-bg: #f3f6f8;
         --utility: #d97706;
         --utility-bg: #fff4d6;
-        --variable: var(--primary);
-        --variable-bg: var(--primary-fixed);
-        --var-home: var(--attention);
-        --var-home-bg: var(--attention-fixed);
-        --var-health: var(--primary);
-        --var-health-bg: var(--primary-fixed);
-        --var-market: var(--secondary);
-        --var-market-bg: var(--secondary-fixed);
-        --var-transport: #64748b;
-        --var-transport-bg: #f3f6f8;
-        --var-restaurant: #d96f5c;
-        --var-restaurant-bg: #fbe9e4;
+        --variable: #d96f5c;
+        --variable-strong: #b65345;
+        --variable-bg: #fbe9e4;
+        --variable-soft: #fff6f2;
+        --variable-border: #f2cec4;
         --trip: #2f86ad;
         --trip-bg: #e7f4f8;
         --success: #2f7d57;
@@ -114,7 +107,7 @@
         border: 0;
         border-radius: 10px;
         padding: 12px 16px;
-        background: var(--secondary-strong);
+        background: var(--variable-strong);
         color: white;
         font-size: 14px;
         font-weight: 850;
@@ -410,51 +403,23 @@
       }
 
       .variable .row-icon {
+        background: var(--variable-soft);
+        border-color: var(--variable-border);
         color: var(--variable);
       }
 
-      .variable .row.category-home .row-icon {
-        background: var(--var-home-bg);
-        border-color: #dfc8bd;
-        color: var(--var-home);
+      .variable .row-title,
+      .variable .amount {
+        color: var(--variable-strong);
       }
 
-      .variable .row.category-home .row-title,
-      .variable .row.category-home .amount {
-        color: var(--var-home);
+      .variable .row.alert {
+        background: var(--variable-soft);
       }
 
-      .variable .row.category-health .row-icon {
-        background: var(--var-health-bg);
-        border-color: var(--primary-dim);
-        color: var(--var-health);
-      }
-
-      .variable .row.category-health .row-title,
-      .variable .row.category-health .amount {
-        color: var(--var-health);
-      }
-
-      .variable .row.category-market .row-icon {
-        background: var(--var-market-bg);
-        border-color: var(--secondary-dim);
-        color: var(--var-market);
-      }
-
-      .variable .row.category-market .row-title,
-      .variable .row.category-market .amount {
-        color: var(--var-market);
-      }
-
-      .variable .row.category-transport .row-icon {
-        background: var(--var-transport-bg);
-        border-color: #d9e1e7;
-        color: var(--var-transport);
-      }
-
-      .variable .row.category-transport .row-title,
-      .variable .row.category-transport .amount {
-        color: var(--var-transport);
+      .variable .status.warn {
+        background: var(--variable-bg);
+        color: var(--variable-strong);
       }
 
       .trip .row-icon {
@@ -746,19 +711,19 @@
             <div class="group-total-head">1367 €</div>
           </header>
           <div class="rows">
-            <div class="row category-home">
+            <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-house-heart" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Casa</div><div class="row-meta">Tareas completadas</div></div></div>
               <div class="row-right"><div class="amount">912 €</div></div>
             </div>
-            <div class="row category-health">
+            <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Salud</div><div class="row-meta">Calendario</div></div></div>
               <div class="row-right"><div class="amount">210 €</div></div>
             </div>
-            <div class="row alert category-market">
+            <div class="row alert">
               <div class="row-left"><div class="row-icon"><i class="bi bi-cart3" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Supermercado</div><div class="row-meta"><span>Compra fuerte</span><span class="status warn">Atención</span></div></div></div>
               <div class="row-right"><div class="amount">203 €</div></div>
             </div>
-            <div class="row category-transport">
+            <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-bus-front" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Transporte</div><div class="row-meta">Calendario</div></div></div>
               <div class="row-right"><div class="amount">26 €</div></div>
             </div>
