@@ -26,8 +26,18 @@
         --fixed-bg: #f3f6f8;
         --utility: #d97706;
         --utility-bg: #fff4d6;
-        --variable: #d96f5c;
-        --variable-bg: #fbe9e4;
+        --variable: var(--primary);
+        --variable-bg: var(--primary-fixed);
+        --var-home: var(--attention);
+        --var-home-bg: var(--attention-fixed);
+        --var-health: var(--primary);
+        --var-health-bg: var(--primary-fixed);
+        --var-market: var(--secondary);
+        --var-market-bg: var(--secondary-fixed);
+        --var-transport: #64748b;
+        --var-transport-bg: #f3f6f8;
+        --var-restaurant: #d96f5c;
+        --var-restaurant-bg: #fbe9e4;
         --trip: #2f86ad;
         --trip-bg: #e7f4f8;
         --success: #2f7d57;
@@ -248,6 +258,29 @@
         min-width: 0;
       }
 
+      .group-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .mini-action {
+        min-height: 28px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface-soft);
+        color: var(--muted);
+        padding: 5px 8px;
+        font-size: 11px;
+        font-weight: 850;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+      }
+
       .group-icon {
         width: 32px;
         height: 32px;
@@ -378,6 +411,50 @@
 
       .variable .row-icon {
         color: var(--variable);
+      }
+
+      .variable .row.category-home .row-icon {
+        background: var(--var-home-bg);
+        border-color: #dfc8bd;
+        color: var(--var-home);
+      }
+
+      .variable .row.category-home .row-title,
+      .variable .row.category-home .amount {
+        color: var(--var-home);
+      }
+
+      .variable .row.category-health .row-icon {
+        background: var(--var-health-bg);
+        border-color: var(--primary-dim);
+        color: var(--var-health);
+      }
+
+      .variable .row.category-health .row-title,
+      .variable .row.category-health .amount {
+        color: var(--var-health);
+      }
+
+      .variable .row.category-market .row-icon {
+        background: var(--var-market-bg);
+        border-color: var(--secondary-dim);
+        color: var(--var-market);
+      }
+
+      .variable .row.category-market .row-title,
+      .variable .row.category-market .amount {
+        color: var(--var-market);
+      }
+
+      .variable .row.category-transport .row-icon {
+        background: var(--var-transport-bg);
+        border-color: #d9e1e7;
+        color: var(--var-transport);
+      }
+
+      .variable .row.category-transport .row-title,
+      .variable .row.category-transport .amount {
+        color: var(--var-transport);
       }
 
       .trip .row-icon {
@@ -596,24 +673,27 @@
                 <div class="group-sub">Compromisos de base</div>
               </div>
             </div>
-            <div class="group-total-head">1934 €</div>
+            <div class="group-tools">
+              <button class="mini-action"><i class="bi bi-plus-lg" aria-hidden="true"></i>Fijo</button>
+              <button class="mini-action"><i class="bi bi-sliders" aria-hidden="true"></i>Estructura</button>
+            </div>
           </header>
           <div class="rows">
             <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-bank" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Hipoteca</div><div class="row-meta">Mensual</div></div></div>
-              <div class="row-right"><div class="amount">1275 €</div></div>
+              <div class="row-right"><div class="amount">1275 €</div><button class="ghost-action"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
             </div>
             <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-shield-check" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Seguro de vida</div><div class="row-meta">Mensual</div></div></div>
-              <div class="row-right"><div class="amount">103 €</div></div>
+              <div class="row-right"><div class="amount">103 €</div><button class="ghost-action"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
             </div>
             <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-car-front" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Seguro auto</div><div class="row-meta">Mensual</div></div></div>
-              <div class="row-right"><div class="amount">50 €</div></div>
+              <div class="row-right"><div class="amount">50 €</div><button class="ghost-action"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
             </div>
             <div class="row">
               <div class="row-left"><div class="row-icon"><i class="bi bi-building" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Comunidad + Derramas</div><div class="row-meta">Mensual</div></div></div>
-              <div class="row-right"><div class="amount">56 €</div></div>
+              <div class="row-right"><div class="amount">56 €</div><button class="ghost-action"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
             </div>
           </div>
           <footer class="group-foot"><span>Total Junio</span><span>1934 €</span></footer>
@@ -666,19 +746,19 @@
             <div class="group-total-head">1367 €</div>
           </header>
           <div class="rows">
-            <div class="row">
+            <div class="row category-home">
               <div class="row-left"><div class="row-icon"><i class="bi bi-house-heart" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Casa</div><div class="row-meta">Tareas completadas</div></div></div>
               <div class="row-right"><div class="amount">912 €</div></div>
             </div>
-            <div class="row">
+            <div class="row category-health">
               <div class="row-left"><div class="row-icon"><i class="bi bi-heart-pulse" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Salud</div><div class="row-meta">Calendario</div></div></div>
               <div class="row-right"><div class="amount">210 €</div></div>
             </div>
-            <div class="row alert">
+            <div class="row alert category-market">
               <div class="row-left"><div class="row-icon"><i class="bi bi-cart3" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Supermercado</div><div class="row-meta"><span>Compra fuerte</span><span class="status warn">Atención</span></div></div></div>
               <div class="row-right"><div class="amount">203 €</div></div>
             </div>
-            <div class="row">
+            <div class="row category-transport">
               <div class="row-left"><div class="row-icon"><i class="bi bi-bus-front" aria-hidden="true"></i></div><div class="row-text"><div class="row-title">Transporte</div><div class="row-meta">Calendario</div></div></div>
               <div class="row-right"><div class="amount">26 €</div></div>
             </div>
