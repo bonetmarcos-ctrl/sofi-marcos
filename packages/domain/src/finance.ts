@@ -232,6 +232,54 @@ export const calculatePaymentMethodBreakdownForMonth = (expenses, debts, yearMon
     + calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), yearMonth),
 });
 
+const asAmount = (value) => Number(value || 0);
+
+export const calculateResourceMonthSummary = ({
+  pref = "",
+  fixedIncome = 0,
+  variableIncome = 0,
+  fixedExpenses = 0,
+  debtExpenses = 0,
+  utilityExpenses = 0,
+  calendarExpenses = 0,
+  variableExpenseLines = 0,
+  projectExpenses = 0,
+  tripExpenses = 0,
+  reserveCommitments = 0,
+  assignedSavings = 0,
+  potentialLevers = 0,
+  nextMonthCardBalance = 0,
+  cardInstallmentExpenses = 0,
+} = {}) => {
+  const confirmedIncome = asAmount(fixedIncome) + asAmount(variableIncome);
+  const committedSpending = asAmount(fixedExpenses) + asAmount(debtExpenses) + asAmount(utilityExpenses) + asAmount(reserveCommitments);
+  const flexibleSpending = asAmount(calendarExpenses) + asAmount(variableExpenseLines) + asAmount(projectExpenses) + asAmount(tripExpenses);
+  const assignedMoney = asAmount(assignedSavings);
+  const realMonthlyUse = committedSpending + flexibleSpending + assignedMoney;
+  const realFreeMargin = confirmedIncome - realMonthlyUse;
+  const potentialCapacity = asAmount(potentialLevers);
+  const cardPressure = asAmount(nextMonthCardBalance) + asAmount(cardInstallmentExpenses);
+
+  return {
+    pref,
+    ingresos_confirmados: confirmedIncome,
+    ingresos_fijos: asAmount(fixedIncome),
+    ingresos_variables_confirmados: asAmount(variableIncome),
+    gasto_comprometido: committedSpending,
+    gasto_flexible: flexibleSpending,
+    gasto_total_real: realMonthlyUse,
+    reservas_necesarias: asAmount(reserveCommitments),
+    ahorro_asignado: assignedMoney,
+    margen_real: realFreeMargin,
+    palancas_potenciales: potentialCapacity,
+    margen_con_potencial: realFreeMargin + potentialCapacity,
+    presion_financiera: confirmedIncome > 0 ? Math.round((realMonthlyUse / confirmedIncome) * 100) : 0,
+    presion_tarjeta: cardPressure,
+    tarjeta_mes_siguiente: asAmount(nextMonthCardBalance),
+    cuotas_tarjeta: asAmount(cardInstallmentExpenses),
+  };
+};
+
 type MonthlyBudgetInput = {
   base: any;
   categories: Record<string, any>;
@@ -323,9 +371,8 @@ export const calculateMonthlyBudget = ({
     const tripExpenses = trips
       .flatMap(tripExpenseItems)
       .reduce((sum, expense) => sum + calculateExpenseCashImpactForMonth(expense, prefix), 0);
-    const linkedCardInstallmentExpenses = monthlyOverride.debtExpenses !== undefined
-      ? calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), prefix)
-      : 0;
+    const cardInstallmentPressure = calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), prefix);
+    const linkedCardInstallmentExpenses = monthlyOverride.debtExpenses !== undefined ? cardInstallmentPressure : 0;
     const debtExpenses = (monthlyOverride.debtExpenses ?? calculateDebtInstallmentForMonth(debts, prefix)) + linkedCardInstallmentExpenses;
     const utilityExpenses = utilities
       .filter((utility) => utilityCashMonth(utility) === prefix)
@@ -336,6 +383,21 @@ export const calculateMonthlyBudget = ({
     const totalIncome = fixedIncome + variableIncomeTotal;
     const totalExpenses = structuralExpenses + utilityExpenses + discretionaryExpenses;
     const balance = totalIncome - totalExpenses;
+    const resourceSummary = calculateResourceMonthSummary({
+      pref: prefix,
+      fixedIncome,
+      variableIncome: variableIncomeTotal,
+      fixedExpenses,
+      debtExpenses,
+      utilityExpenses,
+      calendarExpenses: calendarVariableExpenses,
+      variableExpenseLines: monthlyVariableExpenses,
+      projectExpenses: monthCompletedHomeExpenses,
+      tripExpenses,
+      potentialLevers,
+      nextMonthCardBalance,
+      cardInstallmentExpenses: cardInstallmentPressure,
+    });
 
     return {
       nombre: prefix,
@@ -365,6 +427,7 @@ export const calculateMonthlyBudget = ({
       presion: totalIncome > 0 ? Math.round((totalExpenses / totalIncome) * 100) : 0,
       palancasMes: activeLevers,
       palancasPot: potentialLevers,
+      resumen_recursos: resourceSummary,
     };
   });
 

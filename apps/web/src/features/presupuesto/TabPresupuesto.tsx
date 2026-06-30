@@ -281,6 +281,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   return (
     <div style={{ display:"grid", gap:20, minWidth:0 }}>
 
+      <RecursosResumenPanel resumen={resumenMes?.resumen_recursos} mesVista={mesVista} año={año} setMesVista={setMesVista} />
+
       {/* ── KPIs ── */}
       <div style={{ display:"grid", gap:10 }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10 }}>
@@ -933,6 +935,69 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       {modalPalanca !== null && <ModalPalanca palanca={modalPalanca?.id?modalPalanca:undefined} defaults={modalPalanca?.id?{}:modalPalanca} onSave={guardarPalanca} onDelete={eliminarPalanca} onClose={()=>setModalPalanca(null)}/>}
       {modalDeuda   !== null && <ModalDeuda   deuda={modalDeuda?.id?modalDeuda:undefined}       onSave={guardarDeuda}   onDelete={eliminarDeuda}   onClose={()=>setModalDeuda(null)}/>}
     </div>
+  );
+}
+
+function RecursosResumenPanel({ resumen, mesVista, año, setMesVista }) {
+  const { monthName } = useI18n();
+  const { isMobile, isTablet } = useBreakpoint();
+  if (!resumen) return null;
+
+  const marginColor = resumen.margen_real >= 0 ? C.sageDark : C.error;
+  const potentialColor = resumen.margen_con_potencial >= 0 ? C.brandSecondaryStrong : C.warn;
+  const pressureColor = resumen.presion_financiera > 95 ? C.error : resumen.presion_financiera > 80 ? C.warn : C.sageDark;
+  const columns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
+  const metrics = [
+    { label:"Margen libre real", value:fmt(resumen.margen_real), sub:"sin palancas potenciales", color:marginColor, bg:resumen.margen_real >= 0 ? C.exitoBg : C.errorBg },
+    { label:"Presión financiera", value:`${resumen.presion_financiera}%`, sub:`${fmt(resumen.gasto_total_real)} asignados`, color:pressureColor, bg:resumen.presion_financiera > 95 ? C.errorBg : resumen.presion_financiera > 80 ? C.warnBg : C.sageLight },
+    { label:"Gasto comprometido", value:fmt(resumen.gasto_comprometido), sub:"fijos, deuda y suministros", color:"#64748b", bg:"#f8fafc" },
+    { label:"Tarjeta y cuotas", value:fmt(resumen.presion_tarjeta), sub:"débito y cuotas del mes", color:C.warn, bg:C.warnBg },
+    { label:"Palancas potenciales", value:fmt(resumen.palancas_potenciales), sub:"fuera del margen real", color:C.sageDark, bg:C.sageLight },
+    { label:"Margen con potencial", value:fmt(resumen.margen_con_potencial), sub:"escenario si se activa", color:potentialColor, bg:C.brandSecondaryFixed },
+  ];
+
+  return (
+    <section style={cardN({ padding:isMobile?"15px 13px":"20px 22px", borderColor:C.brandSecondaryBorder, background:`linear-gradient(135deg, ${C.superficie}, ${C.brandSecondaryFixed})` })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"flex-start", gap:12, flexDirection:isMobile?"column":"row", marginBottom:14 }}>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:11, fontWeight:850, color:C.brandSecondaryStrong, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:5 }}>Resumen de recursos</div>
+          <h2 style={{ margin:0, color:C.txt, fontSize:isMobile?22:26, lineHeight:1.1, fontWeight:850 }}>Capacidad del mes</h2>
+          <p style={{ margin:"6px 0 0", color:C.txt2, fontSize:13, lineHeight:1.45, maxWidth:760 }}>
+            Ingresos confirmados menos dinero ya asignado. Las palancas quedan visibles como potencial, pero no inflan el margen real.
+          </p>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0, justifyContent:isMobile?"space-between":"flex-start" }}>
+          <button onClick={() => setMesVista(i => Math.max(0, i-1))}
+            style={{ background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:9, width:32, height:32, cursor:"pointer", fontSize:15, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>‹</button>
+          <span style={{ fontSize:13, fontWeight:850, color:C.txt, minWidth:112, textAlign:"center" }}>{monthName(mesVista)} {año}</span>
+          <button onClick={() => setMesVista(i => Math.min(11, i+1))}
+            style={{ background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:9, width:32, height:32, cursor:"pointer", fontSize:15, color:C.txt2, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Lato',sans-serif" }}>›</button>
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:columns, gap:10 }}>
+        {metrics.map(metric => (
+          <div key={metric.label} style={{ minWidth:0, background:metric.bg, border:`1px solid ${metric.color}33`, borderLeft:`4px solid ${metric.color}`, borderRadius:12, padding:"12px 13px" }}>
+            <div style={{ fontSize:10, fontWeight:850, color:metric.color, textTransform:"uppercase", letterSpacing:"0.05em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.label}</div>
+            <div style={{ marginTop:6, fontSize:24, lineHeight:1, fontWeight:900, color:metric.color, fontFamily:"'Playfair Display',serif", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.value}</div>
+            <div style={{ marginTop:5, fontSize:11, color:C.txt2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{metric.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop:12, display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))", gap:8 }}>
+        {[
+          { label:"Ingresos confirmados", value:fmt(resumen.ingresos_confirmados), color:C.brandSecondaryStrong },
+          { label:"Dinero asignado", value:fmt(resumen.gasto_total_real), color:pressureColor },
+          { label:"Disponible real", value:fmt(resumen.margen_real), color:marginColor },
+        ].map(item => (
+          <div key={item.label} style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", minWidth:0, background:"rgba(255,255,255,0.72)", border:`1px solid ${C.borde}`, borderRadius:10, padding:"9px 11px" }}>
+            <span style={{ fontSize:11, color:C.txt2, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.04em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.label}</span>
+            <strong style={{ fontSize:13, color:item.color, flexShrink:0 }}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -45,6 +45,58 @@ describe("finance domain", () => {
     expect(result.totales.varAnual).toBe(250);
   });
 
+  it("summarizes real resource margin without inflating it with inactive levers", () => {
+    const result = calculateMonthlyBudget({
+      base: { ...BASE, ingresos_fijos: 1000, gastos_fijos: 300, monthlyOverrides: {} },
+      categories,
+      events: [{ fecha: "2026-06-05", categoria: "ocio", importe: 100 }],
+      blocks: [],
+      trips: [],
+      levers: [
+        { mes: "2026-06", subcategoria: "ventas", importe: 200, activa: true },
+        { mes: "2026-06", subcategoria: "ventas", importe: 500, activa: false },
+      ],
+      debts: [{ cuota: 50, interes_mensual: 0, cuotas_totales: 12, cuota_actual: 0, mes_inicio: "2026-01" }],
+      utilities: [{ mes: "2026-06", tipo: "luz", importe: 30 }],
+      variableExpenses: [{ mes: "2026-06", categoria: "ocio", titulo: "Manual", importe: 20 }],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].resumen_recursos).toMatchObject({
+      ingresos_confirmados: 1200,
+      gasto_comprometido: 380,
+      gasto_flexible: 120,
+      margen_real: 700,
+      palancas_potenciales: 500,
+      margen_con_potencial: 1200,
+    });
+  });
+
+  it("tracks card and installment pressure separately from potential capacity", () => {
+    const result = calculateMonthlyBudget({
+      base: { ...BASE, ingresos_fijos: 1000, gastos_fijos: 300, monthlyOverrides: {} },
+      categories,
+      events: [{ fecha: "2026-06-18", categoria: "ocio", importe: 120, origenFondos: "tarjeta_mes_siguiente" }],
+      blocks: [],
+      trips: [],
+      levers: [],
+      debts: [{ id: "d-1", origenColeccion: "gastosVariables", cuota: 100, interes_mensual: 0, cuotas_totales: 3, cuota_actual: 0, mes_inicio: "2026-07" }],
+      utilities: [],
+      variableExpenses: [],
+      year: 2026,
+      currentMonth: 5,
+    });
+
+    expect(result.datosMes[5].resumen_recursos.presion_tarjeta).toBe(0);
+    expect(result.datosMes[6].resumen_recursos).toMatchObject({
+      presion_tarjeta: 220,
+      tarjeta_mes_siguiente: 120,
+      cuotas_tarjeta: 100,
+      margen_real: 480,
+    });
+  });
+
   it("does not apply levers outside their assigned year-month", () => {
     const result = calculateMonthlyBudget({
       base: BASE,
