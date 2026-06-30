@@ -204,10 +204,6 @@ function AuthenticatedApp({ user, onLogout }) {
               style={{ background:C.brandSecondary, color:"white", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif", letterSpacing:"0.2px" }}>
               {t("Add event")}
             </button>
-            <button onClick={() => setModal({ type:"viaje" })}
-              style={{ background:COLOR_VIAJE, color:"white", border:`1px solid ${COLOR_VIAJE}`, borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-              ✈️ {t("Add trip")}
-            </button>
             <button onClick={onLogout}
               style={{ background:"transparent", color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
               {t("Logout")}
@@ -240,7 +236,7 @@ function AuthenticatedApp({ user, onLogout }) {
         <ModalEvento fechaInicial={modal.fecha} evento={modal.item} defaults={modal.defaults} onSave={saveEvent} onDelete={deleteEvent} onClose={() => setModal(null)}/>
       )}
       {modal?.type === "viaje" && (
-        <ModalViaje viaje={modal.item} onSave={saveTrip} onDelete={deleteTrip} onClose={() => setModal(null)}/>
+        <ModalViaje viaje={modal.item} fechaInicial={modal.fecha} onSave={saveTrip} onDelete={deleteTrip} onClose={() => setModal(null)}/>
       )}
     </>
   );

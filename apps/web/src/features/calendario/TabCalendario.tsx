@@ -3,7 +3,7 @@ import { FUNDING_SOURCES, estimateCreditCardFirstChargeMonth, tripExpenseItems }
 import { CATEGORIAS, COLOR_VIAJE, categoriaEvento, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { fmtd, labelMes } from "../../utils/format.ts";
-import { todayISO, daysBetween } from "../../utils/dates.ts";
+import { todayISO, daysBetween, toISO } from "../../utils/dates.ts";
 import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -45,6 +45,15 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
   const labelSem   = `${inicio.getDate()} ${monthName(inicio.getMonth(), "short")} - ${finSemana.getDate()} ${monthName(finSemana.getMonth(), "short")} ${finSemana.getFullYear()}`;
 
   const pref         = `${año}-${String(mes + 1).padStart(2, "0")}`;
+  const prefHoy = todayISO.slice(0, 7);
+  const diasSemana = Array.from({ length:7 }, (_, index) => {
+    const dia = new Date(inicio);
+    dia.setDate(dia.getDate() + index);
+    return toISO(dia);
+  });
+  const fechaNuevaAccion = vista === "mensual"
+    ? (pref === prefHoy ? todayISO : `${pref}-01`)
+    : (diasSemana.includes(todayISO) ? todayISO : toISO(inicio));
   const viajes_mes     = useMemo(() => viajes.filter(v => v.inicio?.startsWith(pref) || v.fin?.startsWith(pref)), [viajes, pref]);
   const gastosPorOrigen = useMemo(() => {
     const mapa = new Map();
@@ -155,10 +164,16 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
             <button onClick={() => vista === "mensual" ? navMes(1) : navSemana(1)}
               style={{ background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:9, width:32, height:32, cursor:"pointer", fontSize:16, color:C.cyan, display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
           </div>
-          <button onClick={() => setModal({ type:"evento", fecha:todayISO })}
-            style={{ background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 16px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
-            {t("Add event")}
-          </button>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", width:isMobile?"100%":"auto", justifyContent:isMobile?"space-between":"flex-start" }}>
+            <button onClick={() => setModal({ type:"evento", fecha:fechaNuevaAccion || todayISO })}
+              style={{ flex:isMobile?1:"initial", display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:C.cyan, color:"white", border:"none", borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+              <i className="bi bi-plus-circle" aria-hidden="true"/> {t("Add event")}
+            </button>
+            <button onClick={() => setModal({ type:"viaje", fecha:fechaNuevaAccion || todayISO })}
+              style={{ flex:isMobile?1:"initial", display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:COLOR_VIAJE, color:"white", border:`1px solid ${COLOR_VIAJE}`, borderRadius:10, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>
+              <i className="bi bi-airplane" aria-hidden="true"/> {t("Add trip")}
+            </button>
+          </div>
         </div>
 
         {/* Leyenda + bloqueos */}
@@ -182,8 +197,8 @@ export default function TabCalendario({ eventos, viajes, bloqueos, setBloqueos, 
         {/* Calendario */}
         <div style={{ ...cardN(isMobile ? { padding:"12px 10px", overflowX:"auto" } : undefined) }}>
           {vista === "mensual"
-            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
-            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v })} onBloqueo={setModalBloqueo}/>
+            ? <CalMensual año={año} mes={mes} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v, fecha:v.inicio })} onBloqueo={setModalBloqueo}/>
+            : <CalSemanal inicio={inicio} eventos={eventos} viajes={viajes} bloqueos={bloqueos} cumpleanos={cumpleanos} onDia={f => setModal({ type:"evento", fecha:f })} onEvento={ev => setModal({ type:"evento", item:ev })} onViaje={v => setModal({ type:"viaje", item:v, fecha:v.inicio })} onBloqueo={setModalBloqueo}/>
           }
         </div>
 

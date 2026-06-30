@@ -8,10 +8,11 @@ import { addMeses, daysBetween, todayISO } from "../../utils/dates.ts";
 import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/paymentMethods.ts";
 import { useI18n } from "../../i18n.tsx";
 
-export default function ModalViaje({ viaje, onSave, onDelete, onClose }) {
+export default function ModalViaje({ viaje, fechaInicial = "", onSave, onDelete, onClose }) {
   const { t } = useI18n();
+  const fechaBase = fechaInicial;
   const [form, setForm] = useState(viaje ? { ...viaje, gastos:{ ...viaje.gastos }, gastosPago:{ ...(viaje.gastosPago || {}) } } : {
-    nombre: "", inicio: "", fin: "", presupuesto: "",
+    nombre: "", inicio: fechaBase, fin: fechaBase, presupuesto: "",
     color: COLORES_VIAJE[0], emoji: "✈️", notas: "",
     gastos: { vuelo:0, hotel:0, transporte:0, restaurante:0, actividades:0, otro:0 },
     gastosPago: {},

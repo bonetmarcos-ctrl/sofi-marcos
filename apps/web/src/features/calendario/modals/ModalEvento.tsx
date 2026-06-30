@@ -188,11 +188,6 @@ export default function ModalEvento({ fechaInicial, evento, defaults = {}, onSav
           )}
         </div>
 
-        {!evento && (
-          <div style={{ fontSize:11, color:C.txt2, textAlign:"center", padding:"4px 0", borderTop:`1px solid ${C.borde}`, marginTop:-4 }}>
-            {t("Want to add a trip? Use the Add trip button in the main menu.")}
-          </div>
-        )}
       </div>
     </Modal>
   );
