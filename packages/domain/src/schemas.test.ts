@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, leverSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
+import { annualCommitmentSchema, birthdaySchema, collectionNames, debtSchema, eventSchema, leverSchema, projectSchema, supermarketPurchaseSchema, tripSchema } from "./schemas.js";
 
 describe("domain schemas", () => {
   it("exposes all application collections", () => {
@@ -45,6 +45,31 @@ describe("domain schemas", () => {
 
     expect(parsed.presupuesto).toBe(900);
     expect(parsed.gastos).toEqual({ vuelo: 120, hotel: 300 });
+  });
+
+  it("normalizes generic project planning fields", () => {
+    const parsed = projectSchema.parse({
+      categoria: "compra",
+      titulo: "Comprar parking",
+      prioridad: "media",
+      estado: "pendiente",
+      inicio: "2026-07-01",
+      fin: "2026-07-31",
+      presupuesto: "25000",
+      gasto: "0",
+      objetivo: "Tener una plaza viable",
+      siguientePaso: "Comparar opciones",
+    });
+
+    expect(parsed).toMatchObject({
+      categoria: "compra",
+      habitacion: "general",
+      presupuesto: 25000,
+      gasto: 0,
+      objetivo: "Tener una plaza viable",
+      siguientePaso: "Comparar opciones",
+      decisionPendiente: "",
+    });
   });
 
   it("rejects inconsistent debt installment values", () => {

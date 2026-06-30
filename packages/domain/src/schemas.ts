@@ -60,9 +60,13 @@ export const blockSchema = z.object({
 
 export const projectSchema = z.object({
   id: idSchema.optional(),
-  habitacion: z.string().min(1),
+  habitacion: z.string().optional().default("general"),
+  categoria: z.string().optional().default("general"),
   titulo: z.string().min(1),
   descripcion: optionalText,
+  objetivo: optionalText,
+  siguientePaso: optionalText,
+  decisionPendiente: optionalText,
   prioridad: z.string().min(1),
   estado: z.string().min(1),
   inicio: z.string().min(1),

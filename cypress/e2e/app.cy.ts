@@ -33,7 +33,7 @@ describe("Sofi & Marqui", () => {
     cy.contains(/Month|Week/).should("be.visible");
 
     cy.contains("button", /Projects/).click();
-    cy.contains(/Total tasks|Gantt|List/).should("be.visible");
+    cy.contains(/Total projects|Cards|Timeline/).should("be.visible");
 
     cy.contains("button", /Resources/).click();
     cy.contains(/Monthly summary|Income|Expenses/).should("be.visible");
