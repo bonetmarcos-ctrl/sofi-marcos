@@ -370,12 +370,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   ];
   const resourceSections = [
     { id:"recursos-resumen", label:"Resumen", detail:"Capacidad del mes" },
+    { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
     { id:"recursos-compromisos", label:"Compromisos", detail:"Reservas y vencimientos" },
     { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
-    { id:"recursos-simulaciones", label:"Simulaciones", detail:"Pago y caja" },
-    { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
-    { id:"recursos-flujo", label:"Flujo", detail:"Capas y presión" },
+    { id:"recursos-flujo", label:"Flujos", detail:"Capas y presión" },
     { id:"recursos-explorador", label:"Explorador", detail:"Origen de gastos" },
+    { id:"recursos-simulaciones", label:"Simulaciones", detail:"Pago y caja" },
   ];
   const scrollToResourceSection = useCallback((sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior:"smooth", block:"start" });
@@ -388,6 +388,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       <RecursosNav sections={resourceSections} onSelect={scrollToResourceSection} />
 
+      <div style={{ order:20 }}>
       {compromisosAbiertos ? (
         <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} onClose={() => setCompromisosAbiertos(false)} />
       ) : (
@@ -410,7 +411,9 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         </section>
       )}
+      </div>
 
+      <div style={{ order:30 }}>
       {deudasAbiertas ? (
         <div id="recursos-deudas" style={{ scrollMarginTop:96 }}>
           <PanelDeudas deudas={deudasVisiblesMes} prefVista={prefVista} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={() => setDeudasAbiertas(false)}/>
@@ -435,7 +438,9 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         </section>
       )}
+      </div>
 
+      <div style={{ order:70 }}>
       {simulacionesAbiertas ? (
         <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} onCreateExpense={crearGastoDesdeSimulacion} lastCreated={ultimoGastoSimulado} onClose={() => setSimulacionesAbiertas(false)} />
       ) : (
@@ -456,9 +461,10 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         </section>
       )}
+      </div>
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
-      <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+      <div id="recursos-detalle" style={cardN(isMobile ? { order:10, padding:"14px 12px", scrollMarginTop:96 } : { order:10, scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10 }}>
           <div>
             <div style={{ fontSize:16,fontWeight:700,color:C.txt,marginBottom:4 }}>{t("Income structure")}</div>
@@ -583,10 +589,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       {/* ── GASTOS VARIABLES DEL MES ── */}
+      <div style={{ order:11 }}>
       <SeccionGastosVariables base={base} setBase={setBase} eventos={eventos} viajes={viajes} proyectos={proyectos} año={año} mesActual={mesActual} mesSeleccionado={mesVista} setMesSeleccionado={setMesVista} suministros={suministros} setSuministros={setSuministros} gastosVariables={gastosVariables} setGastosVariables={setGastosVariables} deudas={deudas} setDeudas={setDeudas}/>
+      </div>
 
       {/* ── GRÁFICO MENSUAL APILADO ── */}
-      <div id="recursos-flujo" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+      <div id="recursos-flujo" style={cardN(isMobile ? { order:40, padding:"14px 12px", scrollMarginTop:96 } : { order:40, scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4,flexDirection:isMobile?"column":"row",gap:isMobile?8:12 }}>
           <div>
             <div style={{ display:"flex",alignItems:"center",gap:8,minWidth:0 }}>
@@ -722,10 +730,12 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       {/* ── ANALIZADOR PRESIÓN FINANCIERA ── */}
+      <div style={{ order:41 }}>
       <AnalizadorPresionFinanciera resumenMes={resumenMes} ingresosFijosResumen={ingresosFijosResumen} mesVista={mesVista} año={año}/>
+      </div>
 
       {/* ── EXPLORADOR DE GASTOS ── */}
-      <div id="recursos-explorador" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+      <div id="recursos-explorador" style={cardN(isMobile ? { order:50, padding:"14px 12px", scrollMarginTop:96 } : { order:50, scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:16 }}>
           <div>
             <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>🔎 {t("Expense explorer")} - {año}</div>
@@ -1012,7 +1022,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
         const mejoraHoy=filas[0]?.mejora||0;
         const mesSinDeudas=debtFreeIndex>=0?filas[debtFreeIndex]?.pref:null;
         return(
-          <div style={{ ...cardN(isMobile ? { padding:"14px 12px" } : undefined),background:"linear-gradient(135deg,#0f2420,#1a3d30)",border:"none" }}>
+          <div style={{ ...cardN(isMobile ? { padding:"14px 12px" } : undefined),order:31,background:"linear-gradient(135deg,#0f2420,#1a3d30)",border:"none" }}>
             <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:4 }}>🔮 {t("Monthly debt-free projection")}</div>
             <div style={{ fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:16 }}>{t("Month-by-month payment release · impact on free balance")}</div>
             <div style={{ display:"grid",gridTemplateColumns:debtProjectionSummaryColumns,gap:12,marginBottom:20 }}>
