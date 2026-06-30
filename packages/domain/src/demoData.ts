@@ -1,7 +1,7 @@
 export const BASE = {
   "ingresos_fijos": 6653,
   "gastos_fijos": 2128.62,
-  "deudas": 1150,
+  "deudas": 1050,
   "previsiones": 0,
   "presupuesto_variable": 285,
   "coste_coche": 5500,
@@ -67,15 +67,18 @@ export const BASE = {
   "detalle_deudas": [
     {
       "nombre": "Marti / Tere",
-      "importe": 1050
+      "importe": 1050,
+      "origen": "deuda_externa"
     },
     {
       "nombre": "Mesas",
-      "importe": 70
+      "importe": 70,
+      "origen": "tarjeta_cuotas"
     },
     {
       "nombre": "Cama",
-      "importe": 30
+      "importe": 30,
+      "origen": "tarjeta_cuotas"
     }
   ],
   "ingresos_puntuales_mayo": [
@@ -96,17 +99,17 @@ export const BASE = {
     "2026-01": {
       "fixedIncome": 4066,
       "fixedExpenses": 1564.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-02": {
       "fixedIncome": 3784,
       "fixedExpenses": 1729.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-03": {
       "fixedIncome": 0,
       "fixedExpenses": 0,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-04": {
       "fixedIncome": 9648,
@@ -116,42 +119,42 @@ export const BASE = {
     "2026-05": {
       "fixedIncome": 6653,
       "fixedExpenses": 1923.62,
-      "debtExpenses": 1180
+      "debtExpenses": 1080
     },
     "2026-06": {
       "fixedIncome": 6685,
       "fixedExpenses": 1933.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-07": {
       "fixedIncome": 6653,
       "fixedExpenses": 2133.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-08": {
       "fixedIncome": 6653,
       "fixedExpenses": 2133.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-09": {
       "fixedIncome": 6653,
       "fixedExpenses": 2128.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-10": {
       "fixedIncome": 6653,
       "fixedExpenses": 2128.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     },
     "2026-11": {
       "fixedIncome": 6653,
       "fixedExpenses": 2128.62,
-      "debtExpenses": 1120
+      "debtExpenses": 1020
     },
     "2026-12": {
       "fixedIncome": 6653,
       "fixedExpenses": 2128.62,
-      "debtExpenses": 1150
+      "debtExpenses": 1050
     }
   }
 };
@@ -245,29 +248,34 @@ export const DEMO_DEUDAS = [
     "cuotas_totales": 12,
     "cuota_actual": 0,
     "mes_inicio": "2026-01",
-    "notas": "Imported from Excel. April payment is planned as a future expense provision; May payment is 1080 in the monthly override."
+    "notas": "Deuda externa. Imported from Excel. April payment is planned as a future expense provision; May payment is 1080 in the monthly override.",
+    "origen": "deuda_externa"
   },
   {
     "id": 2,
     "nombre": "Mesas",
-    "tipo": "cuotas",
+    "tipo": "tarjeta_cuotas",
     "cuota": 70,
     "interes_mensual": 0,
     "cuotas_totales": 12,
     "cuota_actual": 0,
     "mes_inicio": "2026-01",
-    "notas": "Imported from Excel annual budget."
+    "notas": "Compra en tarjeta de credito. Imported from Excel annual budget.",
+    "origen": "tarjeta_cuotas",
+    "tarjetaNombre": "Tarjeta de credito"
   },
   {
     "id": 3,
     "nombre": "Cama",
-    "tipo": "cuotas",
+    "tipo": "tarjeta_cuotas",
     "cuota": 30,
     "interes_mensual": 0,
     "cuotas_totales": 12,
     "cuota_actual": 0,
     "mes_inicio": "2026-01",
-    "notas": "Imported from Excel. November has no payment in the monthly override."
+    "notas": "Compra en tarjeta de credito. Imported from Excel. November has no payment in the monthly override.",
+    "origen": "tarjeta_cuotas",
+    "tarjetaNombre": "Tarjeta de credito"
   }
 ];
 

@@ -326,6 +326,19 @@ describe("finance domain", () => {
     expect(breakdown).toEqual({ cash:0, card:120, cardInstallments:100 });
   });
 
+  it("only feeds credit-card debts into the installment payment method", () => {
+    const breakdown = calculatePaymentMethodBreakdownForMonth(
+      [],
+      [
+        { nombre:"Marti / Tere", tipo:"cuotas", origen:"deuda_externa", cuota:1050, interes_mensual:0, cuotas_totales:12, cuota_actual:0, mes_inicio:"2026-01" },
+        { nombre:"Mesas", tipo:"cuotas", origen:"tarjeta_cuotas", cuota:70, interes_mensual:0, cuotas_totales:12, cuota_actual:0, mes_inicio:"2026-01" },
+      ],
+      "2026-01",
+    );
+
+    expect(breakdown).toEqual({ cash:0, card:0, cardInstallments:70 });
+  });
+
   it("uses project and trip payment methods in the monthly budget", () => {
     const result = calculateMonthlyBudget({
       base: BASE,

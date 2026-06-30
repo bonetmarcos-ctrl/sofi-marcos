@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isLinkedCardInstallmentDebt } from "@sofi-marqui/domain";
 import { C } from "../../constants/colores.ts";
 import { fmt, labelMes } from "../../utils/format.ts";
 import { addMeses } from "../../utils/dates.ts";
@@ -7,6 +8,8 @@ import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 
 const DEUDA_COLORS = [C.lavender, C.cyan, C.warn, C.sage, C.error, C.cyanMid];
+const CARD_DEBT_COLOR = "#C8D3D7";
+const EXTERNAL_DEBT_COLOR = C.brandTertiaryDim;
 
 export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar = null }) {
   const { t } = useI18n();
@@ -37,6 +40,8 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
   const totalCapitalPagado  = deudas.reduce((a, d) => a + d.cuota_actual * d.cuota, 0);
   const totalCapital        = deudas.reduce((a, d) => a + d.cuotas_totales * d.cuota, 0);
   const pctGlobal           = totalCapital > 0 ? Math.round((totalCapitalPagado / totalCapital) * 100) : 0;
+  const deudasTarjeta       = deudas.filter(isLinkedCardInstallmentDebt);
+  const deudasExternas      = deudas.filter(d => !isLinkedCardInstallmentDebt(d));
 
   return (
     <div style={{ background:"linear-gradient(160deg,#0f1520 0%,#1a1f2e 100%)", borderRadius:16, border:"none", padding:isMobile?"16px 12px":"22px 24px" }}>
@@ -44,13 +49,19 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"center", marginBottom:20, flexDirection:isMobile?"column":"row", gap:isMobile?12:0 }}>
         <div>
-          <div style={{ fontSize:18, fontWeight:700, color:"white", fontFamily:"'Playfair Display',serif", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:18, fontWeight:700, color:"white", fontFamily:"'Playfair Display',serif", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
             💳 {t("Debt")}
             <span style={{ fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20, background:"rgba(255,255,255,0.08)", color:"rgba(255,255,255,0.5)" }}>
               {totalActivas} {t("Active")}
             </span>
+            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:"rgba(200,211,215,0.1)", color:CARD_DEBT_COLOR, border:"1px solid rgba(200,211,215,0.18)" }}>
+              <i className="bi bi-credit-card-2-front" aria-hidden="true" /> {deudasTarjeta.length}
+            </span>
+            <span style={{ fontSize:10, fontWeight:700, padding:"3px 9px", borderRadius:20, background:"rgba(223,200,189,0.1)", color:EXTERNAL_DEBT_COLOR, border:"1px solid rgba(223,200,189,0.18)" }}>
+              <i className="bi bi-bank" aria-hidden="true" /> {deudasExternas.length}
+            </span>
           </div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t("Paid principal")} · Timeline · Countdown</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:3 }}>{t("Credit card installments")} · {t("External debt")}</div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={onNueva} style={{ background:C.lavender, color:"white", border:"none", borderRadius:9, padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"'Lato',sans-serif" }}>+ {t("New")}</button>
@@ -64,7 +75,7 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
           { l:t("Outstanding debt"),  v:fmt(totalPendiente),     sub:t("capital + interest"),    accent:C.error    },
           { l:t("This month's payment"),   v:fmt(cuotaMesActual),     sub:t("balance impact"),        accent:C.warn     },
           { l:t("Paid principal"),   v:fmt(totalCapitalPagado), sub:`${pctGlobal}% ${t("of")}`, accent:C.sage     },
-          { l:t("Active debts"),   v:totalActivas,            sub:`${t("of")} ${deudas.length} ${t("Total")}`, accent:C.lavender },
+          { l:t("Active debts"),   v:totalActivas,            sub:`${deudasTarjeta.length} ${t("Credit card installments")} · ${deudasExternas.length} ${t("External debt")}`, accent:C.lavender },
         ].map(k => (
           <div key={k.l} style={{ background:"rgba(255,255,255,0.05)", borderRadius:12, padding:"13px 15px", border:`1px solid ${k.accent}33` }}>
             <div style={{ fontSize:10, fontWeight:700, color:k.accent, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:5 }}>{k.l}</div>
@@ -98,6 +109,13 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
           const timeline = calcTimeline(d);
           const color    = DEUDA_COLORS[di % DEUDA_COLORS.length];
           const isOpen   = expandida === d.id;
+          const isCardDebt = isLinkedCardInstallmentDebt(d);
+          const sourceColor = isCardDebt ? CARD_DEBT_COLOR : EXTERNAL_DEBT_COLOR;
+          const sourceLabel = isCardDebt ? t("Credit card installments") : t("External debt");
+          const sourceIcon = isCardDebt ? "bi-credit-card-2-front" : "bi-bank";
+          const sourceDetails = isCardDebt
+            ? [d.tarjetaNombre || "", d.tarjetaDiaCierre ? `${t("Card closing day")} ${d.tarjetaDiaCierre}` : "", d.compraMes ? `${t("Purchase month")} ${labelMes(d.compraMes)}` : "", d.notas || ""].filter(Boolean)
+            : [d.notas || ""].filter(Boolean);
           const capitalPagadoD = d.cuota_actual * d.cuota;
           const capitalTotalD  = d.cuotas_totales * d.cuota;
           const pctCapital     = capitalTotalD > 0 ? Math.round((capitalPagadoD / capitalTotalD) * 100) : 100;
@@ -110,11 +128,14 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
                 style={{ padding:isMobile?"14px 12px":"16px 18px", cursor:"pointer", display:"flex", alignItems:isMobile?"stretch":"center", gap:isMobile?10:14, flexDirection:isMobile?"column":"row" }}>
                 <div style={{ width:10, height:10, borderRadius:"50%", background:activa?color:C.exito, flexShrink:0, boxShadow:`0 0 8px ${activa?color:C.exito}88` }}/>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontSize:14, fontWeight:700, color:"white" }}>{d.nombre}</span>
+                    <span style={{ fontSize:9, padding:"2px 7px", borderRadius:10, background:`${sourceColor}16`, color:sourceColor, fontWeight:800, border:`1px solid ${sourceColor}33`, textTransform:"uppercase", letterSpacing:"0.04em" }}>
+                      <i className={`bi ${sourceIcon}`} aria-hidden="true" /> {sourceLabel}
+                    </span>
                     {!activa && <span style={{ fontSize:10, padding:"2px 8px", borderRadius:10, background:"rgba(117,223,144,0.15)", color:C.exito, fontWeight:700, border:`1px solid ${C.exito}44` }}>✓ {t("Paid off")}</span>}
                   </div>
-                  {d.notas && <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{d.notas}</div>}
+                  {sourceDetails.length > 0 && <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{sourceDetails.join(" · ")}</div>}
                 </div>
 
                 {/* Barra progreso compacta */}
@@ -196,6 +217,7 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
                           { l:t("Monthly interest / fee (€)"),    v:d.interes_mensual>0?fmt(d.interes_mensual):"—", c:d.interes_mensual>0?C.warn:"rgba(255,255,255,0.3)" },
                           { l:t("Total impact"),  v:fmt(d.cuota+d.interes_mensual),    c:color   },
                           { l:t("Paid payments"), v:`${c.pagadas} / ${d.cuotas_totales}`, c:"rgba(255,255,255,0.7)" },
+                          { l:t("Debt source"), v:sourceLabel, c:sourceColor },
                         ].map(x => (
                           <div key={x.l} style={{ background:"rgba(255,255,255,0.04)", borderRadius:9, padding:"8px 10px" }}>
                             <div style={{ fontSize:9, color:"rgba(255,255,255,0.3)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.5px" }}>{x.l}</div>

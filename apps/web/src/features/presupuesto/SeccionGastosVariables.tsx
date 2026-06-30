@@ -18,6 +18,11 @@ const etiquetasFrecuencia = { mensual:"Monthly", bimestral:"Bimonthly", trimestr
 const VARIABLE_EXPENSE_COLOR = C.lavender;
 const VARIABLE_EXPENSE_BG = C.lavLight;
 const VARIABLE_EXPENSE_BORDER = `${C.lavender}33`;
+const PAYMENT_METHOD_NEUTRALS = [
+  { color:"#223F49", bg:"#EDF2F3", border:"#C8D3D7" },
+  { color:"#5F6871", bg:"#F4F6F7", border:"#D9DEE2" },
+  { color:"#756B74", bg:"#F3EEF2", border:"#DED5DD" },
+];
 const HIDDEN_FIXED_LINE_NAMES = new Set(["Supermercado", "Gym", "Transporte"]);
 const COMMUNITY_FIXED_LINE_NAMES = new Set(["Comunidad", "Derramas"]);
 
@@ -184,9 +189,9 @@ export default function SeccionGastosVariables({ base = BASE, setBase, eventos, 
     pref,
   ), [deudas, paymentExpenseItems, pref]);
   const paymentSummary = [
-    { ...PAYMENT_METHOD_OPTIONS[0], value:paymentBreakdown.cash, color:C.sageDark, bg:C.exitoBg },
-    { ...PAYMENT_METHOD_OPTIONS[1], value:paymentBreakdown.card, color:C.warn, bg:C.warnBg },
-    { ...PAYMENT_METHOD_OPTIONS[2], value:paymentBreakdown.cardInstallments, color:C.lavender, bg:C.lavLight },
+    { ...PAYMENT_METHOD_OPTIONS[0], value:paymentBreakdown.cash, ...PAYMENT_METHOD_NEUTRALS[0] },
+    { ...PAYMENT_METHOD_OPTIONS[1], value:paymentBreakdown.card, ...PAYMENT_METHOD_NEUTRALS[1] },
+    { ...PAYMENT_METHOD_OPTIONS[2], value:paymentBreakdown.cardInstallments, ...PAYMENT_METHOD_NEUTRALS[2] },
   ];
 
   const catsCalBase = Object.entries(CATEGORIAS)
@@ -301,7 +306,7 @@ export default function SeccionGastosVariables({ base = BASE, setBase, eventos, 
 
       <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))", gap:8, marginTop:12, minWidth:0 }}>
         {paymentSummary.map(item => (
-          <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, background:item.bg, border:`1px solid ${item.color}33`, borderRadius:10, padding:"8px 10px" }}>
+          <div key={item.key} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, minWidth:0, background:item.bg, border:`1px solid ${item.border}`, borderRadius:10, padding:"8px 10px" }}>
             <div style={{ minWidth:0 }}>
               <div style={{ fontSize:10, color:item.color, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.icon} {t(item.labelKey)}</div>
               <div style={{ fontSize:10, color:C.txt2, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t(item.detailKey)}</div>
