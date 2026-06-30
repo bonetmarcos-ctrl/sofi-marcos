@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
+import { buildCreditCardDebtFromExpense, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateDebt, calculateDebtInstallmentForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, calculateMonthlyBudget, calculatePaymentMethodBreakdownForMonth, expenseFirstChargeMonth, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, predictUtilityAvailabilityDate } from "./finance.js";
 import { BASE } from "./demoData.js";
 
 const categories = {
@@ -234,6 +234,30 @@ describe("finance domain", () => {
     expect(calculateExpenseCashImpactForMonth(expense, "2026-07")).toBe(40);
     expect(calculateExpenseCashImpactForMonth(expense, "2026-09")).toBe(40);
     expect(calculateExpenseCashImpactForMonth(expense, "2026-10")).toBe(0);
+  });
+
+  it("simulates payment methods without mutating real expenses", () => {
+    const scenarios = simulatePaymentScenarios({ amount: 900, purchaseDate: "2026-06-21", cardCloseDay: 20, installmentOptions: [3] });
+
+    expect(scenarios.find((scenario) => scenario.key === "cash")).toMatchObject({
+      origenFondos: "ingresos_mes",
+      primerImpacto: "2026-06",
+      impactoMaximo: 900,
+      impactos: [{ pref: "2026-06", importe: 900 }],
+    });
+    expect(scenarios.find((scenario) => scenario.key === "card_next_month")).toMatchObject({
+      origenFondos: "tarjeta_mes_siguiente",
+      primerImpacto: "2026-08",
+      impactoMaximo: 900,
+      impactos: [{ pref: "2026-08", importe: 900 }],
+    });
+    expect(scenarios.find((scenario) => scenario.key === "card_3_installments")).toMatchObject({
+      origenFondos: "tarjeta_cuotas",
+      cuotasTarjeta: 3,
+      primerImpacto: "2026-08",
+      ultimoImpacto: "2026-10",
+      impactoMaximo: 300,
+    });
   });
 
   it("uses the card close day to calculate the first charge month", () => {

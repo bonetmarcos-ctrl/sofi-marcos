@@ -232,6 +232,78 @@ export const calculatePaymentMethodBreakdownForMonth = (expenses, debts, yearMon
     + calculateDebtInstallmentForMonth(debts.filter(isLinkedCardInstallmentDebt), yearMonth),
 });
 
+type PaymentSimulationInput = {
+  amount: number;
+  purchaseDate?: string;
+  purchaseMonth?: string;
+  cardCloseDay?: number | string;
+  firstChargeMonth?: string;
+  installmentOptions?: number[];
+  horizonMonths?: number;
+};
+
+const simulationMonths = (startMonth, length) =>
+  Array.from({ length:Math.max(1, Number(length || 1)) }, (_, index) => addMonths(startMonth, index));
+
+type PaymentSimulationExpenseInput = Partial<PaymentSimulationInput> & {
+  amount: number;
+  purchaseDate: string;
+  purchaseMonth: string;
+};
+
+const paymentSimulationExpense = ({ amount, purchaseDate, purchaseMonth, cardCloseDay, firstChargeMonth }: PaymentSimulationExpenseInput, fundingSource, installments = 1) => ({
+  importe:asAmount(amount),
+  fecha:purchaseDate || `${purchaseMonth}-01`,
+  mes:purchaseMonth || purchaseDate?.slice(0, 7) || "",
+  origenFondos:fundingSource,
+  cuotasTarjeta:installments,
+  tarjetaDiaCierre:cardCloseDay,
+  mesPrimerCargo:firstChargeMonth || "",
+});
+
+export const simulatePaymentScenario = (input: PaymentSimulationInput, scenario) => {
+  const amount = asAmount(input.amount);
+  const purchaseMonth = input.purchaseMonth || input.purchaseDate?.slice(0, 7) || "";
+  const purchaseDate = input.purchaseDate || (purchaseMonth ? `${purchaseMonth}-01` : "");
+  const fundingSource = scenario.origenFondos || FUNDING_SOURCES.MONTH_INCOME;
+  const installments = fundingSource === FUNDING_SOURCES.CREDIT_INSTALLMENTS ? Math.max(2, Number(scenario.cuotasTarjeta || 2)) : 1;
+  const expense = paymentSimulationExpense({ ...input, amount, purchaseDate, purchaseMonth }, fundingSource, installments);
+  const firstImpactMonth = fundingSource === FUNDING_SOURCES.MONTH_INCOME ? purchaseMonth : expenseFirstChargeMonth(expense);
+  const horizonMonths = Math.max(Number(input.horizonMonths || 12), installments + 2);
+  const startMonth = purchaseMonth || firstImpactMonth || "";
+  const impacts = startMonth ? simulationMonths(startMonth, horizonMonths)
+    .map((month) => ({ pref:month, importe:calculateExpenseCashImpactForMonth(expense, month) }))
+    .filter((impact) => impact.importe > 0) : [];
+  const peakImpact = impacts.reduce((max, impact) => Math.max(max, impact.importe), 0);
+  const totalImpact = impacts.reduce((sum, impact) => sum + impact.importe, 0);
+
+  return {
+    key:scenario.key,
+    label:scenario.label,
+    origenFondos:fundingSource,
+    cuotasTarjeta:installments,
+    importe:amount,
+    compraMes:purchaseMonth,
+    primerImpacto:firstImpactMonth || impacts[0]?.pref || "",
+    ultimoImpacto:impacts[impacts.length - 1]?.pref || "",
+    impactoMaximo:peakImpact,
+    impactoTotal:totalImpact,
+    impactos:impacts,
+  };
+};
+
+export const simulatePaymentScenarios = (input: PaymentSimulationInput) => {
+  const installmentOptions = (input.installmentOptions || [3, 6, 12])
+    .map((option) => Math.max(2, Math.trunc(Number(option || 0))))
+    .filter((option, index, options) => option > 1 && options.indexOf(option) === index);
+
+  return [
+    simulatePaymentScenario(input, { key:"cash", label:"Efectivo", origenFondos:FUNDING_SOURCES.MONTH_INCOME }),
+    simulatePaymentScenario(input, { key:"card_next_month", label:"Tarjeta mes siguiente", origenFondos:FUNDING_SOURCES.CREDIT_NEXT_MONTH }),
+    ...installmentOptions.map((installments) => simulatePaymentScenario(input, { key:`card_${installments}_installments`, label:`Tarjeta ${installments} cuotas`, origenFondos:FUNDING_SOURCES.CREDIT_INSTALLMENTS, cuotasTarjeta:installments })),
+  ];
+};
+
 const asAmount = (value) => Number(value || 0);
 const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
 const isInYearMonthRange = (yearMonth, startMonth, endMonth) =>

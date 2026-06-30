@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
+import { FUNDING_SOURCES, annualCommitmentMonthlyReserve, annualCommitmentReserveWindowForYear, calculateAnnualCommitmentCashImpactForMonth, calculateAnnualCommitmentReserveForMonth, calculateExpenseCashImpactForMonth, calculateLeverBudgetAmount, calculateLeverCalendarFit, expenseFirstChargeMonth, expensePurchaseMonth, projectExpenseItem, simulatePaymentScenarios, tripExpenseItems, utilityAvailabilityDate, utilityCashMonth } from "@sofi-marqui/domain";
 import Modal from "../../components/Modal.tsx";
 import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categoriaEventoKey } from "../../constants/categorias.ts";
 import { C, cardN, inputS } from "../../constants/colores.ts";
@@ -53,6 +53,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const [modalPalanca,setModalPalanca]= useState(null);
   const [modalDeuda,  setModalDeuda]  = useState(null);
   const [modalCompromiso,setModalCompromiso] = useState(null);
+  const [simulacionPago, setSimulacionPago] = useState({ importe:600, fecha:todayISO, tarjetaDiaCierre:20, cuotas:"3,6,12" });
   const prefVista = `${año}-${String(mesVista+1).padStart(2,"0")}`;
 
   // ── Handlers palancas ──
@@ -84,6 +85,20 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const { datosMes } = useDatosMes({ base, eventos, bloqueos, viajes, palancas, deudas, suministros, gastosVariables, proyectos, compromisosAnuales, año, mesActual });
   const detalle = mesDetalle !== null ? datosMes[mesDetalle] : null;
   const resumenMes = datosMes[mesVista] || datosMes[mesActual];
+  const escenariosPago = useMemo(() => {
+    const cuotas = String(simulacionPago.cuotas || "")
+      .split(",")
+      .map(value => Math.trunc(Number(value.trim() || 0)))
+      .filter(value => value > 1);
+
+    return simulatePaymentScenarios({
+      amount:Number(simulacionPago.importe || 0),
+      purchaseDate:simulacionPago.fecha || `${prefVista}-01`,
+      cardCloseDay:simulacionPago.tarjetaDiaCierre || undefined,
+      installmentOptions:cuotas.length > 0 ? cuotas : [3, 6, 12],
+      horizonMonths:14,
+    });
+  }, [prefVista, simulacionPago]);
 
   // KPIs deudas
   const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [base, deudas, prefVista]);
@@ -316,6 +331,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const resourceSections = [
     { id:"recursos-resumen", label:"Resumen", detail:"Capacidad del mes" },
     { id:"recursos-compromisos", label:"Compromisos", detail:"Reservas y vencimientos" },
+    { id:"recursos-simulaciones", label:"Simulaciones", detail:"Pago y caja" },
     { id:"recursos-detalle", label:"Detalle", detail:"Ingresos y gastos" },
     { id:"recursos-flujo", label:"Flujo", detail:"Capas y presión" },
     { id:"recursos-deudas", label:"Deudas", detail:"Cuotas y liberación" },
@@ -390,6 +406,8 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       </div>
 
       <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} />
+
+  <PanelSimulacionesPago datosMes={datosMes} simulacion={simulacionPago} setSimulacion={setSimulacionPago} escenarios={escenariosPago} año={año} />
 
       {/* ── ESTRUCTURA DE INGRESOS ── */}
       <div id="recursos-detalle" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
@@ -1055,6 +1073,122 @@ const daysUntil = (date) => date ? Math.ceil((new Date(`${date}T12:00:00`).getTi
 const formatDate = (date) => date ? date.split("-").reverse().join("/") : "";
 const commitmentTypeLabel = (type) => ANNUAL_COMMITMENT_TYPES.find(option => option.key === type)?.label || "Otro";
 const paymentSourceLabel = (source) => PAYMENT_SOURCE_OPTIONS.find(option => option.key === source)?.label || "Efectivo";
+
+function PanelSimulacionesPago({ datosMes = [], simulacion, setSimulacion, escenarios = [], año }) {
+  const { isMobile, isTablet } = useBreakpoint();
+  const monthByPref = useMemo(() => new Map(datosMes.map(month => [month.pref, month])), [datosMes]);
+  const update = (key, value) => setSimulacion(current => ({ ...current, [key]:value }));
+  const scenarioColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
+  const peaks = escenarios.map(scenario => Number(scenario.impactoMaximo || 0)).filter(Boolean);
+  const lowestPeak = peaks.length > 0 ? Math.min(...peaks) : 0;
+  const purchaseMonth = (simulacion.fecha || "").slice(0, 7);
+
+  return (
+    <section id="recursos-simulaciones" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:isMobile?"stretch":"flex-start", gap:12, flexDirection:isMobile?"column":"row", marginBottom:14 }}>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:16, fontWeight:800, color:C.txt }}>Simulaciones de pago</div>
+          <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Compara caja, tarjeta y cuotas antes de registrar el gasto real.</div>
+        </div>
+        <div style={{ background:C.brandPrimaryFixed, border:`1px solid ${C.brandPrimary}22`, borderRadius:10, padding:"8px 10px", color:C.brandPrimary, fontSize:11, fontWeight:800, whiteSpace:"nowrap" }}>
+          No modifica registros
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":isTablet?"repeat(2,minmax(0,1fr))":"1fr 1fr 1fr 1fr", gap:10, marginBottom:14 }}>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Importe</span>
+          <input type="number" min="0" step="0.01" value={simulacion.importe ?? ""} onChange={event => update("importe", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Fecha de compra</span>
+          <input type="date" value={simulacion.fecha || ""} onChange={event => update("fecha", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Cierre tarjeta</span>
+          <input type="number" min="1" max="31" step="1" value={simulacion.tarjetaDiaCierre ?? ""} onChange={event => update("tarjetaDiaCierre", event.target.value)} style={{ ...inputS, background:C.fondo }}/>
+        </label>
+        <label style={{ display:"grid", gap:5, minWidth:0 }}>
+          <span style={{ fontSize:11, fontWeight:800, color:C.txt2, textTransform:"uppercase", letterSpacing:"0.05em" }}>Cuotas a comparar</span>
+          <input value={simulacion.cuotas || ""} onChange={event => update("cuotas", event.target.value)} placeholder="3,6,12" style={{ ...inputS, background:C.fondo }}/>
+        </label>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:scenarioColumns, gap:10 }}>
+        {escenarios.map(scenario => {
+          const rows = scenario.impactos.map(impact => {
+            const month = monthByPref.get(impact.pref);
+            const baseMargin = Number(month?.resumen_recursos?.margen_real ?? month?.saldo ?? 0);
+            const assigned = Number(month?.resumen_recursos?.gasto_total_real ?? month?.total_gastos ?? 0);
+            const income = Number(month?.resumen_recursos?.ingresos_confirmados ?? month?.total_ingresos ?? 0);
+            return {
+              ...impact,
+              month,
+              marginAfter:baseMargin - Number(impact.importe || 0),
+              pressureAfter:income > 0 ? Math.round(((assigned + Number(impact.importe || 0)) / income) * 100) : 0,
+            };
+          });
+          const lowest = lowestPeak > 0 && Math.abs(Number(scenario.impactoMaximo || 0) - lowestPeak) < 0.01;
+          const firstImpactLabel = scenario.primerImpacto ? labelMes(scenario.primerImpacto) : "sin impacto";
+          const visibleRows = rows.slice(0, 4);
+
+          return (
+            <div key={scenario.key} style={{ background:lowest?C.brandSecondaryFixed:C.fondo, border:`1px solid ${lowest?C.brandSecondaryBorder:C.borde}`, borderLeft:`4px solid ${lowest?C.brandSecondaryStrong:C.txt2}66`, borderRadius:12, padding:"12px 12px", minWidth:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"flex-start", marginBottom:9 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:900, color:C.txt, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{scenario.label}</div>
+                  <div style={{ marginTop:3, fontSize:10.5, color:C.txt2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{purchaseMonth ? `${labelMes(purchaseMonth)} compra` : "Compra"} · {firstImpactLabel}</div>
+                </div>
+                {lowest && <span style={{ background:C.brandSecondaryStrong, color:"white", borderRadius:999, padding:"3px 7px", fontSize:9.5, fontWeight:900, whiteSpace:"nowrap" }}>menor pico</span>}
+              </div>
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:9 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:9.5, color:C.txt2, textTransform:"uppercase", fontWeight:850 }}>Pico mensual</div>
+                  <div style={{ fontSize:20, lineHeight:1, color:lowest?C.brandSecondaryStrong:C.txt, fontWeight:900, fontFamily:"'Playfair Display',serif", marginTop:4 }}>{fmt(scenario.impactoMaximo || 0)}</div>
+                </div>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:9.5, color:C.txt2, textTransform:"uppercase", fontWeight:850 }}>Total</div>
+                  <div style={{ fontSize:20, lineHeight:1, color:C.txt, fontWeight:900, fontFamily:"'Playfair Display',serif", marginTop:4 }}>{fmt(scenario.impactoTotal || 0)}</div>
+                </div>
+              </div>
+
+              <div style={{ display:"grid", gap:5 }}>
+                {visibleRows.length === 0 && <div style={{ fontSize:11, color:C.txt2, background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:8, padding:"8px 9px" }}>Sin impacto con este importe.</div>}
+                {visibleRows.map(row => {
+                  const afterColor = !row.month ? C.txt2 : row.marginAfter < 0 ? C.error : C.sageDark;
+                  return (
+                    <div key={`${scenario.key}-${row.pref}`} style={{ display:"grid", gridTemplateColumns:"minmax(0,1fr) auto", gap:8, alignItems:"center", background:C.superficie, border:`1px solid ${C.borde}`, borderRadius:8, padding:"7px 8px", minWidth:0 }}>
+                      <span style={{ minWidth:0 }}>
+                        <strong style={{ display:"block", fontSize:11.5, color:C.txt, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{labelMes(row.pref)}</strong>
+                        <span style={{ display:"block", fontSize:10, color:C.txt2, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.month ? `margen ${fmt(row.marginAfter)} · ${row.pressureAfter}%` : "fuera del año visible"}</span>
+                      </span>
+                      <span style={{ color:afterColor, fontSize:12, fontWeight:900, whiteSpace:"nowrap" }}>{fmt(row.importe)}</span>
+                    </div>
+                  );
+                })}
+                {rows.length > visibleRows.length && <div style={{ fontSize:10.5, color:C.txt2, padding:"2px 2px" }}>+{rows.length - visibleRows.length} meses más</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop:12, display:"grid", gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))", gap:8 }}>
+        {[
+          { label:"Compra", value:purchaseMonth ? labelMes(purchaseMonth) : "—", color:C.brandPrimary },
+          { label:"Importe simulado", value:fmt(Number(simulacion.importe || 0)), color:C.txt },
+          { label:"Año visible", value:String(año), color:C.txt2 },
+        ].map(item => (
+          <div key={item.label} style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"center", background:"rgba(255,255,255,0.72)", border:`1px solid ${C.borde}`, borderRadius:10, padding:"9px 11px", minWidth:0 }}>
+            <span style={{ fontSize:11, color:C.txt2, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.04em", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.label}</span>
+            <strong style={{ fontSize:13, color:item.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, onEditar }) {
   const { isMobile, isTablet } = useBreakpoint();
