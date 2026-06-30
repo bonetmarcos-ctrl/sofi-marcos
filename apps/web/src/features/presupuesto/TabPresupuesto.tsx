@@ -149,10 +149,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [base, deudas, prefVista]);
   const totalPendienteMes = useMemo(() => calcularDeudaPendienteMes(deudas, prefVista), [deudas, prefVista]);
   const deudasVisiblesMes = useMemo(() => deudas.filter(deuda => deudaVisibleEnMes(deuda, prefVista)), [deudas, prefVista]);
-  const proxVencimiento = useMemo(() => deudasVisiblesMes
-    .map(deuda=>({ ...deuda, fin:addMeses(deuda.mes_inicio, deuda.cuotas_totales-1) }))
-    .filter(deuda=>deuda.fin>=prefVista)
-    .sort((primera, segunda)=>primera.fin.localeCompare(segunda.fin))[0], [deudasVisiblesMes, prefVista]);
 
   const utilityBreakdown = useMemo(() => SUMINISTROS_TIPOS
     .map(tipo => {
@@ -239,8 +235,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
     .filter(({ line }) => lineaIngresoActivaEnMes(line, prefVista)), [base.detalle_ingresos, prefVista]);
   const ingresosFijosLineasTotal = useMemo(() => detalleIngresosMes.reduce((sum, { line }) => sum + Number(line.importe || 0), 0), [detalleIngresosMes]);
   const ajusteIngresosFijos = ingresosFijosResumen - ingresosFijosLineasTotal;
-  const gastosFijosResumen = (base.monthlyOverrides?.[prefVista]?.fixedExpenses ?? base.gastos_fijos) + (resumenMes?.gasto_deudas || 0) + (base.previsiones || 0);
-  const presionResumen = resumenMes?.presion || 0;
   const updateIncomeLines = useCallback((updater) => {
     if (!setBase) return;
 
@@ -255,7 +249,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   const addIncomeLine = () => updateIncomeLines((lines) => [...lines, { id:Date.now() + Math.random(), nombre:t("Income"), importe:0, recurrente:true, desde:prefVista, hasta:prefVista, fechaAcreditacion:`${prefVista}-01`, notas:"" }]);
   const removeIncomeLine = (index) => updateIncomeLines((lines) => eliminarLineaIngresoEnMes(lines, index, prefVista, incomeLineIds()));
 
-  const kpiColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const expenseLayerColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
   const debtProjectionSummaryColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
@@ -394,63 +387,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       <RecursosResumenPanel resumen={resumenMes?.resumen_recursos} mesVista={mesVista} año={año} setMesVista={setMesVista} />
 
       <RecursosNav sections={resourceSections} onSelect={scrollToResourceSection} />
-
-      {/* ── KPIs ── */}
-      <div style={{ display:"grid", gap:10 }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10 }}>
-          <div>
-            <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Monthly summary")}</div>
-            <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Income · expenses · debt snapshot")}</div>
-          </div>
-          <div style={{ display:"flex",alignItems:"center",gap:6 }}>
-            <button onClick={() => setMesVista(i => Math.max(0, i-1))}
-              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>‹</button>
-            <span style={{ fontSize:13,fontWeight:700,color:C.txt,minWidth:100,textAlign:"center" }}>{monthName(mesVista)} {año}</span>
-            <button onClick={() => setMesVista(i => Math.min(11, i+1))}
-              style={{ background:C.fondo,border:`1px solid ${C.borde}`,borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,color:C.txt2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Lato',sans-serif" }}>›</button>
-          </div>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:kpiColumns, gap:isMobile?10:12 }}>
-          <div style={{ ...cardN(), borderTop:`3px solid ${C.cyan}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.cyan,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💶 {t("Fixed income")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(ingresosFijosResumen)}</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("guaranteed monthly")}</div>
-          </div>
-          <div style={{ ...cardN(), borderTop:`3px solid ${C.incomeVariable}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.incomeVariable,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📈 {t("Variable income")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(resumenMes?.ingresos_var_total || 0)}</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{monthName(mesVista)} {año}</div>
-          </div>
-          <div style={{ ...cardN(), borderTop:`3px solid ${C.sage}`, background:`linear-gradient(135deg,${C.superficie},${C.sageLight})` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.sageDark,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>✨ {t("Inactive potential")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{fmt(resumenMes?.palancasPot || 0)}</div>
-            <div style={{ fontSize:11,color:C.sageDark,opacity:0.7,marginTop:3 }}>{palancasPotResumen.length} {t("Levers")}</div>
-          </div>
-          <div style={{ ...cardN(), borderTop:`3px solid ${C.warn}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:"#b45309",textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>📌 {t("Fixed expenses")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.txt,fontFamily:"'Playfair Display',serif" }}>{fmt(gastosFijosResumen)}</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("monthly structure")}</div>
-          </div>
-          <div style={{ ...cardN(), borderTop:`3px solid ${presionResumen>85?C.error:presionResumen>70?C.warn:C.exito}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.txt2,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>⚡ {t("Financial pressure")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:presionResumen>85?C.error:presionResumen>70?C.warn:C.sageDark,fontFamily:"'Playfair Display',serif" }}>{presionResumen}%</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{t("of committed income")}</div>
-            <div style={{ marginTop:8,height:4,background:C.borde,borderRadius:4,overflow:"hidden" }}>
-              <div style={{ width:`${Math.min(100, presionResumen)}%`,height:"100%",borderRadius:4,background:presionResumen>85?C.error:presionResumen>70?C.warn:C.exito,transition:"width 0.5s" }}/>
-            </div>
-          </div>
-          <div style={{ ...cardN(), background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` }}>
-            <div style={{ fontSize:10,fontWeight:700,color:C.brandPrimary,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
-            <div style={{ fontSize:26,fontWeight:700,color:C.brandPrimary,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudasVisiblesMes.length} {t("debts")}</div>
-            {proxVencimiento && (
-              <div style={{ marginTop:8,fontSize:10,color:C.txt2 }}>
-                {t("Next payoff")}: {proxVencimiento.nombre} · {labelMes(addMeses(proxVencimiento.mes_inicio, proxVencimiento.cuotas_totales-1))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {compromisosAbiertos ? (
         <PanelCompromisosAnuales compromisos={compromisosAnuales} prefVista={prefVista} año={año} onNuevo={() => setModalCompromiso(nuevoCompromisoAnual(prefVista))} onEditar={setModalCompromiso} onClose={() => setCompromisosAbiertos(false)} />
