@@ -39,6 +39,20 @@ const PAYMENT_SOURCE_OPTIONS = [
   { key:FUNDING_SOURCES.CREDIT_INSTALLMENTS, label:"Tarjeta en cuotas" },
 ];
 
+const calcularOffsetMesDeuda = (deuda, pref) => {
+  if (!deuda?.mes_inicio || !pref) return null;
+  const [añoObjetivo, mesObjetivo] = pref.split("-").map(Number);
+  const [añoInicio, mesInicio] = deuda.mes_inicio.split("-").map(Number);
+  if (![añoObjetivo, mesObjetivo, añoInicio, mesInicio].every(Number.isFinite)) return null;
+  return (añoObjetivo - añoInicio) * 12 + (mesObjetivo - mesInicio);
+};
+
+const deudaVisibleEnMes = (deuda, pref) => {
+  const offset = calcularOffsetMesDeuda(deuda, pref);
+  const cuotasTotales = Number(deuda?.cuotas_totales || 0);
+  return offset === null || cuotasTotales <= 0 || offset < cuotasTotales;
+};
+
 export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos, viajes, proyectos = [], palancas, setPalancas, deudas, setDeudas, suministros, setSuministros, gastosVariables = [], setGastosVariables, compromisosAnuales = [], setCompromisosAnuales }) {
   const { t, monthName } = useI18n();
   const año       = new Date().getFullYear();
@@ -134,10 +148,11 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
   // KPIs deudas
   const cuotaMesVista   = useMemo(() => calcCuotaDeudaMes(deudas, prefVista, base), [base, deudas, prefVista]);
   const totalPendienteMes = useMemo(() => calcularDeudaPendienteMes(deudas, prefVista), [deudas, prefVista]);
-  const proxVencimiento = useMemo(() => deudas
-    .map(d=>({ ...d, fin:addMeses(d.mes_inicio, d.cuotas_totales-1) }))
-    .filter(d=>d.fin>=todayISO.slice(0,7))
-    .sort((a,b)=>a.fin.localeCompare(b.fin))[0], [deudas]);
+  const deudasVisiblesMes = useMemo(() => deudas.filter(deuda => deudaVisibleEnMes(deuda, prefVista)), [deudas, prefVista]);
+  const proxVencimiento = useMemo(() => deudasVisiblesMes
+    .map(deuda=>({ ...deuda, fin:addMeses(deuda.mes_inicio, deuda.cuotas_totales-1) }))
+    .filter(deuda=>deuda.fin>=prefVista)
+    .sort((primera, segunda)=>primera.fin.localeCompare(segunda.fin))[0], [deudasVisiblesMes, prefVista]);
 
   const utilityBreakdown = useMemo(() => SUMINISTROS_TIPOS
     .map(tipo => {
@@ -427,7 +442,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           <div style={{ ...cardN(), background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` }}>
             <div style={{ fontSize:10,fontWeight:700,color:C.brandPrimary,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:6 }}>💳 {t("Outstanding debt")}</div>
             <div style={{ fontSize:26,fontWeight:700,color:C.brandPrimary,fontFamily:"'Playfair Display',serif" }}>{fmt(totalPendienteMes)}</div>
-            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudas.length} {t("debts")}</div>
+            <div style={{ fontSize:11,color:C.txt2,marginTop:3 }}>{fmt(cuotaMesVista)}{t("/month")} · {deudasVisiblesMes.length} {t("debts")}</div>
             {proxVencimiento && (
               <div style={{ marginTop:8,fontSize:10,color:C.txt2 }}>
                 {t("Next payoff")}: {proxVencimiento.nombre} · {labelMes(addMeses(proxVencimiento.mes_inicio, proxVencimiento.cuotas_totales-1))}
@@ -462,7 +477,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
       {deudasAbiertas ? (
         <div id="recursos-deudas" style={{ scrollMarginTop:96 }}>
-          <PanelDeudas deudas={deudas} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={() => setDeudasAbiertas(false)}/>
+          <PanelDeudas deudas={deudasVisiblesMes} prefVista={prefVista} totalPendiente={totalPendienteMes} cuotaMesActual={cuotaMesVista} onNueva={()=>setModalDeuda({})} onEditar={(d)=>setModalDeuda(d)} onCerrar={() => setDeudasAbiertas(false)}/>
         </div>
       ) : (
         <section id="recursos-deudas" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96, background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` } : { scrollMarginTop:96, background:`linear-gradient(135deg,${C.brandPrimaryFixed},${C.superficie})`, border:`1px solid ${C.brandPrimaryDim}` })}>
@@ -474,7 +489,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:15, fontWeight:800, color:C.txt }}>Deudas</div>
                 <div style={{ fontSize:12, color:C.txt2, marginTop:2, whiteSpace:isMobile?"normal":"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {deudas.length} registradas · {fmt(cuotaMesVista)}{t("/month")} · {fmt(totalPendienteMes)} pendiente.
+                  {deudasVisiblesMes.length} registradas · {fmt(cuotaMesVista)}{t("/month")} · {fmt(totalPendienteMes)} pendiente.
                 </div>
               </div>
             </div>

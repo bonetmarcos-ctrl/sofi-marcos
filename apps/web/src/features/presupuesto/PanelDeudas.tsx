@@ -14,17 +14,31 @@ const PANEL_BORDER = C.brandPrimaryDim;
 const SOFT_LAVENDER = "rgba(110,99,133,0.08)";
 const SOFT_LAVENDER_BORDER = "rgba(110,99,133,0.18)";
 
-export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar = null }) {
+type DebtRecord = Record<string, any>;
+
+type PanelDeudasProps = {
+  deudas: DebtRecord[];
+  prefVista?: string;
+  totalPendiente: number;
+  cuotaMesActual: number;
+  onNueva: () => void;
+  onEditar: (deuda: DebtRecord) => void;
+  onCerrar?: (() => void) | null;
+};
+
+export default function PanelDeudas({ deudas, prefVista, totalPendiente, cuotaMesActual, onNueva, onEditar, onCerrar = null }: PanelDeudasProps) {
   const { t } = useI18n();
   const [expandida, setExpandida] = useState(null);
   const { isMobile, isTablet } = useBreakpoint();
   const hoy       = new Date();
   const todayPref = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+  const referencePref = prefVista || todayPref;
+  const [referenceYear, referenceMonth] = referencePref.split("-").map(Number);
 
   const calcCountdown = (mesFin) => {
     if (!mesFin) return null;
     const [fy, fm] = mesFin.split("-").map(Number);
-    const diff = (fy - hoy.getFullYear()) * 12 + (fm - (hoy.getMonth() + 1));
+    const diff = (fy - referenceYear) * 12 + (fm - referenceMonth);
     if (diff < 0)  return { meses:0, label:t("Paid off") };
     if (diff === 0) return { meses:0, label:t("This month!") };
     if (diff < 12)  return { meses:diff, label:`${diff} ${t(diff !== 1 ? "months" : "month")}` };
@@ -36,7 +50,7 @@ export default function PanelDeudas({ deudas, totalPendiente, cuotaMesActual, on
   const calcTimeline = (d) =>
     Array.from({ length: d.cuotas_totales }, (_, i) => {
       const mesPref = addMeses(d.mes_inicio, i);
-      return { i, mesPref, pagado: i < d.cuota_actual, esActual: mesPref === todayPref };
+      return { i, mesPref, pagado: i < d.cuota_actual, esActual: mesPref === referencePref };
     });
 
   const totalActivas        = deudas.filter(d => calcDeuda(d).pendientes > 0).length;
