@@ -590,7 +590,16 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
       <div id="recursos-flujo" style={cardN(isMobile ? { padding:"14px 12px", scrollMarginTop:96 } : { scrollMarginTop:96 })}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4,flexDirection:isMobile?"column":"row",gap:isMobile?8:12 }}>
           <div>
-            <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Layered expenses")} - {año}</div>
+            <div style={{ display:"flex",alignItems:"center",gap:8,minWidth:0 }}>
+              <div style={{ fontSize:16,fontWeight:700,color:C.txt }}>{t("Annual expense evolution")} - {año}</div>
+              <button
+                type="button"
+                title={t("Annual expense evolution help")}
+                aria-label={t("Annual expense evolution help")}
+                style={{ border:`1px solid ${C.borde}`,background:C.fondo,color:C.txt2,borderRadius:999,width:24,height:24,display:"grid",placeItems:"center",cursor:"help",flexShrink:0 }}>
+                <i className="bi bi-info-circle" aria-hidden="true" />
+              </button>
+            </div>
             <div style={{ fontSize:12,color:C.txt2,marginTop:2 }}>{t("Hover each bar · future months are gray estimates")}</div>
           </div>
           <div style={{ display:"flex",gap:12,alignItems:"center",flexWrap:"wrap" }}>
