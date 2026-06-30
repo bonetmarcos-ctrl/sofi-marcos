@@ -10,6 +10,7 @@ import { PAYMENT_METHOD_OPTIONS, paymentMethodLabelKey } from "../../utils/payme
 import { BASE } from "../../data/demo.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
+import ActionIconButton from "./ActionIconButton.tsx";
 
 const UNIDADES_SUMINISTRO = { luz:"kWh", gas:"m3", agua:"m3" };
 const FRECUENCIAS_FACTURA = ["mensual", "bimestral", "trimestral", "anual", "puntual"];
@@ -293,10 +294,7 @@ export default function SeccionGastosVariables({ base = BASE, eventos, viajes, p
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
                     <span style={{ fontWeight:700, color:s.importe>0?"#d97706":C.txt2 }}>{s.importe>0?fmt(s.importe):"—"}</span>
-                    <button onClick={() => abrirSuministro(s)} aria-label={`${t("Edit utility bill")} ${t(s.label)}`}
-                      style={{ width:24, height:24, borderRadius:7, border:`1px solid ${s.importe>0?"#d9770633":C.borde}`, background:"white", color:"#d97706", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, flexShrink:0 }}>
-                      ✏️
-                    </button>
+                    <ActionIconButton label={`${t("Edit utility bill")} ${t(s.label)}`} icon="✎" tone="edit" size={26} onClick={() => abrirSuministro(s)} />
                   </div>
                 </div>
               );

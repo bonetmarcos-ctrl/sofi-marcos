@@ -11,6 +11,7 @@ import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
 import { BASE } from "../../data/demo.ts";
 import AnalizadorPresionFinanciera from "./AnalizadorPresionFinanciera.tsx";
+import ActionIconButton from "./ActionIconButton.tsx";
 import PanelDeudas from "./PanelDeudas.tsx";
 import SeccionGastosVariables from "./SeccionGastosVariables.tsx";
 import { actualizarIngresosFijosDesdeMes, editarLineaIngresoEnMes, eliminarLineaIngresoEnMes, fechaAcreditacionIngresoEnMes, lineaIngresoActivaEnMes } from "./incomeTimeline.ts";
@@ -470,7 +471,7 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                   <input type="number" step="0.01" value={line.importe ?? ""} onChange={(event) => setIncomeLine(index, { importe:event.target.value })} placeholder="0" style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,textAlign:"right",color:Number(line.importe || 0)<0?C.error:C.txt }}/>
                   {!isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0 }}/>
                   }
-                  <button onClick={() => removeIncomeLine(index)} aria-label={t("Delete")} style={{ width:30,height:30,minHeight:30,borderRadius:7,border:`1px solid ${C.error}44`,background:C.errorBg,color:C.error,cursor:"pointer",fontWeight:800,fontFamily:"'Lato',sans-serif" }}>x</button>
+                  <ActionIconButton label={t("Delete")} icon="🗑️" tone="delete" size={30} onClick={() => removeIncomeLine(index)} />
                   {isMobile && <input type="date" aria-label={t("Credit date")} value={fechaAcreditacionIngresoEnMes(line, prefVista)} onChange={(event) => setIncomeLine(index, { fechaAcreditacion:event.target.value })} style={{ ...inputS,background:"white",padding:"7px 8px",borderRadius:7,minHeight:30,fontSize:12.5,minWidth:0,gridColumn:"1 / -1" }}/>
                   }
                   <span style={{ gridColumn:"1 / -1",fontSize:10,color:C.txt2,padding:"0 2px" }}>{t("Credited")} {fechaAcreditacionIngresoEnMes(line, prefVista)}</span>
@@ -526,11 +527,11 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
                 return (
                   <div key={p.id} style={{ padding:"9px 12px",background:p.activa?C.sageLight:C.fondo,borderRadius:10,border:`1px solid ${p.activa?C.sage+"66":C.borde}`,transition:"all 0.2s" }}>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5 }}>
-                      <div style={{ flex:1 }}>
+                      <div style={{ flex:1,minWidth:0 }}>
                         <div style={{ fontSize:12,fontWeight:700,color:C.txt,display:"flex",alignItems:"center",gap:5 }}><span>{sub?.emoji}</span> {p.nombre}</div>
                         <div style={{ fontSize:10,color:C.txt2,marginTop:2 }}>{labelMes(p.mes)} · {fmt(displayAmount)}</div>
                       </div>
-                      <button onClick={()=>setModalPalanca(p)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:13,color:C.txt2,padding:"0 4px" }}>✏️</button>
+                      <ActionIconButton label={t("Edit lever")} icon="✎" tone="edit" size={28} onClick={()=>setModalPalanca(p)} />
                     </div>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
                       <div style={{ display:"flex",gap:5,flexWrap:"wrap",minWidth:0 }}>
@@ -1336,7 +1337,7 @@ function ModalCompromisoAnual({ compromiso, defaults = {}, onSave, onDelete, onC
           <h3 style={{ fontSize:18, fontWeight:800, color:C.txt }}>{compromiso ? "Editar compromiso" : "Nuevo compromiso anual"}</h3>
           <div style={{ fontSize:12, color:C.txt2, marginTop:3 }}>Reserva mensual, vencimiento y aviso previo.</div>
         </div>
-        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>x</button>
+        <button onClick={onClose} style={{ border:"none", background:C.fondo, borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:15, color:C.txt2 }}>✕</button>
       </div>
 
       <div style={{ display:"grid", gap:13 }}>
