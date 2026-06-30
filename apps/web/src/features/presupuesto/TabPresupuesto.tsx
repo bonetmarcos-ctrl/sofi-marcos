@@ -1339,7 +1339,9 @@ function PanelCompromisosAnuales({ compromisos = [], prefVista, año, onNuevo, o
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:isMobile?"stretch":"flex-end", flexWrap:"wrap" }}>
           <button onClick={onNuevo} style={{ background:C.brandSecondaryStrong, color:"white", border:"none", borderRadius:10, padding:"8px 13px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>+ Compromiso</button>
-          <button onClick={onClose} style={{ background:C.fondo, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", whiteSpace:"nowrap" }}>Ocultar</button>
+          <button onClick={onClose} style={{ background:C.fondo, color:C.txt2, border:`1px solid ${C.borde}`, borderRadius:10, padding:"8px 12px", fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"'Lato',sans-serif", display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
+            <i className="bi bi-chevron-up" aria-hidden="true" /> Ocultar
+          </button>
         </div>
       </div>
 
