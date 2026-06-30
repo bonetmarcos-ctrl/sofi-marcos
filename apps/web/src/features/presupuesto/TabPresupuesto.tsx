@@ -5,7 +5,7 @@ import { CATEGORIAS, SUBCAT_VAR, SUMINISTROS_TIPOS, COLOR_VIAJE, BG_VIAJE, categ
 import { C, cardN, inputS, labelS } from "../../constants/colores.ts";
 import { MESES } from "../../constants/meses.ts";
 import { fmt, labelMes } from "../../utils/format.ts";
-import { todayISO, addMeses, daysBetween } from "../../utils/dates.ts";
+import { todayISO, daysBetween } from "../../utils/dates.ts";
 import { useDatosMes, calcCuotaDeudaMes } from "../../hooks/useDatosMes.ts";
 import { useBreakpoint } from "../../hooks/useBreakpoint.ts";
 import { useI18n } from "../../i18n.tsx";
@@ -307,8 +307,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
 
   const threeColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(3,minmax(0,1fr))";
   const expenseLayerColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
-  const debtProjectionSummaryColumns = isMobile ? "1fr" : isTablet ? "repeat(2,minmax(0,1fr))" : "repeat(4,minmax(0,1fr))";
-  const debtProjectionColumns = `92px ${deudas.map(() => "minmax(76px,0.8fr)").join(" ")} 96px 108px 108px 92px`;
   const explorerColumns = isMobile ? "1fr" : "minmax(0,1.35fr) minmax(280px,0.65fr)";
   const explorerMonth = mesDetalle ?? mesVista;
   const expenseLayers = [
@@ -1049,117 +1047,6 @@ export default function TabPresupuesto({ base = BASE, setBase, eventos, bloqueos
           </div>
         </div>
       </div>
-
-      {/* ── PROYECCIÓN SIN DEUDAS ── */}
-      {(() => {
-        const hoy   = `${año}-${String(mesActual+1).padStart(2,"0")}`;
-        const meses = Array.from({length:30},(_,i)=>addMeses(hoy,i));
-        const presupuestoProyectado = (pref, cuotaDeudas) => {
-          const [year, month] = pref.split("-").map(Number);
-          const budgetMonth = year === año ? datosMes[month - 1] : null;
-
-          if (budgetMonth) {
-            const impactoDeuda = Number(budgetMonth.gasto_deudas || cuotaDeudas || 0);
-            const saldoConDeudas = Number(budgetMonth.saldo || 0);
-            return {
-              totalCuotas:impactoDeuda,
-              saldoConDeudas,
-              saldoSinDeudas:saldoConDeudas + impactoDeuda,
-            };
-          }
-
-          const monthlyOverride = base.monthlyOverrides?.[pref] || {};
-          const ingresos = Number(monthlyOverride.fixedIncome ?? base.ingresos_fijos ?? 0);
-          const gastosSinDeudas = Number(monthlyOverride.fixedExpenses ?? base.gastos_fijos ?? 0);
-          const totalCuotas = Number(cuotaDeudas || 0);
-          const saldoSinDeudas = ingresos - gastosSinDeudas;
-          return {
-            totalCuotas,
-            saldoConDeudas:saldoSinDeudas - totalCuotas,
-            saldoSinDeudas,
-          };
-        };
-        const filas = meses.map(pref=>{
-          const [ay,am]=pref.split("-").map(Number);
-          const detalleDeudas=deudas.map(d=>{
-            const [iy,im]=d.mes_inicio.split("-").map(Number);
-            const offset=(ay-iy)*12+(am-im);
-            const activa=offset>=d.cuota_actual&&offset<d.cuotas_totales;
-            const esUltima=offset===d.cuotas_totales-1;
-            const pendientes=Math.max(0,d.cuotas_totales-offset);
-            return{...d,activa,esUltima,pendientes,cuotaMes:activa?d.cuota+(d.interes_mensual||0):0};
-          });
-          const cuotaDeudas=calcCuotaDeudaMes(deudas, pref, base);
-          const proyeccion=presupuestoProyectado(pref, cuotaDeudas);
-          const liberaciones=detalleDeudas.filter(d=>d.esUltima);
-          return{pref,detalleDeudas,liberaciones,...proyeccion,mejora:proyeccion.saldoSinDeudas-proyeccion.saldoConDeudas};
-        });
-        const ultimoIndiceConCuotas=filas.reduce((ultimo,f,index)=>f.totalCuotas>0?index:ultimo,-1);
-        const debtFreeIndex=ultimoIndiceConCuotas<0?0:ultimoIndiceConCuotas<filas.length-1?ultimoIndiceConCuotas+1:-1;
-        const filasVisibles=deudas.length===0?filas.slice(0,1):debtFreeIndex>=0?filas.slice(0,Math.max(1,debtFreeIndex+1)):filas;
-        const saldoHoy=filas[0]?.saldoConDeudas||0;
-        const saldoSinDeudasHoy=filas[0]?.saldoSinDeudas||0;
-        const mejoraHoy=filas[0]?.mejora||0;
-        const mesSinDeudas=debtFreeIndex>=0?filas[debtFreeIndex]?.pref:null;
-        return(
-          <div style={{ ...cardN(isMobile ? { padding:"14px 12px" } : undefined),order:31,background:"linear-gradient(135deg,#0f2420,#1a3d30)",border:"none" }}>
-            <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:4 }}>🔮 {t("Monthly debt-free projection")}</div>
-            <div style={{ fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:16 }}>{t("Month-by-month payment release · impact on free balance")}</div>
-            <div style={{ display:"grid",gridTemplateColumns:debtProjectionSummaryColumns,gap:12,marginBottom:20 }}>
-              {[
-                {l:t("Free balance today"),       v:fmt(saldoHoy),            sub:t("with all payments active")},
-                {l:t("Free balance without debt"),v:fmt(saldoSinDeudasHoy),   sub:t("same month without debt payments")},
-                {l:t("Monthly improvement"),      v:fmt(mejoraHoy),           sub:t("debt payments removed")},
-                {l:t("Debt-free month"),          v:mesSinDeudas?labelMes(mesSinDeudas):`+${meses.length} ${t("months")}`, sub:t("based on current installments")},
-              ].map(x=>(
-                <div key={x.l} style={{ background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"14px 16px",textAlign:"center",border:"1px solid rgba(255,255,255,0.1)" }}>
-                  <div style={{ fontSize:10,color:"rgba(255,255,255,0.45)",textTransform:"uppercase",letterSpacing:"0.6px" }}>{x.l}</div>
-                  <div style={{ fontSize:20,fontWeight:700,color:C.exito,fontFamily:"'Playfair Display',serif",marginTop:6 }}>{x.v}</div>
-                  <div style={{ fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:3 }}>{x.sub}</div>
-                </div>
-              ))}
-            </div>
-            {deudas.length===0&&<div style={{ background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"12px 14px",color:"rgba(255,255,255,0.65)",fontSize:12,marginBottom:14 }}>{t("No debts registered")}</div>}
-            <div style={{ borderRadius:12,overflowX:"auto",overflowY:"hidden",border:"1px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ minWidth:isMobile?Math.max(820, 500 + deudas.length * 86):"auto" }}>
-              <div style={{ display:"grid",gridTemplateColumns:debtProjectionColumns,gap:0,background:"rgba(255,255,255,0.1)",padding:"8px 14px" }}>
-                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase" }}>{t("Month")}</div>
-                {deudas.map(d=><div key={d.id} style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",textAlign:"center" }}>{d.nombre}</div>)}
-                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",textAlign:"right" }}>{t("Payments")}</div>
-                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",textAlign:"right" }}>{t("With debt")}</div>
-                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",textAlign:"right" }}>{t("Without debt")}</div>
-                <div style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",textAlign:"right" }}>{t("Improvement")}</div>
-              </div>
-              <div style={{ maxHeight:isMobile?340:400,overflowY:"auto" }}>
-                {filasVisibles.map((f,fi)=>{
-                  const esHoy=fi===0;
-                  const hayLib=f.liberaciones.length>0;
-                  return(
-                    <div key={f.pref}>
-                      <div style={{ display:"grid",gridTemplateColumns:debtProjectionColumns,gap:0,padding:"9px 14px",background:hayLib?"rgba(117,223,144,0.12)":esHoy?"rgba(255,255,255,0.06)":fi%2===0?"rgba(255,255,255,0.02)":"transparent",borderTop:"1px solid rgba(255,255,255,0.05)",alignItems:"center" }}>
-                        <div style={{ fontSize:12,fontWeight:esHoy?700:400,color:esHoy?C.cyan:"rgba(255,255,255,0.7)" }}>{esHoy?"→ ":""}{monthName(+f.pref.split("-")[1]-1, "short")} {f.pref.split("-")[0]}</div>
-                        {f.detalleDeudas.map(d=>(
-                          <div key={d.id} style={{ textAlign:"center" }}>
-                            {d.esUltima?<span style={{ fontSize:11,fontWeight:700,color:C.exito }}>✓ {t("last")}</span>
-                              :d.activa?<div><div style={{ fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.8)" }}>{fmt(d.cuotaMes)}</div><div style={{ fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:1 }}>{d.pendientes-1} {t("pending")}</div></div>
-                              :<span style={{ fontSize:13,color:"rgba(255,255,255,0.2)" }}>—</span>}
-                          </div>
-                        ))}
-                        <div style={{ textAlign:"right",fontSize:12,fontWeight:700,color:f.totalCuotas>0?"#fbbf24":"rgba(255,255,255,0.3)" }}>{f.totalCuotas>0?fmt(f.totalCuotas):"—"}</div>
-                        <div style={{ textAlign:"right",fontSize:13,fontWeight:700,color:f.saldoConDeudas>0?C.exito:C.error,fontFamily:"'Playfair Display',serif" }}>{fmt(f.saldoConDeudas)}</div>
-                        <div style={{ textAlign:"right",fontSize:13,fontWeight:700,color:f.saldoSinDeudas>0?C.exito:C.error,fontFamily:"'Playfair Display',serif" }}>{fmt(f.saldoSinDeudas)}</div>
-                        <div style={{ textAlign:"right",fontSize:12,fontWeight:700,color:f.mejora>0?C.exito:"rgba(255,255,255,0.3)" }}>{f.mejora>0?`+${fmt(f.mejora)}`:"—"}</div>
-                      </div>
-                      {hayLib&&<div style={{ padding:"6px 14px",background:"rgba(117,223,144,0.15)",borderTop:"1px solid rgba(117,223,144,0.2)" }}><span style={{ fontSize:11,color:C.exito,fontWeight:700 }}>🎉 {f.liberaciones.map(d=>d.nombre).join(" + ")} - {t("final payment")} · {t("is released")} {fmt(f.liberaciones.reduce((a,d)=>a+d.cuota+(d.interes_mensual||0),0))}{t("/month")}</span></div>}
-                    </div>
-                  );
-                })}
-              </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {modalPalanca !== null && (
         <ModalPalanca
